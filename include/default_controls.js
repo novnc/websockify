@@ -60,6 +60,13 @@ load: function(target) {
     html += '    onfocus="DefaultControls.clipFocus();"';
     html += '    onblur="DefaultControls.clipBlur();"';
     html += '    onchange="DefaultControls.clipSend();"></textarea>';
+    html += '  <br>';
+    html += '   <input id="VNC_scale" type="text"';
+    html += '    onfocus="DefaultControls.clipFocus();"';
+    html += '    onblur="DefaultControls.clipBlur();"';
+    html += '        value="1">'
+    html += '   <input id="VNC_scale_button" type="button"';
+    html += '        value="Set scale">';
     html += '</div>';
     $(target).innerHTML = html;
 
@@ -93,10 +100,13 @@ sendCtrlAltDel: function() {
 },
 
 updateState: function(state, msg) {
-    var s, c, klass;
+    var s, c, z, klass;
     s = $('VNC_status');
     sb = $('VNC_status_bar');
     c = $('VNC_connect_button');
+    z = $('VNC_scale');
+    zb = $('VNC_scale_button');
+    
     cad = $('sendCtrlAltDelButton');
     switch (state) {
         case 'failed':
@@ -108,9 +118,12 @@ updateState: function(state, msg) {
         case 'normal':
             c.value = "Disconnect";
             c.onclick = DefaultControls.disconnect;
+            zb.onclick = DefaultControls.setScale;
             c.disabled = false;
             cad.disabled = false;
             klass = "VNC_status_normal";
+            alert($('VNC_canvas').width)
+            
             break;
         case 'disconnected':
         case 'loaded':
@@ -186,6 +199,12 @@ clipSend: function() {
     Util.Debug(">> DefaultControls.clipSend: " + text.substr(0,40) + "...");
     RFB.clipboardPasteFrom(text);
     Util.Debug("<< DefaultControls.clipSend");
+},
+
+
+setScale: function() {
+    var scaleFactor = parseFloat($('VNC_scale').value);
+    Canvas.rescale(scaleFactor);
 }
 
 };

@@ -10,44 +10,7 @@
 /*jslint white: false, nomen: false, browser: true, bitwise: false */
 /*global window, WebSocket, Util, Canvas, VNC_uri_prefix, Base64, DES */
 
-// Globals defined here
-var VNC_native_ws, RFB;
-
-/*
- * Load supporting scripts
- */
-function get_VNC_uri_prefix() {
-    return (typeof VNC_uri_prefix !== "undefined") ? VNC_uri_prefix : "include/";
-}
-
-(function () {
-    var extra = "", start, end;
-
-    start = "<script src='" + get_VNC_uri_prefix();
-    end = "'><\/script>";
-
-    // Uncomment to activate firebug lite
-    //extra += "<script src='http://getfirebug.com/releases/lite/1.2/" + 
-    //         "firebug-lite-compressed.js'><\/script>";
-
-    extra += start + "util.js" + end;
-    extra += start + "base64.js" + end;
-    extra += start + "des.js" + end;
-    extra += start + "canvas.js" + end;
-
-    /* If no builtin websockets then load web_socket.js */
-    if (window.WebSocket) {
-        VNC_native_ws = true;
-    } else {
-        VNC_native_ws = false;
-        WebSocket__swfLocation = get_VNC_uri_prefix() +
-                    "web-socket-js/WebSocketMain.swf";
-        extra += start + "web-socket-js/swfobject.js" + end;
-        extra += start + "web-socket-js/FABridge.js" + end;
-        extra += start + "web-socket-js/web_socket.js" + end;
-    }
-    document.write(extra);
-}());
+VNC_native_ws = (typeof(VNC_native_ws) != "undefined") ? VNC_native_ws : true;
 
 /*
  * RFB namespace
@@ -120,7 +83,6 @@ sendCtrlAltDel: function() {
 load: function () {
     var i;
     //Util.Debug(">> load");
-
     /* Load web-socket-js if no builtin WebSocket support */
     if (VNC_native_ws) {
         Util.Info("Using native WebSockets");

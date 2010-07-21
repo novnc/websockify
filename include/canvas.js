@@ -10,19 +10,8 @@
 /*jslint white: false, bitwise: false */
 /*global window, $, Util */
 
-var Canvas, Canvas_native;
 
-(function () {
-    var pre, start = "<script src='", end = "'><\/script>";
-    if (document.createElement('canvas').getContext) {
-        Canvas_native = true;
-    } else {
-        pre = (typeof VNC_uri_prefix !== "undefined") ?
-                            VNC_uri_prefix : "include/";
-        //document.write(start + pre + "excanvas.js" + end);
-        Canvas_native = false;
-    }
-}());
+Canvas_native = (typeof(Canvas_native) != "undefined") ? Canvas_native : true;
 
 // Everything namespaced inside Canvas
 Canvas = {
@@ -33,6 +22,7 @@ force_canvas : false,
 true_color : false,
 colourMap  : [],
 
+scale: 1,
 c_wx : 0,
 c_wy : 0,
 ctx  : null,
@@ -47,7 +37,7 @@ mouseMove   : null,
 onMouseButton: function(e, down) {
     var evt, pos, bmask;
     evt = (e ? e : window.event);
-    pos = Util.getEventPosition(e, $(Canvas.id));
+    pos = Util.getEventPosition(e, $(Canvas.id), Canvas.scale);
     bmask = 1 << evt.button;
     //Util.Debug('mouse ' + pos.x + "," + pos.y + " down: " + down + " bmask: " + bmask);
     if (Canvas.mouseButton) {
@@ -68,7 +58,7 @@ onMouseUp: function (e) {
 onMouseWheel: function (e) {
     var evt, pos, bmask, wheelData;
     evt = (e ? e : window.event);
-    pos = Util.getEventPosition(e, $(Canvas.id));
+    pos = Util.getEventPosition(e, $(Canvas.id), Canvas.scale);
     wheelData = evt.detail ? evt.detail * -1 : evt.wheelDelta / 40;
     if (wheelData > 0) {
         bmask = 1 << 3;
@@ -88,7 +78,7 @@ onMouseWheel: function (e) {
 onMouseMove: function (e) {
     var evt, pos;
     evt = (e ? e : window.event);
-    pos = Util.getEventPosition(e, $(Canvas.id));
+    pos = Util.getEventPosition(e, $(Canvas.id), Canvas.scale);
     //Util.Debug('mouse ' + evt.which + '/' + evt.button + ' up:' + pos.x + "," + pos.y);
     if (Canvas.mouseMove) {
         Canvas.mouseMove(pos.x, pos.y);
@@ -157,6 +147,8 @@ init: function (id) {
     Canvas.ctx = c.getContext('2d'); 
 
     Canvas.clear();
+
+    Canvas.rescale(0.5);
 
     /*
      * Determine browser Canvas feature support
@@ -248,6 +240,49 @@ resize: function (width, height, true_color) {
 
     Canvas.c_wx = c.offsetWidth;
     Canvas.c_wy = c.offsetHeight;
+
+    Canvas.rescale(Canvas.scale);
+},
+
+rescale: function (factor) {
+    var c, tp, x, y,
+        properties = ['transform', 'WebkitTransform', 'MozTransform', 'oTransform', null];
+        origin = ['transformOrigin', 'WebkitTransformOrigin', 'MozTransformOrigin', 'oTransformOrigin', null];
+        
+    c = $(Canvas.id);
+    
+    x = c.width - c.width * factor;
+    y = c.height - c.height * factor;
+    Canvas.scale = factor;
+    
+    if (c.style.zoom) {
+        c.style.zoom = Canvas.scale;
+        return
+    }
+    
+    while (tp = properties.shift()) {
+        if (typeof c.style[tp] != 'undefined') {
+            break;
+        }
+    }
+    
+    while (tpo = origin.shift()) {
+        if (typeof c.style[tpo] != 'undefined') {
+            break;
+        }
+    }
+
+    if (tp === null) {
+        Util.Debug("No scaling support");
+        return;
+    }
+
+    if (Canvas.scale === factor) {
+        Util.Debug("Canvas already scaled to '" + factor + "'");
+    }
+    
+    c.style[tpo] = "top left";
+    c.style[tp] = "scale(" + Canvas.scale + ")";
 },
 
 stop: function () {

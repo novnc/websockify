@@ -11,7 +11,7 @@
 /*global window, document, navigator, ActiveXObject*/
 
 // Globals defined here
-var Util = {}, $;
+Util = {};
 
 
 // Logging/debug routines
@@ -160,7 +160,7 @@ Util.getPosition = function (obj) {
 };
 
 // Get mouse event position in DOM element
-Util.getEventPosition = function (e, obj) {
+Util.getEventPosition = function (e, obj, scale) {
     var evt, docX, docY, pos;
     //if (!e) evt = window.event;
     evt = (e ? e : window.event);
@@ -174,7 +174,10 @@ Util.getEventPosition = function (e, obj) {
             document.documentElement.scrollTop;
     }
     pos = Util.getPosition(obj);
-    return {'x': docX - pos.x, 'y': docY - pos.y};
+    if (typeof scale === "undefined") {
+        scale = 1;
+    }
+    return {'x': (docX - pos.x) / scale, 'y': (docY - pos.y) / scale};
 };
 
 
