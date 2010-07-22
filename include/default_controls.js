@@ -6,7 +6,7 @@
  * See README.md for usage and integration instructions.
  */
 "use strict";
-/*global $, RFB, Canvas, VNC_uri_prefix, Element, Fx */
+/*global $, Util, RFB, Canvas, VNC_uri_prefix, Element, Fx */
 
 var DefaultControls = {
 
@@ -14,8 +14,7 @@ settingsOpen : false,
 
 // Render default controls and initialize settings menu
 load: function(target) {
-    var url, html, encrypt, cursor, base64, i, sheet, sheets,
-        DC = DefaultControls;
+    var html, i, DC = DefaultControls, sheet, sheets, llevels;
 
     /* Handle state updates */
     RFB.setUpdateState(DC.updateState);
@@ -101,18 +100,11 @@ load: function(target) {
     html += '    onfocus="DefaultControls.canvasBlur();"';
     html += '    onblur="DefaultControls.canvasFocus();"';
     html += '    onchange="DefaultControls.clipSend();"></textarea>';
-    html += '  <br>';
-    html += '   <input id="VNC_scale" type="text"';
-    html += '    onfocus="DefaultControls.clipFocus();"';
-    html += '    onblur="DefaultControls.clipBlur();"';
-    html += '        value="1">'
-    html += '   <input id="VNC_scale_button" type="button"';
-    html += '        value="Set scale">';
     html += '</div>';
     $(target).innerHTML = html;
 
     // Settings with immediate effects
-    DC.initSetting('logging', 'default');
+    DC.initSetting('logging', 'warn');
     Util.init_logging(DC.getSetting('logging'));
     DC.initSetting('stylesheet', 'default');
     Util.selectStylesheet(DC.getSetting('stylesheet'));
@@ -132,12 +124,6 @@ load: function(target) {
                 $('VNC_clipboard_text').blur();
             }
         };
-},
-
-// Read a query string variable
-getQueryVar: function(name) {
-    var re = new RegExp('[\?].*' + name + '=([^\&\#]*)');
-    return (document.location.href.match(re) || ['',null])[1];
 },
 
 // Read form control compatible setting from cookie
@@ -196,14 +182,14 @@ saveSetting: function(name) {
 
 // Initial page load read/initialization of settings
 initSetting: function(name, defVal) {
-    var val, ctrl = $('VNC_' + name), DC = DefaultControls;
+    var val;
 
     // Check Query string followed by cookie
-    val = DC.getQueryVar(name);
+    val = Util.getQueryVar(name);
     if (val === null) {
         val = Util.readCookie(name, defVal);
     }
-    DC.updateSetting(name, val);
+    DefaultControls.updateSetting(name, val);
     Util.Debug("Setting '" + name + "' initialized to '" + val + "'");
     return val;
 },
@@ -214,7 +200,7 @@ initSetting: function(name, defVal) {
 //   On close, settings are applied
 clickSettingsMenu: function() {
     var DC = DefaultControls;
-    if (DefaultControls.settingsOpen) {
+    if (DC.settingsOpen) {
         DC.settingsApply();
 
         DC.closeSettingsMenu();
@@ -225,7 +211,7 @@ clickSettingsMenu: function() {
         if (Canvas.isCursor()) {
             DC.updateSetting('cursor');
         } else {
-            DC.updateSettings('cursor', false);
+            DC.updateSetting('cursor', false);
             $('VNC_cursor').disabled = true;
         }
         DC.updateSetting('stylesheet');
@@ -255,7 +241,7 @@ settingsDisabled: function(disabled) {
     if (Canvas.isCursor()) {
         $('VNC_cursor').disabled = disabled;
     } else {
-        DefaultControls.updateSettings('cursor', false);
+        DefaultControls.updateSetting('cursor', false);
         $('VNC_cursor').disabled = true;
     }
 },
@@ -263,7 +249,7 @@ settingsDisabled: function(disabled) {
 // Save/apply settings when 'Apply' button is pressed
 settingsApply: function() {
     Util.Debug(">> settingsApply");
-    var curSS, newSS, DC = DefaultControls;
+    var DC = DefaultControls;
     DC.saveSetting('encrypt');
     DC.saveSetting('base64');
     DC.saveSetting('true_color');
@@ -283,7 +269,6 @@ settingsApply: function() {
 
 
 setPassword: function() {
-    console.log("setPassword");
     RFB.sendPassword($('VNC_password').value);
     return false;
 },
@@ -293,13 +278,10 @@ sendCtrlAltDel: function() {
 },
 
 updateState: function(state, msg) {
-    var s, c, z, klass;
+    var s, sb, c, cad, klass;
     s = $('VNC_status');
     sb = $('VNC_status_bar');
     c = $('VNC_connect_button');
-    z = $('VNC_scale');
-    zb = $('VNC_scale_button');
-    
     cad = $('sendCtrlAltDelButton');
     switch (state) {
         case 'failed':
@@ -312,12 +294,10 @@ updateState: function(state, msg) {
         case 'normal':
             c.value = "Disconnect";
             c.onclick = DefaultControls.disconnect;
-            zb.onclick = DefaultControls.setScale;
             c.disabled = false;
             cad.disabled = false;
             DefaultControls.settingsDisabled(true);
             klass = "VNC_status_normal";
-            
             break;
         case 'disconnected':
         case 'loaded':
@@ -404,12 +384,6 @@ clipSend: function() {
     Util.Debug(">> DefaultControls.clipSend: " + text.substr(0,40) + "...");
     RFB.clipboardPasteFrom(text);
     Util.Debug("<< DefaultControls.clipSend");
-},
-
-
-setScale: function() {
-    var scaleFactor = parseFloat($('VNC_scale').value);
-    Canvas.rescale(scaleFactor);
 }
 
 };
