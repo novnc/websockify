@@ -10,13 +10,47 @@
 /*jslint white: false, nomen: false, browser: true, bitwise: false */
 /*global window, WebSocket, Util, Canvas, VNC_uri_prefix, Base64, DES */
 
-VNC_native_ws = (typeof(VNC_native_ws) != "undefined") ? VNC_native_ws : true;
+VNC_native_ws = true;
 
 /*
  * RFB namespace
  */
 
 RFB = {
+
+get_VNC_uri_prefix: function () {
+    return (typeof VNC_uri_prefix !== "undefined") ? VNC_uri_prefix : "include/";
+},
+
+loadExtras: function () {
+    var extra = "", start, end;
+
+    start = "<script src='" + RFB.get_VNC_uri_prefix();
+    end = "'><\/script>";
+
+    // Uncomment to activate firebug lite
+    //extra += "<script src='http://getfirebug.com/releases/lite/1.2/" + 
+    //         "firebug-lite-compressed.js'><\/script>";
+
+    extra += start + "util.js" + end;
+    extra += start + "base64.js" + end;
+    extra += start + "des.js" + end;
+    extra += start + "canvas.js" + end;
+
+    /* If no builtin websockets then load web_socket.js */
+    if (window.WebSocket) {
+        VNC_native_ws = true;
+    } else {
+        VNC_native_ws = false;
+        WebSocket__swfLocation = get_VNC_uri_prefix() +
+                    "web-socket-js/WebSocketMain.swf";
+        extra += start + "web-socket-js/swfobject.js" + end;
+        extra += start + "web-socket-js/FABridge.js" + end;
+        extra += start + "web-socket-js/web_socket.js" + end;
+    }
+    document.write(extra);
+},
+    
 
 /* 
  * External interface variables and methods
@@ -328,6 +362,7 @@ init_msg: function () {
         }
         RFB.updateState('Authentication',
                 "Authenticating using scheme: " + RFB.auth_scheme);
+        break;
         // Fall through
 
     case 'Authentication' :
@@ -533,7 +568,7 @@ normal_msg: function () {
 framebufferUpdate: function() {
     var RQ = RFB.RQ, FBU = RFB.FBU, timing = RFB.timing,
         now, fbu_rt_diff, last_bytes, last_rects,
-        ret = true, msg;
+        ret = true;
 
     if (FBU.rects === 0) {
         //Util.Debug("New FBU: RQ.slice(0,20): " + RQ.slice(0,20));
@@ -1112,7 +1147,7 @@ encode_message: function(arr) {
 },
 
 decode_message: function(data) {
-    var raw, i, length, RQ = RFB.RQ;
+    var i, length, RQ = RFB.RQ;
     //Util.Debug(">> decode_message: " + data);
     if (RFB.b64encode) {
         /* base64 decode */

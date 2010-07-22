@@ -122,7 +122,6 @@ updateState: function(state, msg) {
             c.disabled = false;
             cad.disabled = false;
             klass = "VNC_status_normal";
-            alert($('VNC_canvas').width)
             
             break;
         case 'disconnected':

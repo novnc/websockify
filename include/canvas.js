@@ -10,8 +10,8 @@
 /*jslint white: false, bitwise: false */
 /*global window, $, Util */
 
+Canvas_native = true;
 
-Canvas_native = (typeof(Canvas_native) != "undefined") ? Canvas_native : true;
 
 // Everything namespaced inside Canvas
 Canvas = {
@@ -33,6 +33,19 @@ focused     : true,
 keyPress    : null,
 mouseButton : null,
 mouseMove   : null,
+
+
+loadExtra : function () {
+    var pre, start = "<script src='", end = "'><\/script>";
+    if (document.createElement('canvas').getContext) {
+        Canvas_native = true;
+    } else {
+        pre = (typeof VNC_uri_prefix !== "undefined") ?
+                            VNC_uri_prefix : "include/";
+        //document.write(start + pre + "excanvas.js" + end);
+        Canvas_native = false;
+    }
+},
 
 onMouseButton: function(e, down) {
     var evt, pos, bmask;
@@ -148,8 +161,6 @@ init: function (id) {
 
     Canvas.clear();
 
-    Canvas.rescale(0.5);
-
     /*
      * Determine browser Canvas feature support
      * and select fastest rendering methods
@@ -255,7 +266,7 @@ rescale: function (factor) {
     y = c.height - c.height * factor;
     Canvas.scale = factor;
     
-    if (c.style.zoom) {
+    if (typeof(c.style.zoom) != "undefined") {
         c.style.zoom = Canvas.scale;
         return
     }
