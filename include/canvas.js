@@ -35,19 +35,6 @@ keyPress    : null,
 mouseButton : null,
 mouseMove   : null,
 
-
-loadExtra : function () {
-    var pre, start = "<script src='", end = "'><\/script>";
-    if (document.createElement('canvas').getContext) {
-        Canvas_native = true;
-    } else {
-        pre = (typeof VNC_uri_prefix !== "undefined") ?
-                            VNC_uri_prefix : "include/";
-        //document.write(start + pre + "excanvas.js" + end);
-        Canvas_native = false;
-    }
-},
-
 onMouseButton: function(e, down) {
     var evt, pos, bmask;
     if (! Canvas.focused) {

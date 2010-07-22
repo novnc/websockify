@@ -51,5 +51,4 @@ loadExtras: function () {
     }
     document.write(extra);
 },
-    
 
