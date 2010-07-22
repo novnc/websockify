@@ -241,7 +241,10 @@ clear: function () {
 
 resize: function (width, height, true_color) {
     var c = $(Canvas.id);
-
+    
+    if (!c)
+        return
+        
     if (typeof true_color !== "undefined") {
         Canvas.true_color = true_color;
     }
@@ -261,6 +264,9 @@ rescale: function (factor) {
         origin = ['transformOrigin', 'WebkitTransformOrigin', 'MozTransformOrigin', 'oTransformOrigin', null];
         
     c = $(Canvas.id);
+    
+    if (!c)
+        return
     
     x = c.width - c.width * factor;
     y = c.height - c.height * factor;
@@ -298,6 +304,10 @@ rescale: function (factor) {
 
 stop: function () {
     var c = $(Canvas.id);
+    
+    if (!c)
+        return
+    
     Util.removeEvent(document, 'keydown', Canvas.onKeyDown);
     Util.removeEvent(document, 'keyup', Canvas.onKeyUp);
     Util.removeEvent(c, 'mousedown', Canvas.onMouseDown);
