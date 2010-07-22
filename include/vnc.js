@@ -58,11 +58,11 @@ loadExtras: function () {
 host           : '',
 port           : 5900,
 password       : '',
+
 encrypt        : true,
 true_color     : false,
-
 b64encode      : true,  // false means UTF-8 on the wire
-//b64encode      : false,  // false means UTF-8 on the wire
+local_cursor   : true,
 connectTimeout : 2000,  // time to wait for connection
 
 
@@ -74,6 +74,7 @@ encodings      : [
     ['RRE',              0x02, 'display_rre'],
     ['RAW',              0x00, 'display_raw'],
     ['DesktopSize',      -223, 'set_desktopsize'],
+    ['Cursor',           -239, 'set_cursor'],
 
     // Psuedo-encoding settings
     ['JPEG_quality_lo',   -32, 'set_jpeg_quality'],
@@ -81,6 +82,7 @@ encodings      : [
     ['compress_lo',      -255, 'set_compress_level']
 //    ['compress_hi',      -247, 'set_compress_level']
     ],
+
 
 setUpdateState: function(externalUpdateState) {
     RFB.externalUpdateState = externalUpdateState;
@@ -92,6 +94,43 @@ setClipboardReceive: function(clipReceive) {
 
 setCanvasID: function(canvasID) {
     RFB.canvasID = canvasID;
+},
+
+setEncrypt: function(encrypt) {
+    if ((!encrypt) || (encrypt in {'0':1, 'no':1, 'false':1})) {
+        RFB.encrypt = false;
+    } else {
+        RFB.encrypt = true;
+    }
+},
+
+setBase64: function(b64) {
+    if ((!b64) || (b64 in {'0':1, 'no':1, 'false':1})) {
+        RFB.b64encode = false;
+    } else {
+        RFB.b64encode = true;
+    }
+    Util.Debug("Set b64encode to: " + RFB.b64encode);
+},
+
+setTrueColor: function(trueColor) {
+    if ((!trueColor) || (trueColor in {'0':1, 'no':1, 'false':1})) {
+        RFB.true_color = false;
+    } else {
+        RFB.true_color = true;
+    }
+},
+
+setCursor: function(cursor) {
+    if ((!cursor) || (cursor in {'0':1, 'no':1, 'false':1})) {
+        RFB.local_cursor = false;
+    } else {
+        if (Canvas.isCursor()) {
+            RFB.local_cursor = true;
+        } else {
+            Util.Warn("Browser does not support local cursor");
+        }
+    }
 },
 
 sendPassword: function(passwd) {
@@ -151,24 +190,12 @@ load: function () {
     //Util.Debug("<< load");
 },
 
-connect: function (host, port, password, encrypt, true_color) {
+connect: function (host, port, password) {
     //Util.Debug(">> connect");
 
     RFB.host       = host;
     RFB.port       = port;
     RFB.password   = (password !== undefined)   ? password : "";
-    RFB.encrypt    = (encrypt !== undefined)    ? encrypt : true;
-    if ((RFB.encrypt === "0") || 
-        (RFB.encrypt === "no") || 
-        (RFB.encrypt === "false")) { 
-        RFB.encrypt = false; 
-    }
-    RFB.true_color = (true_color !== undefined) ? true_color: true;
-    if ((RFB.true_color === "0") || 
-        (RFB.true_color === "no") || 
-        (RFB.true_color === "false")) { 
-        RFB.true_color = false; 
-    }
 
     if ((!RFB.host) || (!RFB.port)) {
         RFB.updateState('failed', "Must set host and port");
@@ -486,7 +513,11 @@ init_msg: function () {
         RFB.timing.history_start = (new Date()).getTime();
         setTimeout(RFB.update_timings, 1000);
 
-        RFB.updateState('normal', "Connected to: " + RFB.fb_name);
+        if (RFB.encrypt) {
+            RFB.updateState('normal', "Connected (encrypted) to: " + RFB.fb_name);
+        } else {
+            RFB.updateState('normal', "Connected (unencrypted) to: " + RFB.fb_name);
+        }
         break;
     }
     //Util.Debug("<< init_msg");
@@ -1010,10 +1041,40 @@ set_desktopsize : function () {
     RFB.timing.fbu_rt_start = (new Date()).getTime();
     // Send a new non-incremental request
     RFB.send_array(RFB.fbUpdateRequest(0));
-    Util.Debug("<< set_desktopsize");
 
     RFB.FBU.bytes = 0;
     RFB.FBU.rects -= 1;
+
+    Util.Debug("<< set_desktopsize");
+},
+
+set_cursor: function () {
+    var x, y, w, h, pixelslength, masklength;
+    //Util.Debug(">> set_cursor");
+    x = RFB.FBU.x;  // hotspot-x
+    y = RFB.FBU.y;  // hotspot-y
+    w = RFB.FBU.width;
+    h = RFB.FBU.height;
+
+    pixelslength = w * h * RFB.fb_Bpp;
+    masklength = Math.floor((w + 7) / 8) * h;
+
+    if (RFB.RQ.length < (pixelslength + masklength)) {
+        //Util.Debug("waiting for cursor encoding bytes");
+        RFB.FBU.bytes = pixelslength + masklength;
+        return false;
+    }
+
+    //Util.Debug("   set_cursor, x: " + x + ", y: " + y + ", w: " + w + ", h: " + h);
+
+    Canvas.changeCursor(RFB.RQ.shiftBytes(pixelslength),
+                        RFB.RQ.shiftBytes(masklength),
+                        x, y, w, h);
+
+    RFB.FBU.bytes = 0;
+    RFB.FBU.rects -= 1;
+
+    //Util.Debug("<< set_cursor");
 },
 
 set_jpeg_quality : function () {
@@ -1059,14 +1120,24 @@ fixColourMapEntries: function () {
 
 clientEncodings: function () {
     //Util.Debug(">> clientEncodings");
-    var arr, i;
+    var arr, i, encList = [];
+
+    for (i=0; i<RFB.encodings.length; i += 1) {
+        if ((RFB.encodings[i][0] === "Cursor") &&
+            (! RFB.local_cursor)) {
+            Util.Debug("Skipping Cursor pseudo-encoding");
+        } else {
+            //Util.Debug("Adding encoding: " + RFB.encodings[i][0]);
+            encList.push(RFB.encodings[i][1]);
+        }
+    }
+
     arr = [2];     // msg-type
     arr.push8(0);  // padding
 
-    arr.push16(RFB.encodings.length); // encoding count
-
-    for (i=0; i<RFB.encodings.length; i += 1) {
-        arr.push32(RFB.encodings[i][1]);
+    arr.push16(encList.length); // encoding count
+    for (i=0; i < encList.length; i += 1) {
+        arr.push32(encList[i]);
     }
     //Util.Debug("<< clientEncodings: " + arr);
     return arr;
@@ -1533,6 +1604,8 @@ init_ws: function () {
         Util.Debug(">> WebSocket.onclose");
         if (RFB.state === 'normal') {
             RFB.updateState('failed', 'Server disconnected');
+        } else if (RFB.state === 'ProtocolVersion') {
+            RFB.updateState('failed', 'Failed to connect to server');
         } else  {
             RFB.updateState('disconnected', 'VNC disconnected');
         }
