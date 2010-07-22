@@ -11,7 +11,7 @@
 /*global window, WebSocket, Util, Canvas, VNC_native_ws, Base64, DES */
 
 // Globals defined here
-var RFB;
+// var RFB;
 
 /*
  * RFB namespace
@@ -31,7 +31,7 @@ true_color     : false,
 b64encode      : true,  // false means UTF-8 on the wire
 local_cursor   : true,
 connectTimeout : 2000,  // time to wait for connection
-
+stateinvalid   : false,
 
 // In preference order
 encodings      : [
@@ -274,7 +274,8 @@ mouse_arr        : [],
 /* RFB/VNC initialisation */
 init_msg: function () {
     //Util.Debug(">> init_msg [RFB.state '" + RFB.state + "']");
-
+    if (RFB.stateinvalid)
+        return;
     var RQ = RFB.RQ, strlen, reason, reason_len, sversion, cversion,
         i, types, num_types, challenge, response, bpp, depth,
         big_endian, true_color, name_length;
@@ -989,6 +990,8 @@ extract_data_uri : function (arr) {
 
 scan_tight_imgs : function () {
     var img, imgs;
+    if (RFB.stateinvalid)
+        return;
     if (RFB.state === 'normal') {
         imgs = RFB.FBU.imgs;
         while ((imgs.length > 0) && (imgs[0][0].complete)) {
@@ -1305,6 +1308,8 @@ flushClient: function () {
 
 checkEvents: function () {
     var now;
+    if (RFB.stateinvalid)
+        return;
     if (RFB.state === 'normal') {
         if (! RFB.flushClient()) {
             now = new Date().getTime();
@@ -1344,7 +1349,7 @@ clipboardCopyTo: function (text) {
     // Stub
 },
 
-externalUpdateState: function(state, msg) {
+externalUpdateState: function(state, oldstate, msg) {
     Util.Debug(">> externalUpdateState stub");
     // Stub
 },
@@ -1463,7 +1468,11 @@ updateState: function(state, statusMsg) {
             RFB.ws.close();
         }
         // Make sure we transition to disconnected
-        setTimeout(function() { RFB.updateState('disconnected'); }, 50);
+        setTimeout(function() { 
+            if (RFB.stateinvalid)
+                return;
+            RFB.updateState('disconnected');
+        }, 50);
 
         break;
 
@@ -1475,14 +1484,16 @@ updateState: function(state, statusMsg) {
 
     if ((oldstate === 'failed') && (state === 'disconnected')) {
         // Leave the failed message
-        RFB.externalUpdateState(state);
+        RFB.externalUpdateState(state, oldstate);
     } else {
-        RFB.externalUpdateState(state, statusMsg);
+        RFB.externalUpdateState(state, oldstate, statusMsg);
     }
 },
 
 update_timings: function() {
     var now, timing = RFB.timing, offset;
+    if (RFB.stateinvalid)
+        return;
     now = (new Date()).getTime();
     timing.history.push([now,
             timing.h_fbus,
@@ -1585,10 +1596,12 @@ init_ws: function () {
     };
 
     setTimeout(function () {
-            if (RFB.ws.readyState === WebSocket.CONNECTING) {
-                RFB.updateState('failed', "Connect timeout");
-            }
-        }, RFB.connectTimeout);
+        if (RFB.stateinvalid)
+            return;
+        if (RFB.ws.readyState === WebSocket.CONNECTING) {
+            RFB.updateState('failed', "Connect timeout");
+        }
+    }, RFB.connectTimeout);
 
     //Util.Debug("<< init_ws");
 },
@@ -1613,6 +1626,13 @@ init_vars: function () {
     RFB.timing.h_rects = 0;
     RFB.timing.h_bytes = 0;
     RFB.timing.h_pixels = 0;
+    RFB.stateinvalid = false;
+},
+
+invalidateAllTimers: function(){
+    RFB.stateinvalid = true;
+    if (RFB.sendID)
+        clearInterval(RFB.sendID);
 }
 
 }; /* End of RFB */
