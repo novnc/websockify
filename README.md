@@ -17,6 +17,10 @@ encryption, i.e. the "wss://" URI scheme.
 Special thanks to [Sentry Data Systems](http://www.sentryds.com) for
 sponsoring ongoing development of this project (and for employing me).
 
+Notable commits, announcements and news are posted to
+@<a href="http://www.twitter.com/noVNC">noVNC</a>
+
+
 ### Screenshots
 
 Running in Chrome before and after connecting:
@@ -209,7 +213,7 @@ See `vnc.html` and `vnc_auto.html` for examples. The file
 
 The `vnc.js` also includes other scripts within the `include`
 sub-directory. The `VNC_uri_prefix` variable can be use override the
-URL path to the directory that contains the `include` sub-directory.
+URL path to the `include` sub-directory.
 
 
 ### Troubleshooting
@@ -227,6 +231,9 @@ tab. With firefox+firebug, it can be activated using Ctrl+F12.
 
 Now reproduce the problem. The console log output will give more
 information about what is going wrong and where in the code the
-problem is located. If you file a issue/bug, it can be very helpful to
-copy the last page of console output leading up the problem into the
-issue report.
+problem is located.
+
+If you file a issue/bug, it is very helpful for me to have the last
+page of console output leading up the problem in the issue report.
+Other helpful issue/bug information: browser version, OS version,
+noVNC git version, and VNC server name/version.

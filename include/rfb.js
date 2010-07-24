@@ -510,7 +510,7 @@ normal_msg: function () {
     }
     switch (msg_type) {
     case 0:  // FramebufferUpdate
-        ret = RFB.framebufferUpdate();
+        ret = RFB.framebufferUpdate(); // false means need more data
         break;
     case 1:  // SetColourMapEntries
         Util.Debug("SetColourMapEntries");
@@ -588,7 +588,13 @@ framebufferUpdate: function() {
         }
     }
 
-    while ((FBU.rects > 0) && (RQ.length >= FBU.bytes)) {
+    while (FBU.rects > 0) {
+        if (RFB.state !== "normal") {
+            return false;
+        }
+        if (RQ.length < FBU.bytes) {
+            return false;
+        }
         if (FBU.bytes === 0) {
             if (RQ.length < 12) {
                 //Util.Debug("   waiting for rect header bytes");
@@ -625,6 +631,7 @@ framebufferUpdate: function() {
         last_bytes = RQ.length;
         last_rects = FBU.rects;
 
+        // false ret means need more data
         ret = RFB.encHandlers[FBU.encoding]();
 
         now = (new Date()).getTime();
@@ -663,8 +670,6 @@ framebufferUpdate: function() {
                 timing.fbu_rt_start = 0;
             }
         }
-
-        if (RFB.state !== "normal") { return true; }
     }
     return ret;
 },
@@ -685,7 +690,7 @@ display_raw: function () {
     if (RQ.length < FBU.bytes) {
         //Util.Debug("   waiting for " +
         //           (FBU.bytes - RQ.length) + " RAW bytes");
-        return;
+        return false;
     }
     cur_y = FBU.y + (FBU.height - FBU.lines);
     cur_height = Math.min(FBU.lines,
@@ -700,6 +705,7 @@ display_raw: function () {
         FBU.rects -= 1;
         FBU.bytes = 0;
     }
+    return true;
 },
 
 display_copy_rect: function () {
@@ -710,13 +716,14 @@ display_copy_rect: function () {
     if (RQ.length < 4) {
         //Util.Debug("   waiting for " +
         //           (FBU.bytes - RQ.length) + " COPYRECT bytes");
-        return;
+        return false;
     }
     old_x = RQ.shift16();
     old_y = RQ.shift16();
     Canvas.copyImage(old_x, old_y, FBU.x, FBU.y, FBU.width, FBU.height);
     FBU.rects -= 1;
     FBU.bytes = 0;
+    return true;
 },
 
 display_rre: function () {
@@ -726,7 +733,7 @@ display_rre: function () {
         if (RQ.length < 4 + RFB.fb_Bpp) {
             //Util.Debug("   waiting for " +
             //           (4 + RFB.fb_Bpp - RQ.length) + " RRE bytes");
-            return;
+            return false;
         }
         FBU.subrects = RQ.shift32();
         color = RQ.shiftBytes(RFB.fb_Bpp); // Background
@@ -752,6 +759,7 @@ display_rre: function () {
         FBU.bytes = 0;
     }
     //Util.Debug("<< display_rre, FBU.bytes: " + FBU.bytes);
+    return true;
 },
 
 display_hextile: function() {
@@ -772,14 +780,14 @@ display_hextile: function() {
         FBU.bytes = 1;
         if (RQ.length < FBU.bytes) {
             //Util.Debug("   waiting for HEXTILE subencoding byte");
-            return;
+            return false;
         }
         subencoding = RQ[0];  // Peek
         if (subencoding > 30) { // Raw
             RFB.updateState('failed',
                     "Disconnected: illegal hextile subencoding " + subencoding);
             //Util.Debug("RQ.slice(0,30):" + RQ.slice(0,30));
-            return;
+            return false;
         }
         subrects = 0;
         cur_tile = FBU.total_tiles - FBU.tiles;
@@ -806,7 +814,7 @@ display_hextile: function() {
                 if (RQ.length < FBU.bytes) {
                     /* Wait for subrects byte */
                     //Util.Debug("   waiting for hextile subrects header byte");
-                    return;
+                    return false;
                 }
                 subrects = RQ[FBU.bytes-1]; // Peek
                 if (subencoding & 0x10) { // SubrectsColoured
@@ -828,7 +836,7 @@ display_hextile: function() {
         if (RQ.length < FBU.bytes) {
             //Util.Debug("   waiting for " +
             //           (FBU.bytes - RQ.length) + " hextile bytes");
-            return;
+            return false;
         }
 
         /* We know the encoding and have a whole tile */
@@ -890,6 +898,7 @@ display_hextile: function() {
     }
 
     //Util.Debug("<< display_hextile");
+    return true;
 },
 
 
@@ -905,7 +914,7 @@ display_tight_png: function() {
     FBU.bytes = 1; // compression-control byte
     if (RQ.length < FBU.bytes) {
         Util.Debug("   waiting for TIGHT compression-control byte");
-        return;
+        return false;
     }
 
     // Get 'compact length' header and data size
@@ -939,7 +948,7 @@ display_tight_png: function() {
 
     if (RQ.length < FBU.bytes) {
         Util.Debug("   waiting for TIGHT " + cmode + " bytes");
-        return;
+        return false;
     }
 
     //Util.Debug("   RQ.slice(0,20): " + RFB.RQ.slice(0,20) + " (" + RFB.RQ.length + ")");
@@ -958,7 +967,7 @@ display_tight_png: function() {
         FBU.bytes = 1 + clength[0] + clength[1]; // ctl + clength size + jpeg-data
         if (RQ.length < FBU.bytes) {
             Util.Debug("   waiting for TIGHT " + cmode + " bytes");
-            return;
+            return false;
         }
 
         // We have everything, render it
@@ -977,6 +986,7 @@ display_tight_png: function() {
     //Util.Debug("   ending RQ.length: " + RQ.length);
     //Util.Debug("   ending RQ.slice(0,20): " + RQ.slice(0,20));
     //Util.Debug("<< display_tight_png");
+    return true;
 },
 
 extract_data_uri : function (arr) {
@@ -1016,6 +1026,7 @@ set_desktopsize : function () {
     RFB.FBU.rects -= 1;
 
     Util.Debug("<< set_desktopsize");
+    return true;
 },
 
 set_cursor: function () {
@@ -1045,6 +1056,7 @@ set_cursor: function () {
     RFB.FBU.rects -= 1;
 
     //Util.Debug("<< set_cursor");
+    return true;
 },
 
 set_jpeg_quality : function () {
@@ -1241,16 +1253,15 @@ handle_message: function () {
         RFB.disconnect();
         break;
     case 'normal':
-        RFB.normal_msg();
-        /*
-        while (RFB.RQ.length > 0) {
-            if (RFB.normal_msg() && RFB.state === 'normal') {
-                Util.Debug("More to process");
+        while ((RFB.state === 'normal') && (RFB.RQ.length > 0)) {
+            if (RFB.normal_msg()) {
+                // true means we can continue processing
+                Util.Debug("More data to process");
             } else {
+                // false means we need more data
                 break;
             }
         }
-        */
         break;
     default:
         RFB.init_msg();
