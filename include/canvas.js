@@ -11,7 +11,7 @@
 /*global window, $, Util, Base64 */
 
 // Globals defined here
-var Canvas;
+// var Canvas;
 
 // Everything namespaced inside Canvas
 Canvas = {
@@ -27,6 +27,8 @@ scale: 1,
 c_wx : 0,
 c_wy : 0,
 ctx  : null,
+defaut_canvas_w: 800,
+defaut_canvas_h: 490,
 
 prevStyle: "",
 
@@ -239,15 +241,12 @@ start: function (keyPress, mouseButton, mouseMove) {
 },
 
 clear: function () {
-    Canvas.resize(640, 20);
+    Canvas.resize(RFB.defaut_canvas_w, RFB.defaut_canvas_h);
     Canvas.ctx.clearRect(0, 0, Canvas.c_wx, Canvas.c_wy);
 },
 
 resize: function (width, height, true_color) {
     var c = $(Canvas.id);
-    
-    if (!c)
-        return
         
     if (typeof true_color !== "undefined") {
         Canvas.true_color = true_color;
@@ -267,11 +266,7 @@ rescale: function (factor) {
         properties = ['transform', 'WebkitTransform', 'MozTransform', 'oTransform', null];
         origin = ['transformOrigin', 'WebkitTransformOrigin', 'MozTransformOrigin', 'oTransformOrigin', null];
         
-    c = $(Canvas.id);
-    
-    if (!c)
-        return
-    
+    c = $(Canvas.id);    
     x = c.width - c.width * factor;
     y = c.height - c.height * factor;
     Canvas.scale = factor;
@@ -308,9 +303,6 @@ rescale: function (factor) {
 
 stop: function () {
     var c = $(Canvas.id);
-    
-    if (!c)
-        return
     
     Util.removeEvent(document, 'keydown', Canvas.onKeyDown);
     Util.removeEvent(document, 'keyup', Canvas.onKeyUp);

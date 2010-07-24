@@ -1419,9 +1419,7 @@ updateState: function(state, statusMsg) {
 
         if (Canvas.ctx) {
             Canvas.stop();
-            if (! /__debug__$/i.test(document.location.href)) {
-                Canvas.clear();
-            }
+            Canvas.clear();
         }
 
         RFB.show_timings();
@@ -1468,12 +1466,11 @@ updateState: function(state, statusMsg) {
             RFB.ws.close();
         }
         // Make sure we transition to disconnected
-        setTimeout(function() { 
-            if (RFB.stateinvalid)
-                return;
+        setTimeout(function() {
+            // here we do not invalidate the timer, or we can be stuck in 'normal' mode
             RFB.updateState('disconnected');
         }, 50);
-
+        
         break;
 
 
@@ -1551,13 +1548,13 @@ show_timings: function() {
 
 init_ws: function () {
     //Util.Debug(">> init_ws");
-
     var uri = "", vars = [];
     if (RFB.encrypt) {
         uri = "wss://";
     } else {
         uri = "ws://";
     }
+    
     uri += RFB.host + ":" + RFB.port + "/";
     if (RFB.b64encode) {
         vars.push("b64encode");
