@@ -45,10 +45,6 @@ Util.init_logging = function (level) {
             throw("invalid logging type '" + level + "'");
     }
 }
-// Initialize logging level
-Util.init_logging( (document.location.href.match(
-                    /logging=([A-Za-z0-9\._\-]*)/) ||
-                    ['', 'none'])[1] );
 
 /*
  * Simple DOM selector by ID
