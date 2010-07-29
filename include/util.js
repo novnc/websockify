@@ -324,6 +324,4 @@ Util.selectStylesheet = function(sheet) {
     return sheet;
 };
 
-// call once to disable alternates and get around webkit bug
-Util.selectStylesheet(null);
 
