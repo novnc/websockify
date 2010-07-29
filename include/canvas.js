@@ -6,12 +6,12 @@
  * See README.md for usage and integration instructions.
  */
 
-"use strict";
+//"use strict";
 /*jslint white: false, bitwise: false */
 /*global window, $, Util, Base64 */
 
 // Globals defined here
-// var Canvas;
+//var Canvas;
 
 // Everything namespaced inside Canvas
 Canvas = {

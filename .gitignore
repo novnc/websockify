@@ -1,3 +1,4 @@
 *.pyc
 *.o
 wsproxy
+*.DS_Store

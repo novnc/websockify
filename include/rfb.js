@@ -6,12 +6,12 @@
  * See README.md for usage and integration instructions.
  */
 
-"use strict";
+//"use strict";
 /*jslint white: false, nomen: false, browser: true, bitwise: false */
 /*global window, WebSocket, Util, Canvas, VNC_native_ws, Base64, DES */
 
 // Globals defined here
-// var RFB;
+//var RFB;
 
 /*
  * RFB namespace
@@ -1253,13 +1253,12 @@ handle_message: function () {
         RFB.disconnect();
         break;
     case 'normal':
-        while ((RFB.state === 'normal') && (RFB.RQ.length > 0)) {
+        if ((RFB.state === 'normal') && (RFB.RQ.length > 0)) {
             if (RFB.normal_msg()) {
                 // true means we can continue processing
                 Util.Debug("More data to process");
-            } else {
-                // false means we need more data
-                break;
+                // Give other events a chance to run
+                setTimeout(RFB.handle_message, 10);
             }
         }
         break;

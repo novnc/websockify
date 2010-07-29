@@ -6,7 +6,7 @@
  * See README.md for usage and integration instructions.
  */
 
-"use strict";
+//"use strict";
 /*jslint bitwise: false, white: false */
 /*global window, document, navigator, ActiveXObject*/
 
@@ -35,10 +35,10 @@ Util.init_logging = function (level) {
 
     Util.Debug = Util.Info = Util.Warn = Util.Error = function (msg) {};
     switch (level) {
-        case 'debug': Util.Debug = function (msg) { console.log(msg); };
-        case 'info':  Util.Info  = function (msg) { console.log(msg); };
-        case 'warn':  Util.Warn  = function (msg) { console.warn(msg); };
-        case 'error': Util.Error = function (msg) { console.error(msg); };
+        case 'debug': Util.Debug = function (msg) { /*console.log(msg);*/ };
+        case 'info':  Util.Info  = function (msg) { /*console.log(msg);*/ };
+        case 'warn':  Util.Warn  = function (msg) { /*console.warn(msg);*/ };
+        case 'error': Util.Error = function (msg) { /*console.error(msg);*/ };
             break;
         default:
             throw("invalid logging type '" + level + "'");
@@ -47,7 +47,7 @@ Util.init_logging = function (level) {
 // Initialize logging level
 Util.init_logging( (document.location.href.match(
                     /logging=([A-Za-z0-9\._\-]*)/) ||
-                    ['', 'warn'])[1] );
+                    ['', 'error'])[1] );
 
 /*
  * Simple DOM selector by ID
