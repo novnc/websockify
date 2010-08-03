@@ -6,45 +6,13 @@
  * See README.md for usage and integration instructions.
  */
 
-//"use strict";
+"use strict";
 /*jslint bitwise: false, white: false */
 /*global window, document, navigator, ActiveXObject*/
 
 // Globals defined here
 Util = {};
 
-
-/*
- * Logging/debug routines
- */
-
-Util.init_logging = function (level) {
-    if (typeof window.console === "undefined") {
-        if (typeof window.opera !== "undefined") {
-            window.console = {
-                'log'  : window.opera.postError,
-                'warn' : window.opera.postError,
-                'error': window.opera.postError };
-        } else {
-            window.console = {
-                'log'  : function(m) {},
-                'warn' : function(m) {},
-                'error': function(m) {}};
-        }
-    }
-
-    Util.Debug = Util.Info = Util.Warn = Util.Error = function (msg) {};
-    switch (level) {
-        case 'none': break;
-        case 'debug': Util.Debug = function (msg) { console.log(msg); };
-        case 'info':  Util.Info  = function (msg) { console.log(msg); };
-        case 'warn':  Util.Warn  = function (msg) { console.warn(msg); };
-        case 'error': Util.Error = function (msg) { console.error(msg); };
-            break;
-        default:
-            throw("invalid logging type '" + level + "'");
-    }
-}
 
 /*
  * Simple DOM selector by ID
@@ -135,6 +103,42 @@ Array.prototype.shiftBytes = function (len) {
  * ------------------------------------------------------
  */
 
+/*
+ * Logging/debug routines
+ */
+
+Util.init_logging = function (level) {
+    if (typeof window.console === "undefined") {
+        if (typeof window.opera !== "undefined") {
+            window.console = {
+                'log'  : window.opera.postError,
+                'warn' : window.opera.postError,
+                'error': window.opera.postError };
+        } else {
+            window.console = {
+                'log'  : function(m) {},
+                'warn' : function(m) {},
+                'error': function(m) {}};
+        }
+    }
+
+    Util.Debug = Util.Info = Util.Warn = Util.Error = function (msg) {};
+    switch (level) {
+        case 'debug': Util.Debug = function (msg) { console.log(msg); };
+        case 'info':  Util.Info  = function (msg) { console.log(msg); };
+        case 'warn':  Util.Warn  = function (msg) { console.warn(msg); };
+        case 'error': Util.Error = function (msg) { console.error(msg); };
+        case 'none':
+            break;
+        default:
+            throw("invalid logging type '" + level + "'");
+    }
+};
+// Initialize logging level
+Util.init_logging( (document.location.href.match(
+                    /logging=([A-Za-z0-9\._\-]*)/) ||
+                    ['', 'warn'])[1] );
+
 Util.dirObj = function (obj, depth, parent) {
     var i, msg = "", val = "";
     if (! depth) { depth=2; }
@@ -156,6 +160,41 @@ Util.dirObj = function (obj, depth, parent) {
     }
     return msg;
 };
+
+// Read a query string variable
+Util.getQueryVar = function(name, defVal) {
+    var re = new RegExp('[?][^#]*' + name + '=([^&#]*)');
+    if (typeof defVal === 'undefined') { defVal = null; }
+    return (document.location.href.match(re) || ['',defVal])[1];
+};
+
+// Set defaults for Crockford style function namespaces
+Util.conf_default = function(cfg, api, v, val, force_bool) {
+    if (typeof cfg[v] === 'undefined') {
+        cfg[v] = val;
+    }
+    // Default getter
+    if (typeof api['get_' + v] === 'undefined') {
+        api['get_' + v] = function () {
+                return cfg[v];
+            };
+    }
+    // Default setter
+    if (typeof api['set_' + v] === 'undefined') {
+        api['set_' + v] = function (val) {
+                if (force_bool) {
+                    if ((!val) || (val in {'0':1, 'no':1, 'false':1})) {
+                        val = false;
+                    } else {
+                        val = true;
+                    }
+                }
+                cfg[v] = val;
+            };
+    }
+};
+
+
 
 /*
  * Cross-browser routines
@@ -276,12 +315,11 @@ Util.createCookie = function(name,value,days) {
 };
 
 Util.readCookie = function(name, defaultValue) {
-    var nameEQ = name + "=";
-    var ca = document.cookie.split(';');
-    for(var i=0;i < ca.length;i++) {
-        var c = ca[i];
-        while (c.charAt(0)==' ') c = c.substring(1,c.length);
-        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    var i, c, nameEQ = name + "=", ca = document.cookie.split(';');
+    for(i=0; i < ca.length; i += 1) {
+        c = ca[i];
+        while (c.charAt(0) === ' ') { c = c.substring(1,c.length); }
+        if (c.indexOf(nameEQ) === 0) { return c.substring(nameEQ.length,c.length); }
     }
     return (typeof defaultValue !== 'undefined') ? defaultValue : null;
 };
@@ -294,8 +332,8 @@ Util.eraseCookie = function(name) {
  * Alternate stylesheet selection
  */
 Util.getStylesheets = function() { var i, links, sheets = [];
-    links = document.getElementsByTagName("link")
-    for (i = 0; i < links.length; i++) {
+    links = document.getElementsByTagName("link");
+    for (i = 0; i < links.length; i += 1) {
         if (links[i].title &&
             links[i].rel.toUpperCase().indexOf("STYLESHEET") > -1) {
             sheets.push(links[i]);
@@ -311,17 +349,15 @@ Util.selectStylesheet = function(sheet) {
     if (typeof sheet === 'undefined') {
         sheet = 'default';
     }
-    for (i=0; i < sheets.length; i++) {
+    for (i=0; i < sheets.length; i += 1) {
         link = sheets[i];
         if (link.title === sheet) {    
             Util.Debug("Using stylesheet " + sheet);
             link.disabled = false;
         } else {
-            Util.Debug("Skipping stylesheet " + link.title);
+            //Util.Debug("Skipping stylesheet " + link.title);
             link.disabled = true;
         }
     }
     return sheet;
 };
-
-
