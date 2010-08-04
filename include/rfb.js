@@ -131,7 +131,7 @@ var that           = {},         // Public API interface
 //
 
 // VNC viewport rendering Canvas
-//Util.conf_default(conf, that, 'target', 'VNC_canvas');
+Util.conf_default(conf, that, 'target', 'VNC_canvas');
 
 Util.conf_default(conf, that, 'encrypt',        false, true);
 Util.conf_default(conf, that, 'true_color',     true, true);
@@ -139,7 +139,7 @@ Util.conf_default(conf, that, 'true_color',     true, true);
 Util.conf_default(conf, that, 'b64encode',      true, true);
 Util.conf_default(conf, that, 'local_cursor',   true, true);
 
-Util.conf_default(conf, that, 'currentDocument',   true, document);
+Util.conf_default(conf, that, 'focusContainer', document);
 
 // time to wait for connection
 Util.conf_default(conf, that, 'connectTimeout', 2000);
@@ -196,7 +196,7 @@ function constructor() {
     }
     // Initialize canvas
     try {
-        canvas = new Canvas({'target': conf.target, 'currentDocument': conf.currentDocument});
+        canvas = new Canvas({'target': conf.target, 'focusContainer': conf.focusContainer});
     } catch (exc) {
         Util.Error("Canvas exception: " + exc);
         updateState('fatal', "No working Canvas");
