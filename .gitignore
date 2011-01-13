@@ -1,4 +1,3 @@
 *.pyc
 *.o
-wsproxy
-tests/data_*.js
+*.so

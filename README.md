@@ -1,207 +1,165 @@
-## noVNC: HTML5 VNC Client
+## websockify: WebSockets support for any application/server
+
+websockify was formerly named `wsproxy` and was part of the
+[noVNC](https://github.com/kanaka/noVNC) project.
+
+At the most basic level, websockify just translates WebSockets traffic
+to normal socket traffic. websockify accepts the WebSockets handshake,
+parses it, and then begins forwarding traffic between the client and
+the target in both directions. WebSockets payload data is UTF-8
+encoded so in order to transport binary data it must use an encoding
+that can be encapsulated within UTF-8. websockify uses base64 to encode
+all traffic to and from the client. Also, WebSockets traffic starts
+with '\0' (0) and ends with '\xff' (255). Some buffering is done in
+case the data from the client is not a full WebSockets frame (i.e.
+does not end in 255).
+
+
+### Additional websockify features
+
+These are not necessary for the basic operation.
+
+* Daemonizing: When the `-D` option is specified, websockify runs
+  in the background as a daemon process.
+
+* SSL (the wss:// WebSockets URI): This is detected automatically by
+  websockify by sniffing the first byte sent from the client and then
+  wrapping the socket if the data starts with '\x16' or '\x80'
+  (indicating SSL).
+
+* Flash security policy: websockify detects flash security policy
+  requests (again by sniffing the first packet) and answers with an
+  appropriate flash security policy response (and then closes the
+  port). This means no separate flash security policy server is needed
+  for supporting the flash WebSockets fallback emulator.
+
+* Session recording: This feature that allows recording of the traffic
+  sent and received from the client to a file using the `--record`
+  option.
+
+* Mini-webserver: websockify can detect and respond to normal web
+  requests on the same port as the WebSockets proxy and Flash security
+  policy. This functionality is activate with the `--web DIR` option
+  where DIR is the root of the web directory to serve.
+
+* Wrap a program: see the "Wrap a Program" section below.
+
+
+### Implementations of websockify
+
+The primary implementation of websockify is in python. There are two
+other implementations of websockify in C, and Node (node.js) in the
+`other` directory.
+
+Here is the feature support matrix for the the websockify
+implementations:
+
+<table>
+    <tr>
+        <th>Program</th>
+        <th>Language</th>
+        <th>Multiprocess</th>
+        <th>Daemonize</th>
+        <th>SSL/wss</th>
+        <th>Flash Policy Server</th>
+        <th>Session Record</th>
+        <th>Web Server</th>
+        <th>Program Wrap</th>
+    </tr> <tr>
+        <td>websockify</td>
+        <td>python</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes 1</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes</td>
+    </tr> <tr>
+        <td>other/websockify</td>
+        <td>C</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>no</td>
+        <td>no</td>
+        <td>no</td>
+    </tr>
+    </tr> <tr>
+        <td>other/websockify.js</td>
+        <td>Node (node.js)</td>
+        <td>yes</td>
+        <td>no</td>
+        <td>no</td>
+        <td>no</td>
+        <td>no</td>
+        <td>no</td>
+        <td>no</td>
+    </tr>
+</table>
 
 
-### Description
+* Note 1: to use SSL/wss with python 2.5 or older, see the following
+  section on *Building the Python ssl module*.
 
-noVNC is a VNC client implemented using HTML5 technologies,
-specifically Canvas and WebSockets (supports 'wss://' encryption).
-noVNC is licensed under the
-[LGPLv3](http://www.gnu.org/licenses/lgpl.html).
 
-Special thanks to [Sentry Data Systems](http://www.sentryds.com) for
-sponsoring ongoing development of this project (and for employing me).
+### Wrap a Program
 
-Notable commits, announcements and news are posted to
-@<a href="http://www.twitter.com/noVNC">noVNC</a>
+In addition to proxying from a source address to a target address
+(which may be on a different system), websockify has the ability to
+launch a program on the local system and proxy WebSockets traffic to
+a normal TCP port owned/bound by the program.
 
+The is accomplished with a small LD_PRELOAD library (`rebind.so`)
+which intercepts bind() system calls by the program. The specified
+port is moved to a new localhost/loopback free high port. websockify
+then proxies WebSockets traffic directed to the original port to the
+new (moved) port of the program.
 
-### Screenshots
+The program wrap mode is invoked by replacing the target with `--`
+followed by the program command line to wrap.
 
-Running in Chrome before and after connecting:
+    `./websockify 2023 -- PROGRAM ARGS`
 
-<img src="http://kanaka.github.com/noVNC/img/noVNC-1.jpg" width=400>&nbsp;<img src="http://kanaka.github.com/noVNC/img/noVNC-2.jpg" width=400>
+The `--wrap-mode` option can be used to indicate what action to take
+when the wrapped program exits or daemonizes.
 
-See more screenshots <a href="http://kanaka.github.com/noVNC/screenshots.html">here</a>.
+Here is an example of using websockify to wrap the vncserver command
+(which backgrounds itself) for use with
+[noVNC](https://github.com/kanaka/noVNC):
 
+    `./websockify 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
-### Projects/Companies using noVNC
+Here is an example of wrapping telnetd (from krb5-telnetd).telnetd
+exits after the connection closes so the wrap mode is set to respawn
+the command:
 
-* [Sentry Data Systems](http://www.sentryds.com): uses noVNC in the
-  [Datanex Cloud Computing Platform](http://www.sentryds.com/products/datanex/).
+    `sudo ./websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
-* [Ganeti Web Manager](http://code.osuosl.org/projects/ganeti-webmgr):
-  Feature [#1935](http://code.osuosl.org/issues/1935).
+The `wstelnet.html` page demonstrates a simple WebSockets based telnet
+client.
 
-* [Archipel](http://archipelproject.org):
-  [Video demo](http://antoinemercadal.fr/archipelblog/wp-content/themes/ArchipelWPTemplate/video_youtube.php?title=VNC%20Demonstration&id=te_bzW574Zo)
 
-* [openQRM](http://www.openqrm.com/): VNC plugin available
-  by request. Probably included in [version
-  4.8](http://www.openqrm.com/?q=node/15). [Video
-    demo](http://www.openqrm-enterprise.com/news/details/article/remote-vm-console-plugin-available.html).
+### Building the Python ssl module (for python 2.5 and older)
 
+* Install the build dependencies. On Ubuntu use this command:
 
-### Browser Requirements
+    `sudo aptitude install python-dev bluetooth-dev`
 
-* HTML5 Canvas: Except for Internet Explorer, most
-  browsers have had Canvas support for quite some time. Internet
-  Explorer 9 will have Canvas support (finally).
+* Download, build the ssl module and symlink to it:
 
-* HTML5 WebSockets: For browsers that do not have builtin
-  WebSockets support, the project includes
-  <a href="http://github.com/gimite/web-socket-js">web-socket-js</a>,
-  a WebSockets emulator using Adobe Flash.
+    `cd websockify/`
 
-* Fast Javascript Engine: noVNC avoids using new Javascript
-  functionality so it will run on older browsers, but decode and
-  rendering happen in Javascript, so a slow Javascript engine will
-  mean noVNC is painfully slow.
+    `wget http://pypi.python.org/packages/source/s/ssl/ssl-1.15.tar.gz`
 
-* I maintain a more detailed list of browser compatibility <a
-  href="http://github.com/kanaka/noVNC/blob/master/docs/browsers.md">here</a>.
+    `tar xvzf ssl-1.15.tar.gz`
 
+    `cd ssl-1.15`
 
-### Server Requirements
+    `make`
 
-Unless you are using a VNC server with support for WebSockets
-connections (only my [fork of libvncserver](http://github.com/kanaka/libvncserver)
-currently), you need to use a WebSockets to TCP socket proxy. There is
-a python proxy included ('wsproxy'). One advantage of using the proxy
-is that it has builtin support for SSL/TLS encryption (i.e. "wss://").
+    `cd ../`
 
-There a few reasons why a proxy is required:
+    `ln -sf ssl-1.15/build/lib.linux-*/ssl ssl`
 
-  1. WebSockets is not a pure socket protocol. There is an initial HTTP
-     like handshake to allow easy hand-off by web servers and allow
-     some origin policy exchange. Also, each WebSockets frame begins
-     with 0 ('\x00') and ends with 255 ('\xff').
-
-  2. Javascript itself does not have the ability to handle pure byte
-     arrays. The python proxy encodes the data as base64 so that the
-     Javascript client can decode the data as an integer array.
-
-
-### Quick Start
-
-* Use the launch script to start a mini-webserver and the WebSockets
-  proxy. The `--vnc` option is used to specify the location of
-  a running VNC server:
-
-    `./utils/launch.sh --vnc localhost:5901`
-
-* Point your browser to the cut-and-paste URL that is output by the
-  launch script. Enter a password if the VNC server has one
-  configured. Hit the Connect button and enjoy!
-
-
-### Advanced usage
-
-* To encrypt the traffic using the WebSocket 'wss://' URI scheme you
-  need to generate a certificate for the proxy to load. By default the
-  proxy loads a certificate file name `self.pem` but the `--cert=CERT`
-  option can override the file name. You can generate a self-signed
-  certificate using openssl. When asked for the common name, use the
-  hostname of the server where the proxy will be running:
-
-    `openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem`
-
-* `tightvnc` provide a nice startup script that can be used to run
-  a separate X desktop that is served by VNC. To install and run the
-  server under Ubuntu you would do something like this:
-
-    `sudo apt-get install tightvncserver`
-
-    `vncserver :1`
-
-    The VNC server will run in the background. The port that it runs
-    on is the display number + 5900 (i.e. 5901 in the case above).
-
-* `x11vnc` can be used to share your current X desktop. Note that if
-  you run noVNC on the X desktop you are connecting to via VNC you
-  will get a neat hall of mirrors effect, but the the client and
-  server will fight over the mouse.
-
-    `sudo apt-get install x11vnc`
-
-    `x11vnc -forever -display :0`
-
-  Without the `-forever` option, x11vnc will exit after the first
-  disconnect. The `-display` option indicates the exiting X display to
-  share. The port that it runs on is the display number + 5900 (i.e.
-  5900 in the case above).
-
-* To run the python proxy directly without using launch script (to
-  pass additional options for example):
-
-    `./utils/wsproxy.py source_port target_addr:target_port`
-
-    `./utils/wsproxy.py 8787 localhost:5901`
-
-* To activate the mini-webserver in wsproxy.py use the `--web DIR`
-  option:
-
-    `./utils/wsproxy.py --web ./ 8787 localhost:5901`
-
-
-* Point your web browser at http://localhost:8787/vnc.html. On the
-  page enter the location where the proxy is running (localhost and
-  8787) and the password that the vnc server is using (if any). Hit
-  the Connect button.
-
-* If you are using python 2.3 or 2.4 and you want wsproxy to support
-  'wss://' (TLS) then see the
-  [wsproxy README](http://github.com/kanaka/noVNC/blob/master/utils/README.md)
-  for instructions on building the ssl module.
-
-
-### Integration
-
-The client is designed to be easily integrated with existing web
-structure and style.
-
-At a minimum you must include the `vnc.js` and `ui.js` scripts and
-call UI.load(). For example:
-
-    <head>
-        <script src='include/vnc.js'></script>
-        <script src="include/ui.js"></script>
-    </head>
-    <body>
-        <div id='vnc'>Loading</div>
-
-        <script>
-            window.onload = function () {
-                UI.load('vnc');
-            }
-        </script>
-    </body>
-
-See `vnc.html` and `vnc_auto.html` for examples. The file
-`include/plain.css` has a list of stylable elements.
-
-The `vnc.js` also includes other scripts within the `include`
-sub-directory. The `VNC_uri_prefix` variable can be use override the
-URL path to the `include` sub-directory.
-
-
-### Troubleshooting
-
-You will need console logging support in the browser. Recent Chrome
-and Opera versions have built in support. Firefox has a nice extension
-called "firebug" that gives console logging support.
-
-First, load the noVNC page with `logging=debug` added to the query string.
-For example `vnc.html?logging=debug`.
-
-Then, activate the console logger in your browser.  With Chrome it can
-be activate using Ctrl+Shift+J and then switching to the "Console"
-tab. With firefox+firebug, it can be activated using Ctrl+F12.
-
-Now reproduce the problem. The console log output will give more
-information about what is going wrong and where in the code the
-problem is located.
-
-If you file a issue/bug, it is very helpful for me to have the last
-page of console output leading up the problem in the issue report.
-Other helpful issue/bug information: browser version, OS version,
-noVNC git version, and VNC server name/version.

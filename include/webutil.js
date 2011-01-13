@@ -1,5 +1,5 @@
 /*
- * noVNC: HTML5 VNC client
+ * from noVNC: HTML5 VNC client
  * Copyright (C) 2010 Joel Martin
  * Licensed under LGPL-3 (see LICENSE.txt)
  *
