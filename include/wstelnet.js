@@ -86,6 +86,8 @@ function do_recv() {
             case 251: // WILL
                 Util.Debug("Got Cmd WILL '" + value + "'");
                 if (value === 1) {
+                    // Server will echo, turn off local echo
+                    vt100.noecho();
                     // Affirm echo with DO
                     Util.Info("Send Cmd DO '" + value + "' (echo)");
                     sQ.push(255, 253, value);
@@ -205,9 +207,6 @@ function constructor() {
     /* Initialize the terminal emulator/renderer */
 
     vt100 = new VT100(80, 24, target);
-
-    // Turn off local echo
-    vt100.noecho();
 
 
     /*
