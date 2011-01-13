@@ -28,6 +28,9 @@ does not contain actual data but is simply a notification that
 there is new data available. Several rQ* methods are available to
 read binary data off of the receive queue.
 
+See the "Wrap a Program" section below for an example of using Websock
+and websockify as a browser telnet client (`wstelnet.html`).
+
 
 ### Additional websockify features
 
