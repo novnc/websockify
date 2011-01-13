@@ -213,7 +213,11 @@ Connection: Upgrade\r
 
         stype = ""
 
-        # Peek, but don't read the data
+        ready = select.select([sock], [], [], 3)[0]
+        if not ready:
+            raise self.EClose("ignoring socket not ready")
+        # Peek, but do not read the data so that we have a opportunity
+        # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
         #self.msg("Handshake [%s]" % repr(handshake))
 
