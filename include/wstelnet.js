@@ -46,14 +46,14 @@ Array.prototype.pushStr = function (str) {
 function do_send() {
     if (sQ.length > 0) {
         Util.Debug("Sending " + sQ);
-        ws.send(Base64.encode(sQ));
+        ws.send(sQ);
         sQ = [];
     }
 }
 
-function do_recv(e) {
+function do_recv() {
     //console.log(">> do_recv");
-    var arr = Base64.decode(e.data), str = "",
+    var arr = ws.rQshiftBytes(ws.rQlen()), str = "",
         chr, cmd, code, value;
 
     Util.Debug("Received array '" + arr + "'");
@@ -162,26 +162,8 @@ that.connect = function(host, port, encrypt) {
     }
     uri = scheme + host + ":" + port;
     Util.Info("connecting to " + uri);
-    ws = new WebSocket(uri);
 
-    ws.onmessage = do_recv;
-
-    ws.onopen = function(e) {
-        Util.Info(">> WebSockets.onopen");
-        vt100.curs_set(true, true);
-        connect_callback();
-        Util.Info("<< WebSockets.onopen");
-    };
-    ws.onclose = function(e) {
-        Util.Info(">> WebSockets.onclose");
-        that.disconnect();
-        Util.Info("<< WebSockets.onclose");
-    };
-    ws.onerror = function(e) {
-        Util.Info(">> WebSockets.onerror");
-        that.disconnect();
-        Util.Info("<< WebSockets.onerror");
-    };
+    ws.open(uri);
 
     Util.Debug("<< connect");
 }
@@ -199,6 +181,27 @@ that.disconnect = function() {
 
 
 function constructor() {
+    /* Initialize Websock object */
+    ws = new Websock();
+
+    ws.on('message', do_recv);
+    ws.on('open', function(e) {
+        Util.Info(">> WebSockets.onopen");
+        vt100.curs_set(true, true);
+        connect_callback();
+        Util.Info("<< WebSockets.onopen");
+    });
+    ws.on('close', function(e) {
+        Util.Info(">> WebSockets.onclose");
+        that.disconnect();
+        Util.Info("<< WebSockets.onclose");
+    });
+    ws.on('error', function(e) {
+        Util.Info(">> WebSockets.onerror");
+        that.disconnect();
+        Util.Info("<< WebSockets.onerror");
+    });
+
     /* Initialize the terminal emulator/renderer */
 
     vt100 = new VT100(80, 24, target);

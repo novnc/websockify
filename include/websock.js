@@ -189,7 +189,7 @@ function send(arr) {
 
 function send_string(str) {
     //Util.Debug(">> send_string: " + str);
-    api.send_array(str.split('').map(
+    api.send(str.split('').map(
         function (chr) { return chr.charCodeAt(0); } ) );
 }
 
@@ -296,7 +296,7 @@ function constructor() {
     api.rQwait       = rQwait;
 
     api.flush        = flush;
-    api.send_array   = send_array;
+    api.send         = send;
     api.send_string  = send_string;
 
     api.recv_message = recv_message;
