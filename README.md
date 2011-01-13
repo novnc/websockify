@@ -1,6 +1,6 @@
 ## websockify: WebSockets support for any application/server
 
-websockify was formerly named `wsproxy` and was part of the
+websockify was formerly named wsproxy and was part of the
 [noVNC](https://github.com/kanaka/noVNC) project.
 
 At the most basic level, websockify just translates WebSockets traffic
@@ -13,6 +13,20 @@ all traffic to and from the client. Also, WebSockets traffic starts
 with '\0' (0) and ends with '\xff' (255). Some buffering is done in
 case the data from the client is not a full WebSockets frame (i.e.
 does not end in 255).
+
+
+### Websock Javascript library
+
+The `include/websock.js` Javascript library library provides a Websock
+object that is similar to the standard WebSocket object but Websock
+enables communication with raw TCP sockets (i.e. the binary stream)
+via websockify. This is accomplished by base64 encoding the data
+stream between Websock and websockify.
+
+Websock has built-in receive queue buffering; the message event
+does not contain actual data but is simply a notification that
+there is new data available. Several rQ* methods are available to
+read binary data off of the receive queue.
 
 
 ### Additional websockify features
@@ -49,7 +63,7 @@ These are not necessary for the basic operation.
 
 The primary implementation of websockify is in python. There are two
 other implementations of websockify in C, and Node (node.js) in the
-`other` directory.
+`other/` subdirectory.
 
 Here is the feature support matrix for the the websockify
 implementations:
