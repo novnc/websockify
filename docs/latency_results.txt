@@ -1,0 +1,84 @@
+Old web-socket-js (9e7663771), 2000 byte payload, 10ms delay
+
+Chrome 8.0.552 - native WebSockets
+    Packets sent:                     2998
+    Packets Received:                 2998
+    Average Latency:                  1.84
+    40 Frame Running Average Latency: 1.90
+    Minimum Latency:                  1.00
+    Maximum Latency:                  10.00
+
+firefox 4.0b9 - WebSockets enabled
+    Packets sent:                     3011
+    Packets Received:                 3011
+    Average Latency:                  6.45
+    40 Frame Running Average Latency: 6.08
+    Minimum Latency:                  5.00
+    Maximum Latency:                  119.00
+
+---
+
+firefox 4.0b9 - no WebSockets
+    Packets sent:                     3024
+    Packets Received:                 3020
+    Average Latency:                  80.59
+    40 Frame Running Average Latency: 60.15
+    Minimum Latency:                  10.00
+    Maximm Latency:                   348.00
+
+
+firefox 3.6.10 - no WebSockets
+    Packets sent:                     2777
+    Packets Received:                 2775
+    Average Latency:                  34.89
+    40 Frame Running Average Latency: 24.50
+    Minimum Latency:                  10.00
+    Maximum Latency:                  208.00
+
+
+Opera 11 - no Websockets
+    Packets sent:                     3012
+    Packets Received:                 3011
+    Average Latency:                  380.87
+    40 Frame Running Average Latency: 341.90
+    Minimum Latency:                  28.00
+    Maximum Latency:                  2175.00
+
+    - average starts at around 290ms
+    - time for each 1000 packets: 23s, 38s, 65s
+
+------------------------------------------------------------
+
+New web-socket-js (9e7663771), 2000 byte payload, 10ms delay
+
+firefox 4.0b9 - no WebSockets
+    Packets sent:                     3088
+    Packets Received:                 3087
+    Average Latency:                  16.71
+    40 Frame Running Average Latency: 16.80
+    Minimum Latency:                  7.00
+    Maximum Latency:                  75.00
+
+    - First 1000 sent in 13 seconds 
+    - Second 1000 sent in 12 seconds
+    - Third 1000 sent in 12 seconds
+
+firefox 3.6.10 - no WebSockets
+    Packets sent:                     3100
+    Packets Received:                 3099
+    Average Latency:                  17.32
+    40 Frame Running Average Latency: 16.73
+    Minimum Latency:                  6.00
+    Maximum Latency:                  72.00
+
+Opera 11 - no WebSockets
+    Packets sent:                     3007
+    Packets Received:                 3007
+    Average Latency:                  465.91
+    40 Frame Running Average Latency: 147.95
+    Minimum Latency:                  12.00
+    Maximum Latency:                  9143.00
+
+    - average starts at around 28ms
+    - time for each 500 packets: 13s, 16s, 25s, 37s, 50s, 72s
+    - also start seeing sent, receive lags around 1200 packets

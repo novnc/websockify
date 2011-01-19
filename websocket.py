@@ -312,7 +312,8 @@ Connection: Upgrade\r
 
     def poll(self):
         """ Run periodically while waiting for connections. """
-        self.msg("Running poll()")
+        #self.vmsg("Running poll()")
+        pass
 
     def do_SIGCHLD(self, sig, stack):
         self.vmsg("Got SIGCHLD, ignoring")

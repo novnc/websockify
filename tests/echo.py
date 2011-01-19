@@ -84,7 +84,7 @@ if __name__ == '__main__':
 
     server = WebSocketEcho(
             listen_port=listen_port,
-            verbose=True,
+            #verbose=True,
             cert='self.pem',
             web='.')
     server.start_server()
