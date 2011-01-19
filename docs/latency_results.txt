@@ -49,7 +49,7 @@ Opera 11 - no Websockets
 
 ------------------------------------------------------------
 
-New web-socket-js (9e7663771), 2000 byte payload, 10ms delay
+New web-socket-js (20f837425d4), 2000 byte payload, 10ms delay
 
 firefox 4.0b9 - no WebSockets
     Packets sent:                     3088
