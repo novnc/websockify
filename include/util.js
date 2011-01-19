@@ -11,7 +11,7 @@
 /*global window, console, document, navigator, ActiveXObject */
 
 // Globals defined here
-var Util = {};
+var Util = {}, $D;
 
 
 /*
