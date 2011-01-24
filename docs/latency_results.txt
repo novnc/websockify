@@ -9,10 +9,10 @@ The latency measure are from the point the packet was sent to when it
 was received back again in milliseconds. One notable data point
 missing from this is how long it actually took for the client to send
 3000 packets because sending large packets can put load on the browser
-and it may be a lot longer than 10ms before the timer to send the next
-event fires. So even with low latency numbers, the actual send rate
-may be fairly low because sending the WebSockets frames is impacting
-the performance of the browser in general.
+and it may be a lot longer than 10ms before the timer event to
+send the next packet fires. So even with low latency numbers, the
+actual send rate may be fairly low because sending the WebSockets
+frames is impacting the performance of the browser in general.
 
 
 ------------------------------------------------------------
