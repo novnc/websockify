@@ -1,7 +1,5 @@
 - wstelnet: support CSI L and CSI M
 
-- mod_websockify module for Apache
-
 - create gevent version:
     http://nichol.as/benchmark-of-python-web-servers
     http://n01se.net/paste/QXO

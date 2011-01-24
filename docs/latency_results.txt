@@ -16,6 +16,14 @@ firefox 4.0b9 - WebSockets enabled
     Minimum Latency:                  5.00
     Maximum Latency:                  119.00
 
+Opera 11 - WebSockets enabled
+    Packets sent:                     3065
+    Packets Received:                 3064
+    Average Latency:                  9.56
+    40 Frame Running Average Latency: 8.15
+    Minimum Latency:                  4.00
+    Maximum Latency:                  53.00
+
 ---
 
 firefox 4.0b9 - no WebSockets
