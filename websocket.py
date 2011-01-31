@@ -315,8 +315,15 @@ Connection: Upgrade\r
         #self.vmsg("Running poll()")
         pass
 
+
+    def top_SIGCHLD(self, sig, stack):
+        # Reap zombies after calling child SIGCHLD handler
+        self.do_SIGCHLD(sig, stack)
+        self.vmsg("Got SIGCHLD, reaping zombies")
+        os.waitpid(-1, os.WNOHANG)
+
     def do_SIGCHLD(self, sig, stack):
-        self.vmsg("Got SIGCHLD, ignoring")
+        pass
 
     def do_SIGINT(self, sig, stack):
         self.msg("Got SIGINT, exiting")
@@ -345,7 +352,7 @@ Connection: Upgrade\r
         self.started()  # Some things need to happen after daemonizing
 
         # Reep zombies
-        signal.signal(signal.SIGCHLD, self.do_SIGCHLD)
+        signal.signal(signal.SIGCHLD, self.top_SIGCHLD)
         signal.signal(signal.SIGINT, self.do_SIGINT)
 
         while True:
