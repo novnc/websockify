@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 '''
 WebSocket server-side load test program. Sends and receives traffic

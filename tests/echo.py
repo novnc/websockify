@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 '''
 A WebSocket server that echos back whatever it receives from the client.
