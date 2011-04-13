@@ -425,7 +425,7 @@ void daemonize(int keepfd) {
     int pid, i;
 
     umask(0);
-    chdir('/');
+    chdir("/");
     setgid(getgid());
     setuid(getuid());
 
