@@ -1,3 +1,9 @@
+- Support protocol version 07:
+    http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07
+
+- Support multiple targets that are selected by the path line. Some
+  sort of wildcarding of ports too.
+
 - wstelnet: support CSI L and CSI M
 
 - create gevent version:

@@ -252,7 +252,7 @@ function init() {
 function open(uri) {
     init();
 
-    websocket = new WebSocket(uri);
+    websocket = new WebSocket(uri, 'websockify');
 
     websocket.onmessage = recv_message;
     websocket.onopen = function(e) {
