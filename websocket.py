@@ -89,10 +89,10 @@ Connection: Upgrade\r
     # WebSocketServer static methods
     #
     @staticmethod
-    def daemonize(self, keepfd=None):
+    def daemonize(keepfd=None, chdir='/'):
         os.umask(0)
-        if self.web:
-            os.chdir(self.web)
+        if chdir:
+            os.chdir(chdir)
         else:
             os.chdir('/')
         os.setgid(os.getgid())  # relinquish elevations
@@ -357,7 +357,7 @@ Connection: Upgrade\r
         lsock.listen(100)
 
         if self.daemon:
-            self.daemonize(self, keepfd=lsock.fileno())
+            self.daemonize(keepfd=lsock.fileno(), chdir=self.web)
 
         self.started()  # Some things need to happen after daemonizing
 
