@@ -172,20 +172,24 @@ Sec-WebSocket-Accept: %s\r
     def decode_hybi(buf, base64=False):
         """ Decode HyBi style WebSocket packets.
         Returns:
-            {'fin'         : 0_or_1,
-             'opcode'      : number,
-             'mask'        : 32_bit_number,
-             'length'      : payload_bytes_number,
-             'payload'     : decoded_buffer,
-             'left'        : bytes_left_number}
+            {'fin'          : 0_or_1,
+             'opcode'       : number,
+             'mask'         : 32_bit_number,
+             'length'       : payload_bytes_number,
+             'payload'      : decoded_buffer,
+             'left'         : bytes_left_number,
+             'close_code'   : number,
+             'close_reason' : string}
         """
 
-        ret = {'fin'         : 0,
-               'opcode'      : 0,
-               'mask'        : 0,
-               'length'      : 0,
-               'payload'     : None,
-               'left'        : 0}
+        ret = {'fin'          : 0,
+               'opcode'       : 0,
+               'mask'         : 0,
+               'length'       : 0,
+               'payload'      : None,
+               'left'         : 0,
+               'close_code'   : None,
+               'close_reason' : None}
 
         blen = len(buf)
         ret['left'] = blen
@@ -252,6 +256,13 @@ Sec-WebSocket-Accept: %s\r
             except:
                 print "Exception while b64decoding buffer:", repr(buf)
                 raise
+
+        if ret['opcode'] == 0x08:
+            if ret['length'] >= 2:
+                ret['close_code'] = struct.unpack_from(
+                        ">H", ret['payload'])
+            if ret['length'] > 3:
+                ret['close_reason'] = ret['payload'][2:]
 
         return ret
 
@@ -391,11 +402,9 @@ Sec-WebSocket-Accept: %s\r
                     break
                 else:
                     if frame['opcode'] == 0x8: # connection close
-                        code, reason = struct.unpack_from(
-                                ">H%ds" % (frame['length']-2),
-                                frame['payload'])
                         closed = "Client closed, reason: %s - %s" % (
-                                code, reason)
+                                frame['close_code'],
+                                frame['close_reason'])
                         break
 
             else:
