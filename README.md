@@ -82,12 +82,18 @@ implementations:
         <th>Session Record</th>
         <th>Web Server</th>
         <th>Program Wrap</th>
+        <th>Hixie 75</th>
+        <th>Hixie 76</th>
+        <th>IETF/HyBi 07</th>
     </tr> <tr>
         <td>websockify</td>
         <td>python</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes 1</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
@@ -102,6 +108,9 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>no</td>
     </tr>
     </tr> <tr>
         <td>other/websockify.js</td>
@@ -112,6 +121,9 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
+        <td>yes</td>
+        <td>yes</td>
         <td>no</td>
     </tr>
 </table>
