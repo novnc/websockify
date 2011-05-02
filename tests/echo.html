@@ -92,7 +92,7 @@
             }
             uri = scheme + host + ":" + port;
             message("connecting to " + uri);
-            ws = new WebSocket(uri);
+            ws = new WebSocket(uri, "base64");
 
             ws.onmessage = function(e) {
                 //console.log(">> WebSockets.onmessage");

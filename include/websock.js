@@ -252,23 +252,23 @@ function init() {
 function open(uri) {
     init();
 
-    websocket = new WebSocket(uri, 'websockify');
+    websocket = new WebSocket(uri, 'base64');
 
     websocket.onmessage = recv_message;
-    websocket.onopen = function(e) {
+    websocket.onopen = function() {
         Util.Debug(">> WebSock.onopen");
         eventHandlers.open();
         Util.Debug("<< WebSock.onopen");
     };
     websocket.onclose = function(e) {
         Util.Debug(">> WebSock.onclose");
-        eventHandlers.close();
+        eventHandlers.close(e);
         Util.Debug("<< WebSock.onclose");
     };
     websocket.onerror = function(e) {
-        Util.Debug("<< WebSock.onerror: " + e);
+        Util.Debug(">> WebSock.onerror: " + e);
         eventHandlers.error(e);
-        Util.Debug("<< WebSock.onerror: ");
+        Util.Debug("<< WebSock.onerror");
     };
 }
 

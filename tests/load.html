@@ -2,9 +2,10 @@
 
     <head>
         <title>WebSockets Load Test</title>
-        <script src="include/base64.js"></script>
         <script src="include/util.js"></script>
         <script src="include/webutil.js"></script> 
+        <script src="include/base64.js"></script>
+        <script src="include/websock.js"></script> 
         <!-- Uncomment to activate firebug lite -->
         <!--
         <script type='text/javascript' 
@@ -73,10 +74,9 @@
 
         function check_respond(data) {
             //console.log(">> check_respond");
-            var decoded, first, last, str, length, chksum, nums, arr;
-            decoded = Base64.decode(data);
-            first = String.fromCharCode(decoded.shift());
-            last = String.fromCharCode(decoded.pop());
+            var first, last, str, length, chksum, nums, arr;
+            first = String.fromCharCode(data.shift());
+            last = String.fromCharCode(data.pop());
 
             if (first != "^") {
                 errors++;
@@ -88,7 +88,7 @@
                 error("Packet missing end char '$'");
                 return;
             }
-            arr = decoded.map(function(num) {
+            arr = data.map(function(num) {
                     return String.fromCharCode(num); 
                 } ).join('').split(':');
             seq    = arr[0];
@@ -125,10 +125,6 @@
         }
 
         function send() {
-            if (ws.bufferedAmount > 0) {
-                console.log("Delaying send");
-                return;
-            }
             var length = Math.floor(Math.random()*(max_send-9)) + 10; // 10 - max_send
             var numlist = [], arr = [];
             for (var i=0; i < length; i++) {
@@ -142,7 +138,7 @@
             var nums = numlist.join('');
             arr.pushStr("^" + send_seq + ":" + length + ":" + chksum + ":" + nums + "$")
             send_seq ++;
-            ws.send(Base64.encode(arr));
+            ws.send(arr);
             sent++;
         }
 
@@ -160,28 +156,30 @@
             }
             var uri = scheme + host + ":" + port;
             console.log("connecting to " + uri);
-            ws = new WebSocket(uri);
+            ws = new Websock();
+            ws.open(uri);
 
-            ws.onmessage = function(e) {
+            ws.on('message', function() {
                 //console.log(">> WebSockets.onmessage");
-                check_respond(e.data);
+                arr = ws.rQshiftBytes(ws.rQlen());
+                check_respond(arr);
                 //console.log("<< WebSockets.onmessage");
-            };
-            ws.onopen = function(e) {
+            });
+            ws.on('open', function() {
                 console.log(">> WebSockets.onopen");
                 send_ref = setInterval(send, sendDelay);
                 console.log("<< WebSockets.onopen");
-            };
-            ws.onclose = function(e) {
+            });
+            ws.on('close', function(e) {
                 console.log(">> WebSockets.onclose");
                 clearInterval(send_ref);
                 console.log("<< WebSockets.onclose");
-            };
-            ws.onerror = function(e) {
+            });
+            ws.on('error', function(e) {
                 console.log(">> WebSockets.onerror");
                 console.log("   " + e);
                 console.log("<< WebSockets.onerror");
-            };
+            });
 
             console.log("<< init_ws");
         }

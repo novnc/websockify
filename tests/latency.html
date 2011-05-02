@@ -166,7 +166,7 @@
             }
 
             timestamp = (new Date()).getTime();
-            arr.pushStr("^" + send_seq + ":" + timestamp + ":" + payload + "$")
+            arr.pushStr("^" + send_seq + ":" + timestamp + ":" + payload + "$");
             send_seq ++;
             ws.send(arr);
             sent++;
@@ -196,10 +196,10 @@
             ws.maxBufferedAmount = 5000;
             ws.open(uri);
 
-            ws.on('message', function(e) {
+            ws.on('message', function() {
                 recvMsg();
             });
-            ws.on('open', function(e) {
+            ws.on('open', function() {
                 send_ref = setTimeout(sendMsg, sendDelay);
             });
             ws.on('close', function(e) {

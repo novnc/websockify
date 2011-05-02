@@ -6,17 +6,14 @@ that has a random payload (length and content) that is checksummed and
 given a sequence number. Any errors are reported and counted.
 '''
 
-import sys, os, socket, ssl, time, traceback
-import random, time
-from select import select
-
+import sys, os, select, random, time, optparse
 sys.path.insert(0,os.path.dirname(__file__) + "/../")
 from websocket import WebSocketServer
 
-
-class WebSocketTest(WebSocketServer):
+class WebSocketLoad(WebSocketServer):
 
     buffer_size = 65536
+
     max_packet_size = 10000
     recv_cnt = 0
     send_cnt = 0
@@ -32,54 +29,48 @@ class WebSocketTest(WebSocketServer):
 
         WebSocketServer.__init__(self, *args, **kwargs)
 
-    def new_client(self, client):
+    def new_client(self):
         self.send_cnt = 0
         self.recv_cnt = 0
 
         try:
-            self.responder(client)
+            self.responder(self.client)
         except:
             print "accumulated errors:", self.errors
             self.errors = 0
             raise
 
     def responder(self, client):
+        c_pend = 0
         cqueue = []
         cpartial = ""
         socks = [client]
         last_send = time.time() * 1000
 
         while True:
-            ins, outs, excepts = select(socks, socks, socks, 1)
+            ins, outs, excepts = select.select(socks, socks, socks, 1)
             if excepts: raise Exception("Socket exception")
 
             if client in ins:
-                buf = client.recv(self.buffer_size)
-                if len(buf) == 0:
-                    raise self.EClose("Client closed")
-                #print "Client recv: %s (%d)" % (repr(buf[1:-1]), len(buf))
-                if buf[-1] == '\xff':
-                    if cpartial:
-                        err = self.check(cpartial + buf)
-                        cpartial = ""
-                    else:
-                        err = self.check(buf)
-                    if err:
-                        self.traffic("}")
-                        self.errors = self.errors + 1
-                        print err
-                    else:
-                        self.traffic(">")
-                else:
-                    self.traffic(".>")
-                    cpartial = cpartial + buf
+                frames, closed = self.recv_frames()
+
+                err = self.check(frames)
+                if err:
+                    self.errors = self.errors + 1
+                    print err
+
+                if closed:
+                    self.send_close()
+                    raise self.EClose(closed)
 
             now = time.time() * 1000
-            if client in outs and now > (last_send + self.delay):
-                last_send = now
-                #print "Client send: %s" % repr(cqueue[0])
-                client.send(self.generate())
-                self.traffic("<")
+            if client in outs:
+                if c_pend:
+                    last_send = now
+                    c_pend = self.send_frames()
+                elif now > (last_send + self.delay):
+                    last_send = now
+                    c_pend = self.send_frames([self.generate()])
 
     def generate(self):
         length = random.randint(10, self.max_packet_size)
@@ -93,18 +84,13 @@ class WebSocketTest(WebSocketServer):
         data = "^%d:%d:%d:%s$" % (self.send_cnt, length, chksum, nums)
         self.send_cnt += 1
 
-        return WebSocketServer.encode(data)
+        return data
 
 
-    def check(self, buf):
-        try:
-            data_list = WebSocketServer.decode(buf)
-        except:
-            print "\n<BOF>" + repr(buf) + "<EOF>"
-            return "Failed to decode"
+    def check(self, frames):
 
         err = ""
-        for data in data_list:
+        for data in frames:
             if data.count('$') > 1:
                 raise Exception("Multiple parts within single packet")
             if len(data) == 0:
@@ -151,21 +137,31 @@ class WebSocketTest(WebSocketServer):
 
 
 if __name__ == '__main__':
-    try:
-        if len(sys.argv) < 2: raise
-        listen_port = int(sys.argv[1])
-        if len(sys.argv) == 3:
-            delay = int(sys.argv[2])
-        else:
-            delay = 10
-    except:
-        print "Usage: %s <listen_port> [delay_ms]" % sys.argv[0]
-        sys.exit(1)
+    parser = optparse.OptionParser(usage="%prog [options] listen_port")
+    parser.add_option("--verbose", "-v", action="store_true",
+            help="verbose messages and per frame traffic")
+    parser.add_option("--cert", default="self.pem",
+            help="SSL certificate file")
+    parser.add_option("--key", default=None,
+            help="SSL key file (if separate from cert)")
+    parser.add_option("--ssl-only", action="store_true",
+            help="disallow non-encrypted connections")
+    (opts, args) = parser.parse_args()
 
-    server = WebSocketTest(
-            listen_port=listen_port,
-            verbose=True,
-            cert='self.pem',
-            web='.',
-            delay=delay)
+    try:
+        if len(args) != 1: raise
+        opts.listen_port = int(args[0])
+
+        if len(args) not in [1,2]: raise
+        opts.listen_port = int(args[0])
+        if len(args) == 2:
+            opts.delay = int(args[1])
+        else:
+            opts.delay = 10
+    except:
+        parser.error("Invalid arguments")
+
+    opts.web = "."
+    server = WebSocketLoad(**opts.__dict__)
     server.start_server()
+

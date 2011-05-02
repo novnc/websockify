@@ -8,84 +8,68 @@ Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 You can make a cert/key with openssl using:
 openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
 as taken from http://docs.python.org/dev/library/ssl.html#certificates
-
 '''
 
-import os, sys, socket, select
+import os, sys, select, optparse
 sys.path.insert(0,os.path.dirname(__file__) + "/../")
 from websocket import WebSocketServer
 
 class WebSocketEcho(WebSocketServer):
     """
-    WebSockets server that echo back whatever is received from the
-    client. All traffic to/from the client is base64
-    encoded/decoded.
-    """
+    WebSockets server that echos back whatever is received from the
+    client.  """
     buffer_size = 8096
 
-    def new_client(self, client):
+    def new_client(self):
         """
         Echo back whatever is received.
         """
 
         cqueue = []
+        c_pend = 0
         cpartial = ""
-        rlist = [client]
+        rlist = [self.client]
 
         while True:
             wlist = []
 
-            if cqueue: wlist.append(client)
+            if cqueue or c_pend: wlist.append(self.client)
             ins, outs, excepts = select.select(rlist, wlist, [], 1)
             if excepts: raise Exception("Socket exception")
 
-            if client in outs:
+            if self.client in outs:
                 # Send queued target data to the client
-                dat = cqueue.pop(0)
-                sent = client.send(dat)
-                self.vmsg("Sent %s/%s bytes of frame: '%s'" % (
-                          sent, len(dat), self.decode(dat)[0]))
-                if sent != len(dat):
-                    # requeue the remaining data
-                    cqueue.insert(0, dat[sent:])
+                c_pend = self.send_frames(cqueue)
+                cqueue = []
 
-
-            if client in ins:
+            if self.client in ins:
                 # Receive client data, decode it, and send it back
-                buf = client.recv(self.buffer_size)
-                if len(buf) == 0: raise self.EClose("Client closed")
+                frames, closed = self.recv_frames()
+                cqueue.extend(frames)
 
-                if buf == '\xff\x00':
-                    raise self.EClose("Client sent orderly close frame")
-                elif buf[-1] == '\xff':
-                    if cpartial:
-                        # Prepend saved partial and decode frame(s)
-                        frames = self.decode(cpartial + buf)
-                        cpartial = ""
-                    else:
-                        # decode frame(s)
-                        frames = self.decode(buf)
-
-                    for frame in frames:
-                        self.vmsg("Received frame: %s" % repr(frame))
-                        cqueue.append(self.encode(frame))
-                else:
-                    # Save off partial WebSockets frame
-                    self.vmsg("Received partial frame")
-                    cpartial = cpartial + buf
+                if closed:
+                    self.send_close()
+                    raise self.EClose(closed)
 
 if __name__ == '__main__':
-    try:
-        if len(sys.argv) < 1: raise
-        listen_port = int(sys.argv[1])
-    except:
-        print "Usage: %s <listen_port>" % sys.argv[0]
-        sys.exit(1)
+    parser = optparse.OptionParser(usage="%prog [options] listen_port")
+    parser.add_option("--verbose", "-v", action="store_true",
+            help="verbose messages and per frame traffic")
+    parser.add_option("--cert", default="self.pem",
+            help="SSL certificate file")
+    parser.add_option("--key", default=None,
+            help="SSL key file (if separate from cert)")
+    parser.add_option("--ssl-only", action="store_true",
+            help="disallow non-encrypted connections")
+    (opts, args) = parser.parse_args()
 
-    server = WebSocketEcho(
-            listen_port=listen_port,
-            #verbose=True,
-            cert='self.pem',
-            web='.')
+    try:
+        if len(args) != 1: raise
+        opts.listen_port = int(args[0])
+    except:
+        parser.error("Invalid arguments")
+
+    opts.web = "."
+    server = WebSocketEcho(**opts.__dict__)
     server.start_server()
 
