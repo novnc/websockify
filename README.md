@@ -75,15 +75,14 @@ implementations:
     <tr>
         <th>Program</th>
         <th>Language</th>
-        <th>Multiprocess</th>
-        <th>Daemonize</th>
-        <th>SSL/wss</th>
+        <th>Multiproc</th>
+        <th>Daemon</th>
+        <th>SSL wss</th>
         <th>Flash Policy Server</th>
         <th>Session Record</th>
         <th>Web Server</th>
         <th>Program Wrap</th>
-        <th>Hixie 75</th>
-        <th>Hixie 76</th>
+        <th>Hixie 75/76</th>
         <th>IETF/HyBi 07</th>
     </tr> <tr>
         <td>websockify</td>
@@ -92,8 +91,7 @@ implementations:
         <td>yes</td>
         <td>yes 1</td>
         <td>yes</td>
-        <td>yes</td>
-        <td>yes</td>
+        <td>yes 2</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
@@ -109,7 +107,6 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>yes</td>
-        <td>yes</td>
         <td>no</td>
     </tr>
     </tr> <tr>
@@ -123,7 +120,6 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>yes</td>
-        <td>yes</td>
         <td>no</td>
     </tr>
 </table>
@@ -131,6 +127,8 @@ implementations:
 
 * Note 1: to use SSL/wss with python 2.5 or older, see the following
   section on *Building the Python ssl module*.
+
+* Note 2: temporarily broken by IETF/HyBi 07 upgrade.
 
 
 ### Wrap a Program
