@@ -278,27 +278,6 @@ Sec-WebSocket-Accept: %s\r
 
 
     @staticmethod
-    def parse_handshake(handshake):
-        """ Parse fields from client WebSockets handshake. """
-        ret = {}
-        req_lines = handshake.split("\r\n")
-        if not req_lines[0].startswith("GET "):
-            raise Exception("Invalid handshake: no GET request line")
-        ret['path'] = req_lines[0].split(" ")[1]
-        for line in req_lines[1:]:
-            if line == "": break
-            try:
-                var, val = line.split(": ")
-            except:
-                raise Exception("Invalid handshake header: %s" % line)
-            ret[var] = val
-
-        if req_lines[-2] == "":
-            ret['key3'] = req_lines[-1]
-
-        return ret
-
-    @staticmethod
     def gen_md5(keys):
         """ Generate hash value for WebSockets hixie-76. """
         key1 = keys['Sec-WebSocket-Key1']
@@ -517,29 +496,21 @@ Sec-WebSocket-Accept: %s\r
             scheme = "ws"
             stype = "Plain non-SSL (ws://)"
 
-        # Now get the data from the socket
-        handshake = retsock.recv(4096)
+        wsh = WSRequestHandler(retsock, address, not self.web)
+        if wsh.last_code == 101:
+            # Continue on to handle WebSocket upgrade
+            pass
+        elif wsh.last_code == 405:
+            raise self.EClose("Normal web request received but disallowed")
+        elif wsh.last_code < 200 or wsh.last_code >= 300:
+            raise self.EClose(wsh.last_message)
+        elif self.verbose:
+            raise self.EClose(wsh.last_message)
+        else:
+            raise self.EClose("")
 
-        if len(handshake) == 0:
-            raise self.EClose("Client closed during handshake")
-
-        # Check for and handle normal web requests
-        if (handshake.startswith('GET ') and
-                handshake.find('Upgrade: WebSocket\r\n') == -1 and
-                handshake.find('Upgrade: websocket\r\n') == -1):
-            if not self.web:
-                raise self.EClose("Normal web request received but disallowed")
-            sh = SplitHTTPHandler(handshake, retsock, address)
-            if sh.last_code < 200 or sh.last_code >= 300:
-                raise self.EClose(sh.last_message)
-            elif self.verbose:
-                raise self.EClose(sh.last_message)
-            else:
-                raise self.EClose("")
-
-        #self.msg("handshake: " + repr(handshake))
-        # Parse client WebSockets handshake
-        h = self.headers = self.parse_handshake(handshake)
+        h = self.headers = wsh.headers
+        path = self.path = wsh.path
 
         prot = 'WebSocket-Protocol'
         protocols = h.get('Sec-'+prot, h.get(prot, '')).split(',')
@@ -592,7 +563,7 @@ Sec-WebSocket-Accept: %s\r
             self.base64 = True
 
             response = self.server_handshake_hixie % (pre,
-                    h['Origin'], pre, scheme, h['Host'], h['path'])
+                    h['Origin'], pre, scheme, h['Host'], path)
 
             if 'base64' in protocols:
                 response += "%sWebSocket-Protocol: base64\r\n" % pre
@@ -731,19 +702,30 @@ Sec-WebSocket-Accept: %s\r
             if pid == 0:
                 break # Child process exits
 
-
-# HTTP handler with request from a string and response to a socket
-class SplitHTTPHandler(SimpleHTTPRequestHandler):
-    def __init__(self, req, resp, addr):
-        # Save the response socket
-        self.response = resp
+# HTTP handler with WebSocket upgrade support
+class WSRequestHandler(SimpleHTTPRequestHandler):
+    def __init__(self, req, addr, only_upgrade=False):
+        self.only_upgrade = only_upgrade # only allow upgrades
         SimpleHTTPRequestHandler.__init__(self, req, addr, object())
 
-    def setup(self):
-        self.connection = self.response
-        # Duck type request string to file object
-        self.rfile = StringIO(self.request)
-        self.wfile = self.connection.makefile('wb', self.wbufsize)
+    def do_GET(self):
+        if (self.headers.has_key('upgrade') and
+                self.headers.get('upgrade').lower() == 'websocket'):
+
+            if (self.headers.get('sec-websocket-key1') or
+                    self.headers.get('websocket-key1')):
+                # For Hixie-76 read out the key hash
+                self.headers.dict['key3'] = self.rfile.read(8)
+
+            # Just indicate that an WebSocket upgrade is needed
+            self.last_code = 101
+            self.last_message = "101 Switching Protocols"
+        elif self.only_upgrade:
+            # Normal web request responses are disabled
+            self.last_code = 405
+            self.last_message = "405 Method Not Allowed"
+        else:
+            SimpleHTTPRequestHandler.do_GET(self)
 
     def send_response(self, code, message=None):
         # Save the status code
@@ -753,5 +735,4 @@ class SplitHTTPHandler(SimpleHTTPRequestHandler):
     def log_message(self, f, *args):
         # Save instead of printing
         self.last_message = f % args
-
 
