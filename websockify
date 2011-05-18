@@ -2,7 +2,7 @@
 
 '''
 A WebSocket to TCP socket proxy with support for "wss://" encryption.
-Copyright 2010 Joel Martin
+Copyright 2011 Joel Martin
 Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
 You can make a cert/key with openssl using:
@@ -74,7 +74,7 @@ Traffic Legend:
         WebSocketServer.__init__(self, *args, **kwargs)
 
     def run_wrap_cmd(self):
-        print "Starting '%s'" % " ".join(self.wrap_cmd)
+        print("Starting '%s'" % " ".join(self.wrap_cmd))
         self.wrap_times.append(time.time())
         self.wrap_times.pop(0)
         self.cmd = subprocess.Popen(
@@ -88,14 +88,14 @@ Traffic Legend:
         # Need to call wrapped command after daemonization so we can
         # know when the wrapped command exits
         if self.wrap_cmd:
-            print "  - proxying from %s:%s to '%s' (port %s)\n" % (
+            print("  - proxying from %s:%s to '%s' (port %s)\n" % (
                     self.listen_host, self.listen_port,
-                    " ".join(self.wrap_cmd), self.target_port)
+                    " ".join(self.wrap_cmd), self.target_port))
             self.run_wrap_cmd()
         else:
-            print "  - proxying from %s:%s to %s:%s\n" % (
+            print("  - proxying from %s:%s to %s:%s\n" % (
                     self.listen_host, self.listen_port,
-                    self.target_host, self.target_port)
+                    self.target_host, self.target_port))
 
     def poll(self):
         # If we are wrapping a command, check it's status
@@ -118,7 +118,7 @@ Traffic Legend:
                 if (now - avg) < 10:
                     # 3 times in the last 10 seconds
                     if self.spawn_message:
-                        print "Command respawning too fast"
+                        print("Command respawning too fast")
                         self.spawn_message = False
                 else:
                     self.run_wrap_cmd()
@@ -154,7 +154,7 @@ Traffic Legend:
         tsock.connect((self.target_host, self.target_port))
 
         if self.verbose and not self.daemon:
-            print self.traffic_legend
+            print(self.traffic_legend)
 
         # Start proxying
         try:

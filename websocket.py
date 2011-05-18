@@ -2,7 +2,7 @@
 
 '''
 Python WebSocket library with support for "wss://" encryption.
-Copyright 2010 Joel Martin
+Copyright 2011 Joel Martin
 Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
 Supports following protocol versions:
@@ -16,23 +16,49 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import sys, socket, ssl, struct, traceback, select
+import sys, socket, struct, traceback, select
 import os, resource, errno, signal # daemonizing
-from SimpleHTTPServer import SimpleHTTPRequestHandler
-from cStringIO import StringIO
+from cgi import parse_qsl
 from base64 import b64encode, b64decode
-try:
+
+# Imports that vary by python version
+if sys.hexversion > 0x3000000:
+    # python >= 3.0
+    from io import StringIO
+    from http.server import SimpleHTTPRequestHandler
+    from urllib.parse import urlsplit
+    b2s = lambda buf: buf.decode('latin_1')
+    s2b = lambda s: s.encode('latin_1')
+else:
+    # python 2.X
+    from cStringIO import StringIO
+    from SimpleHTTPServer import SimpleHTTPRequestHandler
+    from urlparse import urlsplit
+    # No-ops
+    b2s = lambda buf: buf
+    s2b = lambda s: s
+
+if sys.hexversion >= 0x2060000:
+    # python >= 2.6
+    from multiprocessing import Process
     from hashlib import md5, sha1
-except:
-    # Support python 2.4
+else:
+    # python < 2.6
+    Process = None
     from md5 import md5
     from sha import sha as sha1
+
+# Degraded functionality if these imports are missing
 try:
+    # Required for HyBi encode/decode
     import numpy, ctypes
-except:
+except ImportError:
     numpy = ctypes = None
-from urlparse import urlsplit
-from cgi import parse_qsl
+
+try:
+    import ssl
+except:
+    ssl = None
 
 class WebSocketServer(object):
     """
@@ -88,20 +114,25 @@ Sec-WebSocket-Accept: %s\r
 
         self.handler_id  = 1
 
-        print "WebSocket server settings:"
-        print "  - Listen on %s:%s" % (
-                self.listen_host, self.listen_port)
-        print "  - Flash security policy server"
+        print("WebSocket server settings:")
+        print("  - Listen on %s:%s" % (
+                self.listen_host, self.listen_port))
+        print("  - Flash security policy server")
         if self.web:
-            print "  - Web server"
-        if os.path.exists(self.cert):
-            print "  - SSL/TLS support"
-            if self.ssl_only:
-                print "  - Deny non-SSL/TLS connections"
+            print("  - Web server")
+        if ssl and self.ssl_only:
+            raise Exception("No 'ssl' module and SSL only specified")
+        if ssl:
+            if os.path.exists(self.cert):
+                print("  - SSL/TLS support")
+                if self.ssl_only:
+                    print("  - Deny non-SSL/TLS connections")
+            else:
+                print("  - No SSL/TLS support (no cert file)")
         else:
-            print "  - No SSL/TLS support (no cert file)"
+            print("  - No SSL/TLS support (no 'ssl' module)")
         if self.daemon:
-            print "  - Backgrounding (daemon)"
+            print("  - Backgrounding (daemon)")
 
     #
     # WebSocketServer static methods
@@ -133,7 +164,8 @@ Sec-WebSocket-Accept: %s\r
             try:
                 if fd != keepfd:
                     os.close(fd)
-            except OSError, exc:
+            except OSError:
+                _, exc, _ = sys.exc_info()
                 if exc.errno != errno.EBADF: raise
 
         # Redirect I/O to /dev/null
@@ -164,7 +196,7 @@ Sec-WebSocket-Accept: %s\r
         elif payload_len >= 65536:
             header = struct.pack('>BBQ', b1, 127, payload_len)
 
-        #print "Encoded: %s" % repr(header + buf)
+        #print("Encoded: %s" % repr(header + buf))
 
         return header + buf
 
@@ -238,7 +270,7 @@ Sec-WebSocket-Accept: %s\r
                 b = numpy.bitwise_xor(data, mask).tostring()
 
             if ret['length'] % 4:
-                print "Partial unmask"
+                print("Partial unmask")
                 mask = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
                         offset=header_len, count=(ret['length'] % 4))
                 data = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
@@ -247,20 +279,20 @@ Sec-WebSocket-Accept: %s\r
                 c = numpy.bitwise_xor(data, mask).tostring()
             ret['payload'] = b + c
         else:
-            print "Unmasked frame:", repr(buf)
+            print("Unmasked frame: %s" % repr(buf))
             ret['payload'] = buf[(header_len + has_mask * 4):full_len]
 
         if base64 and ret['opcode'] in [1, 2]:
             try:
                 ret['payload'] = b64decode(ret['payload'])
             except:
-                print "Exception while b64decoding buffer:", repr(buf)
+                print("Exception while b64decoding buffer: %s" %
+                        repr(buf))
                 raise
 
         if ret['opcode'] == 0x08:
             if ret['length'] >= 2:
-                ret['close_code'] = struct.unpack_from(
-                        ">H", ret['payload'])
+                ret['close_code'] = struct.unpack_from(">H", ret['payload'])
             if ret['length'] > 3:
                 ret['close_reason'] = ret['payload'][2:]
 
@@ -268,11 +300,11 @@ Sec-WebSocket-Accept: %s\r
 
     @staticmethod
     def encode_hixie(buf):
-        return "\x00" + b64encode(buf) + "\xff"
+        return s2b("\x00" + b2s(b64encode(buf)) + "\xff")
 
     @staticmethod
     def decode_hixie(buf):
-        end = buf.find('\xff')
+        end = buf.find(s2b('\xff'))
         return {'payload': b64decode(buf[1:end]),
                 'left': len(buf) - (end + 1)}
 
@@ -288,7 +320,8 @@ Sec-WebSocket-Accept: %s\r
         num1 = int("".join([c for c in key1 if c.isdigit()])) / spaces1
         num2 = int("".join([c for c in key2 if c.isdigit()])) / spaces2
 
-        return md5(struct.pack('>II8s', num1, num2, key3)).digest()
+        return b2s(md5(struct.pack('>II8s',
+            int(num1), int(num2), key3)).digest())
 
     #
     # WebSocketServer logging/output functions
@@ -303,7 +336,7 @@ Sec-WebSocket-Accept: %s\r
     def msg(self, msg):
         """ Output message with handler_id prefix. """
         if not self.daemon:
-            print "% 3d: %s" % (self.handler_id, msg)
+            print("% 3d: %s" % (self.handler_id, msg))
 
     def vmsg(self, msg):
         """ Same as msg() but only if verbose. """
@@ -371,7 +404,7 @@ Sec-WebSocket-Accept: %s\r
             if self.version.startswith("hybi"):
 
                 frame = self.decode_hybi(buf, base64=self.base64)
-                #print "Received buf: %s, frame: %s" % (repr(buf), frame)
+                #print("Received buf: %s, frame: %s" % (repr(buf), frame))
 
                 if frame['payload'] == None:
                     # Incomplete/partial frame
@@ -395,7 +428,7 @@ Sec-WebSocket-Accept: %s\r
                     buf = buf[2:]
                     continue # No-op
 
-                elif buf.count('\xff') == 0:
+                elif buf.count(s2b('\xff')) == 0:
                     # Partial frame
                     self.traffic("}.")
                     self.recv_part = buf
@@ -418,7 +451,7 @@ Sec-WebSocket-Accept: %s\r
         """ Send a WebSocket orderly close frame. """
 
         if self.version.startswith("hybi"):
-            msg = ''
+            msg = s2b('')
             if code != None:
                 msg = struct.pack(">H%ds" % (len(reason)), code)
 
@@ -426,7 +459,7 @@ Sec-WebSocket-Accept: %s\r
             self.client.send(buf)
 
         elif self.version == "hixie-76":
-            buf = self.encode_hixie('\xff\x00')
+            buf = s2b('\xff\x00')
             self.client.send(buf)
 
         # No orderly close for 75
@@ -462,14 +495,16 @@ Sec-WebSocket-Accept: %s\r
         if handshake == "":
             raise self.EClose("ignoring empty handshake")
 
-        elif handshake.startswith("<policy-file-request/>"):
+        elif handshake.startswith(s2b("<policy-file-request/>")):
             # Answer Flash policy request
             handshake = sock.recv(1024)
-            sock.send(self.policy_response)
+            sock.send(s2b(self.policy_response))
             raise self.EClose("Sending flash policy response")
 
         elif handshake[0] in ("\x16", "\x80"):
             # SSL wrap the connection
+            if not ssl:
+                raise self.EClose("SSL connection but no 'ssl' module")
             if not os.path.exists(self.cert):
                 raise self.EClose("SSL connection but '%s' not found"
                                   % self.cert)
@@ -479,7 +514,8 @@ Sec-WebSocket-Accept: %s\r
                         server_side=True,
                         certfile=self.cert,
                         keyfile=self.key)
-            except ssl.SSLError, x:
+            except ssl.SSLError:
+                _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
                     raise self.EClose("")
                 else:
@@ -519,8 +555,8 @@ Sec-WebSocket-Accept: %s\r
         if ver:
             # HyBi/IETF version of the protocol
 
-            if not numpy or not ctypes:
-                self.EClose("Python numpy and ctypes modules required for HyBi-07 or greater")
+            if sys.hexversion < 0x2060000 or not numpy:
+                raise self.EClose("Python >= 2.6 and numpy module is required for HyBi-07 or greater")
 
             if ver == '7':
                 self.version = "hybi-07"
@@ -538,7 +574,7 @@ Sec-WebSocket-Accept: %s\r
                 raise self.EClose("Client must support 'binary' or 'base64' protocol")
 
             # Generate the hash value for the accept header
-            accept = b64encode(sha1(key + self.GUID).digest())
+            accept = b64encode(sha1(s2b(key + self.GUID)).digest())
 
             response = self.server_handshake_hybi % accept
             if self.base64:
@@ -577,7 +613,7 @@ Sec-WebSocket-Accept: %s\r
 
         # Send server WebSockets handshake response
         #self.msg("sending response [%s]" % response)
-        retsock.send(response)
+        retsock.send(s2b(response))
 
         # Return the WebSockets socket which may be SSL wrapped
         return retsock
@@ -595,9 +631,8 @@ Sec-WebSocket-Accept: %s\r
         #self.vmsg("Running poll()")
         pass
 
-    def top_SIGCHLD(self, sig, stack):
-        # Reap zombies after calling child SIGCHLD handler
-        self.do_SIGCHLD(sig, stack)
+    def fallback_SIGCHLD(self, sig, stack):
+        # Reap zombies when using os.fork() (python 2.4)
         self.vmsg("Got SIGCHLD, reaping zombies")
         try:
             result = os.waitpid(-1, os.WNOHANG)
@@ -607,14 +642,37 @@ Sec-WebSocket-Accept: %s\r
         except (OSError):
             pass
 
-    def do_SIGCHLD(self, sig, stack):
-        pass
-
     def do_SIGINT(self, sig, stack):
         self.msg("Got SIGINT, exiting")
         sys.exit(0)
 
-    def new_client(self, client):
+    def top_new_client(self, startsock, address):
+        """ Do something with a WebSockets client connection. """
+        # Initialize per client settings
+        self.send_parts = []
+        self.recv_part  = None
+        self.base64     = False
+
+        # handler process
+        try:
+            try:
+                self.client = self.do_handshake(startsock, address)
+                self.new_client()
+            except self.EClose:
+                _, exc, _ = sys.exc_info()
+                # Connection was not a WebSockets connection
+                if exc.args[0]:
+                    self.msg("%s: %s" % (address[0], exc.args[0]))
+            except Exception:
+                _, exc, _ = sys.exc_info()
+                self.msg("handler exception: %s" % str(exc))
+                if self.verbose:
+                    self.msg(traceback.format_exc())
+        finally:
+            if self.client and self.client != startsock:
+                self.client.close()
+
+    def new_client(self):
         """ Do something with a WebSockets client connection. """
         raise("WebSocketServer.new_client() must be overloaded")
 
@@ -636,9 +694,11 @@ Sec-WebSocket-Accept: %s\r
 
         self.started()  # Some things need to happen after daemonizing
 
-        # Reep zombies
-        signal.signal(signal.SIGCHLD, self.top_SIGCHLD)
+        # Allow override of SIGINT
         signal.signal(signal.SIGINT, self.do_SIGINT)
+        if not Process:
+            # os.fork() (python 2.4) child reaper
+            signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
 
         while True:
             try:
@@ -655,9 +715,12 @@ Sec-WebSocket-Accept: %s\r
                             startsock, address = lsock.accept()
                         else:
                             continue
-                    except Exception, exc:
+                    except Exception:
+                        _, exc, _ = sys.exc_info()
                         if hasattr(exc, 'errno'):
                             err = exc.errno
+                        elif hasattr(exc, 'args'):
+                            err = exc.args[0]
                         else:
                             err = exc[0]
                         if err == errno.EINTR:
@@ -666,41 +729,42 @@ Sec-WebSocket-Accept: %s\r
                         else:
                             raise
 
-                    self.vmsg('%s: forking handler' % address[0])
-                    pid = os.fork()
-
-                    if pid == 0:
-                        # Initialize per client settings
-                        self.send_parts = []
-                        self.recv_part  = None
-                        self.base64     = False
-                        # handler process
-                        self.client = self.do_handshake(
-                                startsock, address)
-                        self.new_client()
+                    if Process:
+                        self.vmsg('%s: new handler Process' % address[0])
+                        p = Process(target=self.top_new_client,
+                                args=(startsock, address))
+                        p.start()
+                        # child will not return
                     else:
-                        # parent process
-                        self.handler_id += 1
+                        # python 2.4
+                        self.vmsg('%s: forking handler' % address[0])
+                        pid = os.fork()
+                        if pid == 0:
+                            # child handler process
+                            self.top_new_client(startsock, address)
+                            break  # child process exits
 
-                except self.EClose, exc:
-                    # Connection was not a WebSockets connection
-                    if exc.args[0]:
-                        self.msg("%s: %s" % (address[0], exc.args[0]))
-                except KeyboardInterrupt, exc:
+                    # parent process
+                    self.handler_id += 1
+
+                except KeyboardInterrupt:
+                    _, exc, _ = sys.exc_info()
+                    print("In KeyboardInterrupt")
                     pass
-                except Exception, exc:
+                except SystemExit:
+                    _, exc, _ = sys.exc_info()
+                    print("In SystemExit")
+                    break
+                except Exception:
+                    _, exc, _ = sys.exc_info()
                     self.msg("handler exception: %s" % str(exc))
                     if self.verbose:
                         self.msg(traceback.format_exc())
 
             finally:
-                if self.client and self.client != startsock:
-                    self.client.close()
                 if startsock:
                     startsock.close()
 
-            if pid == 0:
-                break # Child process exits
 
 # HTTP handler with WebSocket upgrade support
 class WSRequestHandler(SimpleHTTPRequestHandler):
@@ -709,13 +773,13 @@ class WSRequestHandler(SimpleHTTPRequestHandler):
         SimpleHTTPRequestHandler.__init__(self, req, addr, object())
 
     def do_GET(self):
-        if (self.headers.has_key('upgrade') and
+        if (self.headers.get('upgrade') and
                 self.headers.get('upgrade').lower() == 'websocket'):
 
             if (self.headers.get('sec-websocket-key1') or
                     self.headers.get('websocket-key1')):
                 # For Hixie-76 read out the key hash
-                self.headers.dict['key3'] = self.rfile.read(8)
+                self.headers.__setitem__('key3', self.rfile.read(8))
 
             # Just indicate that an WebSocket upgrade is needed
             self.last_code = 101
