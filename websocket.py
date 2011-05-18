@@ -16,8 +16,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import sys, socket, struct, traceback, select
-import os, resource, errno, signal # daemonizing
+import os, sys, errno, signal, socket, struct, traceback, select
 from cgi import parse_qsl
 from base64 import b64encode, b64decode
 
@@ -49,16 +48,16 @@ else:
     from sha import sha as sha1
 
 # Degraded functionality if these imports are missing
-try:
-    # Required for HyBi encode/decode
-    import numpy, ctypes
-except ImportError:
-    numpy = ctypes = None
+for mod, sup in [('numpy', 'HyBi protocol'),
+        ('ctypes', 'HyBi protocol'), ('ssl', 'TLS/SSL/wss'),
+        ('resource', 'daemonizing')]:
+    try:
+        globals()[mod] = __import__(mod)
+    except ImportError:
+        globals()[mod] = None
+        print("WARNING: no '%s' module, %s support disabled" % (
+            mod, sup))
 
-try:
-    import ssl
-except:
-    ssl = None
 
 class WebSocketServer(object):
     """
@@ -98,6 +97,7 @@ Sec-WebSocket-Accept: %s\r
         self.listen_port = listen_port
         self.ssl_only    = ssl_only
         self.daemon      = daemon
+        self.handler_id  = 1
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
@@ -112,16 +112,19 @@ Sec-WebSocket-Accept: %s\r
         if self.web:
             os.chdir(self.web)
 
-        self.handler_id  = 1
+        # Sanity checks
+        if ssl and self.ssl_only:
+            raise Exception("No 'ssl' module and SSL-only specified")
+        if self.daemon and not resource:
+            raise Exception("Module 'resource' required to daemonize")
 
+        # Show configuration
         print("WebSocket server settings:")
         print("  - Listen on %s:%s" % (
                 self.listen_host, self.listen_port))
         print("  - Flash security policy server")
         if self.web:
             print("  - Web server")
-        if ssl and self.ssl_only:
-            raise Exception("No 'ssl' module and SSL only specified")
         if ssl:
             if os.path.exists(self.cert):
                 print("  - SSL/TLS support")
