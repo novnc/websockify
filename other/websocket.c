@@ -11,17 +11,28 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-#include <strings.h>
 #include <sys/types.h> 
+#ifdef _WIN32
+#include <Winsock2.h>
+#include <WS2tcpip.h>
+#include <osisock.h>
+#include <base64-decode.h>
+#define b64_ntop(in, ilen, out, osize) lws_b64_encode_string(in, ilen, out, osize)
+#define b64_pton(in, out, osize) lws_b64_decode_string(in, out, osize)
+#define snprintf sprintf_s 
+#else
+#include <strings.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <resolv.h>      /* base64 encode/decode */
+#endif
 #include <signal.h> // daemonizing
 #include <fcntl.h>  // daemonizing
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <resolv.h>      /* base64 encode/decode */
+#include "md5.h"
 #include "websocket.h"
 
 const char server_handshake[] = "HTTP/1.1 101 Web Socket Protocol Handshake\r\n\
@@ -29,7 +40,7 @@ Upgrade: WebSocket\r\n\
 Connection: Upgrade\r\n\
 %sWebSocket-Origin: %s\r\n\
 %sWebSocket-Location: %s://%s%s\r\n\
-%sWebSocket-Protocol: sample\r\n\
+%sWebSocket-Protocol: base64\r\n\
 \r\n%s";
 
 const char policy_response[] = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>\n";
@@ -66,7 +77,7 @@ void fatal(char *msg)
 /* resolve host with also IP address parsing */ 
 int resolve_host(struct in_addr *sin_addr, const char *hostname) 
 { 
-    if (!inet_aton(hostname, sin_addr)) { 
+    if (!inet_pton(AF_INET, hostname, sin_addr)) { 
         struct addrinfo *ai, *cur; 
         struct addrinfo hints; 
         memset(&hints, 0, sizeof(hints)); 
@@ -178,7 +189,7 @@ ws_ctx_t *ws_socket_ssl(int socket, char * certfile, char * keyfile) {
     return ctx;
 }
 
-int ws_socket_free(ws_ctx_t *ctx) {
+void ws_socket_free(ws_ctx_t *ctx) {
     if (ctx->ssl) {
         SSL_free(ctx->ssl);
         ctx->ssl = NULL;
@@ -199,8 +210,7 @@ int ws_socket_free(ws_ctx_t *ctx) {
 
 
 int encode(u_char const *src, size_t srclength, char *target, size_t targsize) {
-    int i, sz = 0, len = 0;
-    unsigned char chr;
+    int sz = 0, len = 0;
     target[sz++] = '\x00';
     len = b64_ntop(src, srclength, target+sz, targsize-sz);
     if (len < 0) {
@@ -213,8 +223,7 @@ int encode(u_char const *src, size_t srclength, char *target, size_t targsize) {
 
 int decode(char *src, size_t srclength, u_char *target, size_t targsize) {
     char *start, *end, cntstr[4];
-    int i, len, framecount = 0, retlen = 0;
-    unsigned char chr;
+    int len, framecount = 0, retlen = 0;
     if ((src[0] != '\x00') || (src[srclength-1] != '\xff')) {
         handler_emsg("WebSocket framing error\n");
         return -1;
@@ -242,7 +251,7 @@ int decode(char *src, size_t srclength, u_char *target, size_t targsize) {
 int parse_handshake(char *handshake, headers_t *headers) {
     char *start, *end;
 
-    if ((strlen(handshake) < 92) || (bcmp(handshake, "GET ", 4) != 0)) {
+    if ((strlen(handshake) < 92) || (memcmp(handshake, "GET ", 4) != 0)) {
         return 0;
     }
     start = handshake+4;
@@ -344,7 +353,7 @@ ws_ctx_t *do_handshake(int sock) {
     char handshake[4096], response[4096], trailer[17];
     char *scheme, *pre;
     headers_t headers;
-    int len, ret;
+    int len;
     ws_ctx_t * ws_ctx;
 
     // Peek, but don't read the data
@@ -353,14 +362,13 @@ ws_ctx_t *do_handshake(int sock) {
     if (len == 0) {
         handler_msg("ignoring empty handshake\n");
         return NULL;
-    } else if (bcmp(handshake, "<policy-file-request/>", 22) == 0) {
+    } else if (memcmp(handshake, "<policy-file-request/>", 22) == 0) {
         len = recv(sock, handshake, 1024, 0);
         handshake[len] = 0;
         handler_msg("sending flash policy response\n");
         send(sock, policy_response, sizeof(policy_response), 0);
         return NULL;
-    } else if ((bcmp(handshake, "\x16", 1) == 0) ||
-               (bcmp(handshake, "\x80", 1) == 0)) {
+    } else if (handshake[0] == '\x16' || handshake[0] == '\x80') {
         // SSL
         if (!settings.cert) {
             handler_msg("SSL connection but no cert specified\n");
@@ -415,11 +423,15 @@ ws_ctx_t *do_handshake(int sock) {
 
 void signal_handler(sig) {
     switch (sig) {
-        case SIGHUP: break; // ignore for now
-        case SIGPIPE: pipe_error = 1; break; // handle inline
+		// TODO: Windows equivalents ?
+        //case SIGHUP: break; // ignore for now			
+        //case SIGPIPE: pipe_error = 1; break; // handle inline
+		//---
         case SIGTERM: exit(0); break;
     }
 }
+
+#ifndef _WIN32
 
 void daemonize(int keepfd) {
     int pid, i;
@@ -455,11 +467,42 @@ void daemonize(int keepfd) {
     dup(i);                       // Redirect stderr
 }
 
+#endif // ! _WIN32
+
+// TODO: move to websockify module ?
+
+#ifdef _WIN32
+
+static DWORD WINAPI proxy_thread( LPVOID lpParameter )
+{
+	int csock = (int) lpParameter;
+    ws_ctx_t *ws_ctx;
+
+    ws_ctx = do_handshake(csock);
+    if (ws_ctx == NULL) {
+        //handler_msg("No connection after handshake\n");
+        return 0;
+    }
+
+    settings.handler(ws_ctx);
+	// TODO: error handling
+    //if (pipe_error) {
+    //    handler_emsg("Closing due to SIGPIPE\n");
+    //}
+
+	return 0;
+}
+
+#endif
 
 void start_server() {
-    int lsock, csock, pid, clilen, sopt = 1, i;
+    int lsock, csock, pid, clilen, sopt = 1;
     struct sockaddr_in serv_addr, cli_addr;
+#ifdef _WIN32
+	HANDLE hThread;
+#else
     ws_ctx_t *ws_ctx;
+#endif
 
     /* Initialize buffers */
     bufsize = 65536;
@@ -474,7 +517,7 @@ void start_server() {
 
     lsock = socket(AF_INET, SOCK_STREAM, 0);
     if (lsock < 0) { error("ERROR creating listener socket"); }
-    bzero((char *) &serv_addr, sizeof(serv_addr));
+    memset((char *) &serv_addr, 0, sizeof(serv_addr));
     serv_addr.sin_family = AF_INET;
     serv_addr.sin_port = htons(settings.listen_port);
 
@@ -489,18 +532,25 @@ void start_server() {
 
     setsockopt(lsock, SOL_SOCKET, SO_REUSEADDR, (char *)&sopt, sizeof(sopt));
     if (bind(lsock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
+		int err = WSAGetLastError();
         fatal("ERROR on binding listener socket");
     }
     listen(lsock,100);
 
+#ifndef _WIN32
     signal(SIGPIPE, signal_handler);  // catch pipe
+#endif
 
     if (settings.daemon) {
+#ifndef _WIN32
         daemonize(lsock);
+#endif
     }
 
+#ifndef _WIN32
     // Reep zombies
     signal(SIGCHLD, SIG_IGN);
+#endif
 
     printf("Waiting for connections on %s:%d\n",
             settings.listen_host, settings.listen_port);
@@ -522,6 +572,14 @@ void start_server() {
          *    20 for WS '\x00' / '\xff' and good measure  */
         dbufsize = (bufsize * 3)/4 - 20;
 
+#ifdef _WIN32
+		hThread = CreateThread(NULL, 0, proxy_thread, (LPVOID) csock, 0, NULL );
+		if (hThread == NULL) {
+			error("failed to create proxy thread");
+			break;
+		}
+		settings.handler_id += 1;
+#else
         handler_msg("forking handler process\n");
         pid = fork();
 
@@ -540,7 +598,10 @@ void start_server() {
         } else {         // parent process
             settings.handler_id += 1;
         }
+#endif
     }
+#ifdef _WIN32
+#else
     if (pid == 0) {
         if (ws_ctx) {
             ws_socket_free(ws_ctx);
@@ -550,8 +611,9 @@ void start_server() {
         }
         handler_msg("handler exit\n");
     } else {
+		// TODO: can this ever be reached ?
         handler_msg("wsproxy exit\n");
     }
-
+#endif
 }
 

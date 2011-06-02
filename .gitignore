@@ -1,3 +1,9 @@
 *.pyc
 *.o
 *.so
+ws_vc2010/Debug/
+ws_vc2010/Release/
+*.user
+*.opensdf
+*.sdf
+*.ipch

@@ -27,6 +27,11 @@ typedef struct {
     char key3[8+1];
 } headers_t;
 
+// 2011-06-01 gygax@practicomp.ch Better way ?
+#ifndef ssize_t
+#define ssize_t size_t
+#endif
+//---
 
 ssize_t ws_recv(ws_ctx_t *ctx, void *buf, size_t len);
 

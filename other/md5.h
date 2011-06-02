@@ -88,8 +88,16 @@ struct md5_ctx
 
   md5_uint32 total[2];
   md5_uint32 buflen;
+#ifdef _WIN32
+  char buffer[128];
+#else
   char buffer[128] __attribute__ ((__aligned__ (__alignof__ (md5_uint32))));
+#endif
 };
+
+#ifdef _WIN32
+#define __THROW
+#endif
 
 /*
  * The following three functions are build up the low level used in

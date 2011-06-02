@@ -11,11 +11,17 @@
 #include <errno.h>
 #include <limits.h>
 #include <getopt.h>
+#include <unistd.h>
+#ifdef WIN32
+#include <Windows.h>
+#include <realpath.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#endif
 #include <sys/stat.h>
 #include "websocket.h"
 
@@ -39,15 +45,15 @@ char USAGE[] = "Usage: [options] " \
                "  --key KEY          SSL key file (if separate from cert)\n" \
                "  --ssl-only         disallow non-encrypted connections";
 
-#define usage(fmt, args...) \
+#define usage(fmt, ...) \
     fprintf(stderr, "%s\n\n", USAGE); \
-    fprintf(stderr, fmt , ## args); \
+    fprintf(stderr, fmt , ## __VA_ARGS__); \
     exit(1);
 
 char target_host[256];
 int target_port;
 
-extern pipe_error;
+extern int pipe_error;
 extern settings_t settings;
 extern char *tbuf, *cbuf, *tbuf_tmp, *cbuf_tmp;
 extern unsigned int bufsize, dbufsize;
@@ -55,7 +61,7 @@ extern unsigned int bufsize, dbufsize;
 void do_proxy(ws_ctx_t *ws_ctx, int target) {
     fd_set rlist, wlist, elist;
     struct timeval tv;
-    int i, maxfd, client = ws_ctx->sockfd;
+    int maxfd, client = ws_ctx->sockfd;
     unsigned int tstart, tend, cstart, cend, ret;
     ssize_t len, bytes;
 
@@ -146,7 +152,12 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             bytes = recv(target, cbuf_tmp, dbufsize , 0);
             if (pipe_error) { break; }
             if (bytes <= 0) {
-                handler_emsg("target closed connection\n");
+				if (bytes < 0) {
+					int err = WSAGetLastError();
+					handler_emsg("error receiving from target");
+				}
+				else
+					handler_emsg("target closed connection\n");
                 break;
             }
             cstart = 0;
@@ -215,7 +226,7 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
                      strerror(errno));
         return;
     }
-    bzero((char *) &taddr, sizeof(taddr));
+    memset((char *) &taddr, 0, sizeof(taddr));
     taddr.sin_family = AF_INET;
     taddr.sin_port = htons(target_port);
 
@@ -228,7 +239,7 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
     if (connect(tsock, (struct sockaddr *) &taddr, sizeof(taddr)) < 0) {
         handler_emsg("Could not connect to target: %s\n",
                      strerror(errno));
-        close(tsock);
+        _close(tsock);
         return;
     }
 
@@ -238,12 +249,40 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
 
     do_proxy(ws_ctx, tsock);
 
-    close(tsock);
+#ifdef _WIN32
+	closesocket(tsock);
+#else
+    _close(tsock);
+#endif
 }
+
+#ifdef _WIN32
+
+static int initWinSocks()
+{
+    WORD wVersionRequested;
+    WSADATA wsaData;
+    int err;
+
+	/* Use the MAKEWORD(lowbyte, highbyte) macro declared in Windef.h */
+    wVersionRequested = MAKEWORD(2, 2);
+
+    err = WSAStartup(wVersionRequested, &wsaData);
+    if (err != 0) {
+        /* Tell the user that we could not find a usable */
+        /* Winsock DLL.                                  */
+        printf("WSAStartup failed with error: %d\n", err);
+        return 1;
+    }
+
+	return 0;
+}
+
+#endif // _WIN32
 
 int main(int argc, char *argv[])
 {
-    int fd, c, option_index = 0;
+    int c, option_index = 0;
     static int ssl_only = 0, daemon = 0, verbose = 0;
     char *found;
     static struct option long_options[] = {
@@ -256,7 +295,11 @@ int main(int argc, char *argv[])
         {0, 0, 0, 0}
     };
 
-    settings.cert = realpath("self.pem", NULL);
+#ifdef _WIN32
+	if ( initWinSocks() != 0 ) return 1;
+#endif
+
+	settings.cert = realpath("self.pem", NULL);
     if (!settings.cert) {
         /* Make sure it's always set to something */
         settings.cert = "self.pem";
