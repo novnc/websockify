@@ -24,9 +24,6 @@
     <ClCompile Include="..\other\win32\getopt.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\other\win32\base64-decode.c">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="..\other\win32\getopt_long.c">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -34,6 +31,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\other\win32\realpath.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\other\win32\base64.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

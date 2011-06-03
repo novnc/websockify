@@ -16,9 +16,9 @@
 #include <Winsock2.h>
 #include <WS2tcpip.h>
 #include <osisock.h>
-#include <base64-decode.h>
-#define b64_ntop(in, ilen, out, osize) lws_b64_encode_string(in, ilen, out, osize)
-#define b64_pton(in, out, osize) lws_b64_decode_string(in, out, osize)
+//#include <base64-decode.h>
+//#define b64_ntop(in, ilen, out, osize) lws_b64_encode_string(in, ilen, out, osize)
+//#define b64_pton(in, out, osize) lws_b64_decode_string(in, out, osize)
 #define snprintf sprintf_s 
 #else
 #include <strings.h>

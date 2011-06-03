@@ -82,7 +82,7 @@
     <ClCompile Include="..\other\md5.c" />
     <ClCompile Include="..\other\websocket.c" />
     <ClCompile Include="..\other\websockify.c" />
-    <ClCompile Include="..\other\win32\base64-decode.c" />
+    <ClCompile Include="..\other\win32\base64.c" />
     <ClCompile Include="..\other\win32\getopt.c" />
     <ClCompile Include="..\other\win32\getopt_long.c" />
     <ClCompile Include="..\other\win32\realpath.c" />

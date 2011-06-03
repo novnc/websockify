@@ -291,7 +291,7 @@ function constructor() {
             case 65507: // Ctrl, do not send directly
                 break;
             case 65293: // Carriage return, line feed
-                str = '\n'; break;
+                str = '\r\n'; break;
             case 65288: // Backspace
                 str = '\b'; break;
             case 65307: // Escape

@@ -12,6 +12,8 @@
 #include <limits.h>
 #include <getopt.h>
 #include <unistd.h>
+#include <ctype.h>
+#include <assert.h>
 #ifdef WIN32
 #include <Windows.h>
 #include <realpath.h>
@@ -57,6 +59,34 @@ extern int pipe_error;
 extern settings_t settings;
 extern char *tbuf, *cbuf, *tbuf_tmp, *cbuf_tmp;
 extern unsigned int bufsize, dbufsize;
+
+#ifdef _DEBUG
+
+void dump_buffer( char *buffer, size_t size, const char *title )
+{
+	char line[4096];
+	unsigned i;
+	int ch;
+	unsigned cu;
+	assert( size < 4096 );
+	for ( i = 0; i < size; i ++ ) {
+		line[i] = buffer[i] >= 32 && buffer[i] <= 126 ? buffer[i] : ' ';
+	}
+	line[i] = 0;
+	printf( "%s, %u bytes: \"%s\"", title, (unsigned) size, line );
+	for ( i = 0; i < size; i ++ ) {
+		if ( i % 8 == 0 ) printf("\n"); else printf("  ");
+		ch = buffer[i];
+		cu = (ch < 0 ? 65536 + ch : *((unsigned*)&ch)) & 0xff;
+		ch =  ch >= 32 && ch <= 126 ? ch : ' ';
+		printf( "'%c' ($%2.2x) (%3.3u)", ch, cu, cu );
+	}
+	if ( i % 8 != 0 ) printf("\n");
+}
+
+#else
+#define dump_buffer( b, s, t )
+#endif
 
 void do_proxy(ws_ctx_t *ws_ctx, int target) {
     fd_set rlist, wlist, elist;
@@ -116,6 +146,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
         if (FD_ISSET(target, &wlist)) {
             len = tend-tstart;
+			dump_buffer( tbuf+tstart, len, "Sending to target" );
             bytes = send(target, tbuf + tstart, len, 0);
             if (pipe_error) { break; }
             if (bytes < 0) {
@@ -134,6 +165,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
         if (FD_ISSET(client, &wlist)) {
             len = cend-cstart;
+			dump_buffer( cbuf+cstart, len, "Sending to client" );
             bytes = ws_send(ws_ctx, cbuf + cstart, len);
             if (pipe_error) { break; }
             if (len < 3) {
@@ -150,10 +182,10 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
         if (FD_ISSET(target, &rlist)) {
             bytes = recv(target, cbuf_tmp, dbufsize , 0);
+			dump_buffer( cbuf_tmp, bytes, "Received from target" );
             if (pipe_error) { break; }
             if (bytes <= 0) {
 				if (bytes < 0) {
-					int err = WSAGetLastError();
 					handler_emsg("error receiving from target");
 				}
 				else
@@ -178,6 +210,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
         if (FD_ISSET(client, &rlist)) {
             bytes = ws_recv(ws_ctx, tbuf_tmp, bufsize-1);
+			dump_buffer( tbuf_tmp, bytes, "Received from client" );
             if (pipe_error) { break; }
             if (bytes <= 0) {
                 handler_emsg("client closed connection\n");
@@ -196,6 +229,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             printf("\n");
             */
             len = decode(tbuf_tmp, bytes, tbuf, bufsize-1);
+			//if ( len == 1 && tbuf[0] == '\x0a' ) tbuf[0] = '\x0d';
             /*
             printf("decoded: ");
             for (i=0; i< len; i++) {
