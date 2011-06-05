@@ -36,6 +36,9 @@
     <ClCompile Include="..\other\win32\base64.c">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="..\other\sha-1.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\other\md5.h">

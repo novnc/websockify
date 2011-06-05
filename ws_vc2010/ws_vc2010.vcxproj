@@ -80,6 +80,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\other\md5.c" />
+    <ClCompile Include="..\other\sha-1.c" />
     <ClCompile Include="..\other\websocket.c" />
     <ClCompile Include="..\other\websockify.c" />
     <ClCompile Include="..\other\win32\base64.c" />

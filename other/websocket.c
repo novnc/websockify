@@ -35,15 +35,72 @@
 #include "md5.h"
 #include "websocket.h"
 
-const char server_handshake[] = "HTTP/1.1 101 Web Socket Protocol Handshake\r\n\
+const char server_handshake_hixie[] = "HTTP/1.1 101 Web Socket Protocol Handshake\r\n\
 Upgrade: WebSocket\r\n\
 Connection: Upgrade\r\n\
-%sWebSocket-Origin: %s\r\n\
-%sWebSocket-Location: %s://%s%s\r\n\
+%sWebSocket-Origin: %.*s\r\n\
+%sWebSocket-Location: %s://%.*s%.*s\r\n\
 %sWebSocket-Protocol: base64\r\n\
 \r\n%s";
 
+const char server_handshake_hybi[] = "HTTP/1.1 101 Switching Protocols\r\n\
+Upgrade: websocket\r\n\
+Connection: Upgrade\r\n\
+Sec-WebSocket-Accept: %s\r\n\
+Sec-WebSocket-Protocol: %.*s\r\n\
+\r\n\
+";
+
 const char policy_response[] = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>\n";
+
+/*
+ * Get the path from the handhake header.
+ */
+static int get_path(const char *handshake, const char* *value, size_t *len) {
+	const char *start, *end;
+
+    if ((strlen(handshake) < 92) || (memcmp(handshake, "GET ", 4) != 0)) {
+        return 0;
+    }
+
+    start = handshake+4;
+    end = strstr(start, " HTTP/1.1");
+    if (!end) { return 0; }
+
+	*value = start;
+	*len = end - start;
+
+	return *len;
+}
+
+/*
+ * Gets a header field from an HTTP header.
+ * Returns non-zero if successful, 0 if the header does not contain
+ * the specified field.
+ */
+
+static int get_header_field(const char *handshake, const char *name, const char* *value, size_t *len) {
+	char key[64];
+	const char *p, *q;
+	size_t lk;
+
+	lk = sprintf_s(key, sizeof(key), "\r\n%s: ", name );
+	p = strstr(handshake, key);
+	if (p) {
+		*value = p + lk;
+		q = strstr(*value, "\r\n");
+		if (!q) return 0;
+		return (*len = (q - *value));
+	}
+	else return 0;
+}
+
+static const char * skip_header(const char *handshake) {
+	const char *p;
+	p = strstr(handshake, "\r\n\r\n");
+	if (!p) return 0;
+	return p + 4;
+}
 
 /*
  * Global state
@@ -248,81 +305,32 @@ int decode(char *src, size_t srclength, u_char *target, size_t targsize) {
     return retlen;
 }
 
-int parse_handshake(char *handshake, headers_t *headers) {
-    char *start, *end;
-
-    if ((strlen(handshake) < 92) || (memcmp(handshake, "GET ", 4) != 0)) {
-        return 0;
-    }
-    start = handshake+4;
-    end = strstr(start, " HTTP/1.1");
-    if (!end) { return 0; }
-    strncpy(headers->path, start, end-start);
-    headers->path[end-start] = '\0';
-
-    start = strstr(handshake, "\r\nHost: ");
-    if (!start) { return 0; }
-    start += 8;
-    end = strstr(start, "\r\n");
-    strncpy(headers->host, start, end-start);
-    headers->host[end-start] = '\0';
-
-    start = strstr(handshake, "\r\nOrigin: ");
-    if (!start) { return 0; }
-    start += 10;
-    end = strstr(start, "\r\n");
-    strncpy(headers->origin, start, end-start);
-    headers->origin[end-start] = '\0';
-   
-    start = strstr(handshake, "\r\n\r\n");
-    if (!start) { return 0; }
-    start += 4;
-    if (strlen(start) == 8) {
-        strncpy(headers->key3, start, 8);
-        headers->key3[8] = '\0';
-
-        start = strstr(handshake, "\r\nSec-WebSocket-Key1: ");
-        if (!start) { return 0; }
-        start += 22;
-        end = strstr(start, "\r\n");
-        strncpy(headers->key1, start, end-start);
-        headers->key1[end-start] = '\0';
-    
-        start = strstr(handshake, "\r\nSec-WebSocket-Key2: ");
-        if (!start) { return 0; }
-        start += 22;
-        end = strstr(start, "\r\n");
-        strncpy(headers->key2, start, end-start);
-        headers->key2[end-start] = '\0';
-    } else {
-        headers->key1[0] = '\0';
-        headers->key2[0] = '\0';
-        headers->key3[0] = '\0';
-    }
-
-    return 1;
-}
-
-int gen_md5(headers_t *headers, char *target) {
+int gen_md5(const char *handshake, char *target) {
     unsigned int i, spaces1 = 0, spaces2 = 0;
     unsigned long num1 = 0, num2 = 0;
     unsigned char buf[17];
-    for (i=0; i < strlen(headers->key1); i++) {
-        if (headers->key1[i] == ' ') {
+	const char *value;
+	size_t len;
+
+	if (!get_header_field(handshake, "Sec-WebSocket-Key1", &value, &len)) return 0;
+
+    for (i=0; i < len; i++) {
+        if (value[i] == ' ') {
             spaces1 += 1;
         }
-        if ((headers->key1[i] >= 48) && (headers->key1[i] <= 57)) {
-            num1 = num1 * 10 + (headers->key1[i] - 48);
+        if ((value[i] >= 48) && (value[i] <= 57)) {
+            num1 = num1 * 10 + (value[i] - 48);
         }
     }
     num1 = num1 / spaces1;
 
-    for (i=0; i < strlen(headers->key2); i++) {
-        if (headers->key2[i] == ' ') {
+	if (!get_header_field(handshake, "Sec-WebSocket-Key2", &value, &len)) return 0;
+    for (i=0; i < len; i++) {
+        if (value[i] == ' ') {
             spaces2 += 1;
         }
-        if ((headers->key2[i] >= 48) && (headers->key2[i] <= 57)) {
-            num2 = num2 * 10 + (headers->key2[i] - 48);
+        if ((value[i] >= 48) && (value[i] <= 57)) {
+            num2 = num2 * 10 + (value[i] - 48);
         }
     }
     num2 = num2 / spaces2;
@@ -338,7 +346,8 @@ int gen_md5(headers_t *headers, char *target) {
     buf[6] = (num2 & 0xff00) >> 8;
     buf[7] =  num2 & 0xff;
 
-    strncpy(buf+8, headers->key3, 8);
+	if (!(value = skip_header(handshake))) return 0;
+	strncpy(buf+8, value, 8);
     buf[16] = '\0';
 
     md5_buffer(buf, 16, target);
@@ -350,15 +359,18 @@ int gen_md5(headers_t *headers, char *target) {
     
 
 ws_ctx_t *do_handshake(int sock) {
-    char handshake[4096], response[4096], trailer[17];
-    char *scheme, *pre;
-    headers_t headers;
+    char handshake[4096], response[4096], trailer[17], keynguid[1024+36+1], hash[20+1], accept[30+1];
+    char *scheme, *pre, *protocol;
     int len;
     ws_ctx_t * ws_ctx;
+	const char *value;
+	size_t vlen;
+	size_t rlen;
 
     // Peek, but don't read the data
     len = recv(sock, handshake, 1024, MSG_PEEK);
     handshake[len] = 0;
+	printf("Handshake:\n%s\n", handshake);
     if (len == 0) {
         handler_msg("ignoring empty handshake\n");
         return NULL;
@@ -398,25 +410,46 @@ ws_ctx_t *do_handshake(int sock) {
     }
     handshake[len] = 0;
 
-    if (!parse_handshake(handshake, &headers)) {
-        handler_emsg("Invalid WS request\n");
-        return NULL;
-    }
-
-    if (headers.key3[0] != '\0') {
-        gen_md5(&headers, trailer);
-        pre = "Sec-";
-        handler_msg("using protocol version 76\n");
-    } else {
-        trailer[0] = '\0';
-        pre = "";
-        handler_msg("using protocol version 75\n");
-    }
+	// HyBi/IETF version of the protocol ?
+	if (get_header_field(handshake, "Sec-WebSocket-Version", &value, &vlen)) {
+		int ver;
+		const char *key, *protocol;
+		size_t kl, el, pl;
+		ver = atoi(value);
+		if (!get_header_field(handshake, "Sec-WebSocket-Protocol", &protocol, &pl)) return 0;
+		ws_ctx->protocol = strncmp(protocol, "base64", pl) == 0 ? base64 : binary;
+		if (!get_header_field(handshake, "Sec-WebSocket-Key", &key, &kl)) return 0;
+		strncpy_s(keynguid, sizeof(keynguid), key, kl);
+		strcat_s(keynguid, sizeof(keynguid), "258EAFA5-E914-47DA-95CA-C5AB0DC85B11");
+		SHA1((const unsigned char*)keynguid, strlen(keynguid), hash);
+		b64_ntop(hash, 20, accept, sizeof(accept));
+		rlen = sprintf(response, server_handshake_hybi, accept, pl, protocol);
+	}
+	else // Hixie version of the protocol (75 or 76)
+	{
+		const char *key3, *orig, *host, *path;
+		size_t kl, ol, hl, pl;
+		key3 = skip_header(handshake);
+		if (key3 && *key3) {
+			gen_md5(handshake, trailer);
+			pre = "Sec-";
+			handler_msg("using protocol version 76\n");
+		} else {
+			trailer[0] = '\0';
+			pre = "";
+			handler_msg("using protocol version 75\n");
+		}
+		ws_ctx->protocol = base64; 
+		if (!get_header_field(handshake, "Origin", &orig, &ol)) return NULL;
+		if (!get_header_field(handshake, "Host", &host, &hl)) return NULL;
+		if (!get_path(handshake, &path, &pl)) return NULL;
+		rlen = sprintf(response, server_handshake_hixie, pre, ol, orig, pre, scheme,
+			hl, host, pl, path, pre, trailer);
+	}
+	printf("\nResponse:\n%s\n--------------------------\n", response);
     
-    sprintf(response, server_handshake, pre, headers.origin, pre, scheme,
-            headers.host, headers.path, pre, trailer);
     //handler_msg("response: %s\n", response);
-    ws_send(ws_ctx, response, strlen(response));
+    ws_send(ws_ctx, response, rlen);
 
     return ws_ctx;
 }
