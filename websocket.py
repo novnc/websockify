@@ -686,8 +686,12 @@ Sec-WebSocket-Accept: %s\r
         is a WebSockets client then call new_client() method (which must
         be overridden) for each new client connection.
         """
-
-        lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        
+        lsock = None
+        if self.ipv6:
+          socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+          socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         lsock.bind((self.listen_host, self.listen_port))
         lsock.listen(100)
