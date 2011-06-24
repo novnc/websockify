@@ -691,7 +691,7 @@ Sec-WebSocket-Accept: %s\r
         if self.ipv6:
           socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         else:
-          socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+          socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         lsock.bind((self.listen_host, self.listen_port))
         lsock.listen(100)
