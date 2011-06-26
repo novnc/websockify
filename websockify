@@ -161,6 +161,7 @@ Traffic Legend:
             self.do_proxy(tsock)
         except:
             if tsock:
+                tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
                 self.vmsg("%s:%s: Target closed" %(
                     self.target_host, self.target_port))

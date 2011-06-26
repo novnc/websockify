@@ -713,7 +713,7 @@ Sec-WebSocket-Accept: %s\r
                     try:
                         self.poll()
 
-                        ready = select.select([lsock], [], [], 1)[0];
+                        ready = select.select([lsock], [], [], 1)[0]
                         if lsock in ready:
                             startsock, address = lsock.accept()
                         else:
