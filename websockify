@@ -279,15 +279,25 @@ if __name__ == '__main__':
         opts.listen_host, opts.listen_port = ":".join(args[0].split(':')[:len(args[0].split(':')) - 1]), args[0].split(':')[len(args[0].split(':')) - 1]
     else:
         opts.listen_host, opts.listen_port = '', args[0]
+    if opts.listen_host.count(':') > 0:
+        opts.source_is_ipv6 = True
+    else:
+        opts.source_is_ipv6 = False
+
     try:    opts.listen_port = int(opts.listen_port)
     except: parser.error("Error parsing listen port")
-
+    
     if opts.wrap_cmd:
         opts.target_host = None
         opts.target_port = None
     else:
         if args[1].count(':') > 0:
             opts.target_host, opts.target_port = ":".join(args[1].split(':')[:len(args[1].split(':')) - 1]), args[1].split(':')[len(args[1].split(':')) - 1]
+            if opts.target_host.count(':') > 0:
+                opts.target_is_ipv6 = True
+            else:
+                opts.target_is_ipv6 = False
+
         else:
             parser.error("Error parsing target")
         try:    opts.target_port = int(opts.target_port)
