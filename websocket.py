@@ -95,7 +95,6 @@ Sec-WebSocket-Accept: %s\r
         self.verbose        = verbose
         self.listen_host    = listen_host
         self.listen_port    = listen_port
-        self.source_is_ipv6 = source_is_ipv6
         self.ssl_only       = ssl_only
         self.daemon         = daemon
         self.handler_id     = 1
@@ -114,7 +113,7 @@ Sec-WebSocket-Accept: %s\r
             os.chdir(self.web)
 
         # Sanity checks
-        if ssl and self.ssl_only:
+        if not ssl and self.ssl_only:
             raise Exception("No 'ssl' module and SSL-only specified")
         if self.daemon and not resource:
             raise Exception("Module 'resource' required to daemonize")
@@ -512,6 +511,7 @@ Sec-WebSocket-Accept: %s\r
             if not os.path.exists(self.cert):
                 raise self.EClose("SSL connection but '%s' not found"
                                   % self.cert)
+            retsock = None
             try:
                 retsock = ssl.wrap_socket(
                         sock,
@@ -687,15 +687,14 @@ Sec-WebSocket-Accept: %s\r
         is a WebSockets client then call new_client() method (which must
         be overridden) for each new client connection.
         """
-        
-        if self.source_is_ipv6:
-          lsock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        else:
-          lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        lsock.bind((self.listen_host, self.listen_port))
-        lsock.listen(100)
-
+        for res in socket.getaddrinfo(self.listen_host, self.listen_port, 0, socket.SOCK_STREAM, 6):
+            af, socktype, proto, canonname, sa = res
+            lsock = socket.socket(af, socktype)
+            lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            lsock.bind((self.listen_host, self.listen_port))
+            lsock.listen(100)
+            break
+            
         if self.daemon:
             self.daemonize(keepfd=lsock.fileno(), chdir=self.web)
 

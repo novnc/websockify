@@ -41,7 +41,6 @@ Traffic Legend:
         # Save off proxy specific options
         self.target_host    = kwargs.pop('target_host')
         self.target_port    = kwargs.pop('target_port')
-        self.target_is_ipv6 = kwargs.pop('target_is_ipv6')
         self.wrap_cmd       = kwargs.pop('wrap_cmd')
         self.wrap_mode      = kwargs.pop('wrap_mode')
         # Last 3 timestamps command was run
@@ -151,12 +150,12 @@ Traffic Legend:
         # Connect to the target
         self.msg("connecting to: %s:%s" % (
                  self.target_host, self.target_port))
-        if self.target_is_ipv6:
-            tsock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
-        else:
-            tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        tsock.connect((self.target_host, self.target_port))
-
+        for res in socket.getaddrinfo(self.target_host, self.target_port, 0, socket.SOCK_STREAM, 6):
+            af, socktype, proto, canonname, sa = res
+            tsock = socket.socket(af, socktype)
+            tsock.connect((self.target_host, self.target_port))
+            break
+                        
         if self.verbose and not self.daemon:
             print(self.traffic_legend)
 
@@ -283,11 +282,7 @@ if __name__ == '__main__':
         opts.listen_host, sep, opts.listen_port = args[0].rpartition(':')
     else:
         opts.listen_host, opts.listen_port = '', args[0]
-    if opts.listen_host.count(':') > 0:
-        opts.source_is_ipv6 = True
-    else:
-        opts.source_is_ipv6 = False
-
+    
     try:    opts.listen_port = int(opts.listen_port)
     except: parser.error("Error parsing listen port")
     
@@ -297,11 +292,6 @@ if __name__ == '__main__':
     else:
         if args[1].count(':') > 0:
             opts.target_host, sep, opts.target_port = args[1].rpartition(':')
-            if opts.target_host.count(':') > 0:
-                opts.target_is_ipv6 = True
-            else:
-                opts.target_is_ipv6 = False
-
         else:
             parser.error("Error parsing target")
         try:    opts.target_port = int(opts.target_port)
