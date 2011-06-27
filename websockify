@@ -280,7 +280,7 @@ if __name__ == '__main__':
 
     # Parse host:port and convert ports to numbers
     if args[0].count(':') > 0:
-        opts.listen_host, opts.listen_port = ":".join(args[0].split(':')[:len(args[0].split(':')) - 1]), args[0].split(':')[len(args[0].split(':')) - 1]
+        opts.listen_host, sep, opts.listen_port = args[0].rpartition(':')
     else:
         opts.listen_host, opts.listen_port = '', args[0]
     if opts.listen_host.count(':') > 0:
@@ -296,7 +296,7 @@ if __name__ == '__main__':
         opts.target_port = None
     else:
         if args[1].count(':') > 0:
-            opts.target_host, opts.target_port = ":".join(args[1].split(':')[:len(args[1].split(':')) - 1]), args[1].split(':')[len(args[1].split(':')) - 1]
+            opts.target_host, sep, opts.target_port = args[1].rpartition(':')
             if opts.target_host.count(':') > 0:
                 opts.target_is_ipv6 = True
             else:
