@@ -87,17 +87,18 @@ Sec-WebSocket-Accept: %s\r
     class EClose(Exception):
         pass
 
-    def __init__(self, listen_host='', listen_port=None,
+    def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web=''):
 
         # settings
-        self.verbose     = verbose
-        self.listen_host = listen_host
-        self.listen_port = listen_port
-        self.ssl_only    = ssl_only
-        self.daemon      = daemon
-        self.handler_id  = 1
+        self.verbose        = verbose
+        self.listen_host    = listen_host
+        self.listen_port    = listen_port
+        self.source_is_ipv6 = source_is_ipv6
+        self.ssl_only       = ssl_only
+        self.daemon         = daemon
+        self.handler_id     = 1
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
@@ -687,11 +688,10 @@ Sec-WebSocket-Accept: %s\r
         be overridden) for each new client connection.
         """
         
-        lsock = None
-        if self.ipv6:
-          socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        if self.source_is_ipv6:
+          lsock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
         else:
-          socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+          lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         lsock.bind((self.listen_host, self.listen_port))
         lsock.listen(100)

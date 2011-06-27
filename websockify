@@ -39,10 +39,11 @@ Traffic Legend:
 
     def __init__(self, *args, **kwargs):
         # Save off proxy specific options
-        self.target_host   = kwargs.pop('target_host')
-        self.target_port   = kwargs.pop('target_port')
-        self.wrap_cmd      = kwargs.pop('wrap_cmd')
-        self.wrap_mode     = kwargs.pop('wrap_mode')
+        self.target_host    = kwargs.pop('target_host')
+        self.target_port    = kwargs.pop('target_port')
+        self.target_is_ipv6 = kwargs.pop('target_is_ipv6')
+        self.wrap_cmd       = kwargs.pop('wrap_cmd')
+        self.wrap_mode      = kwargs.pop('wrap_mode')
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
@@ -150,7 +151,10 @@ Traffic Legend:
         # Connect to the target
         self.msg("connecting to: %s:%s" % (
                  self.target_host, self.target_port))
-        tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        if self.target_is_ipv6:
+            tsock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        else:
+            tsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         tsock.connect((self.target_host, self.target_port))
 
         if self.verbose and not self.daemon:
