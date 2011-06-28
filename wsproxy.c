@@ -288,6 +288,22 @@ encode(int in, int out)
 #endif
 
 static char *
+do_strndup(const char *str, size_t n)
+{
+	size_t len;
+	char *copy;
+
+	for (len = 0; len < n && str[len]; len++)
+		continue;
+
+	if ((copy = malloc(len + 1)) == NULL)
+		return (NULL);
+	memcpy(copy, str, len);
+	copy[len] = '\0';
+	return (copy);
+}
+
+static char *
 parsestring(const char *in)
 {
 	size_t len;
@@ -299,7 +315,7 @@ parsestring(const char *in)
 		len--;
 	if (len == 0)
 		return (NULL);
-	return (strndup(in, len));
+	return (do_strndup(in, len));
 }
 
 static uint32_t
