@@ -28,9 +28,11 @@
  */
 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <assert.h>
+#include <fcntl.h>
 #include <resolv.h>
 #include <signal.h>
 #include <stdio.h>
@@ -353,9 +355,38 @@ calcresponse(uint32_t key1, uint32_t key2, const char *key3, char *out)
 	MD5_Final((void *)out, &c);
 }
 
+static void
+eat_flash_magic(void)
+{
+	static const char flash_magic[] = "<policy-file-request/>";
+	ssize_t i;
+	int ch;
+
+	for (i = 0; i < sizeof flash_magic - 1; i++) {
+		ch = getchar();
+		if (ch == EOF) {
+			perror("getc");
+			exit(1);
+		}
+		/* Not a Flash applet.  Roll back. */
+		if (ch != flash_magic[i]) {
+			ungetc(ch, stdin);
+			while (--i >= 0)
+				ungetc(flash_magic[i], stdin);
+			return;
+		}
+	}
+
+	printf("<cross-domain-policy>"
+	    "<allow-access-from domain=\"*\" to-ports=\"*\"/>"
+	    "</cross-domain-policy>\n");
+	exit(0);
+}
+
 int
 main(int argc, char *argv[])
 {
+	struct stat sb;
 	union {
 		struct sockaddr sa;
 		struct sockaddr_in sa_in;
@@ -366,7 +397,20 @@ main(int argc, char *argv[])
 	uint32_t key1 = 0, key2 = 0;
 	socklen_t salen;
 	pid_t pid;
-	int s;
+	int fd, s;
+
+	/* Squelch stderr when it is a socket. */
+	if (fstat(STDERR_FILENO, &sb) == -1 || S_ISSOCK(sb.st_mode)) {
+		fd = open("/dev/null", O_WRONLY);
+		if (fd == -1) {
+			perror("open");
+			return (1);
+		}
+		if (fd != STDERR_FILENO) {
+			dup2(fd, STDERR_FILENO);
+			close(fd);
+		}
+	}
 
 	if (argc != 3)
 		usage();
@@ -374,10 +418,12 @@ main(int argc, char *argv[])
 	maxport = strtoul(argv[2], NULL, 10);
 	if (1 > minport || minport > maxport || maxport > 65535)
 		usage();
+	
+	eat_flash_magic();
 
 	/* GET / header. */
 	if (fgets(line, sizeof line, stdin) == NULL) {
-		fprintf(stderr, "no HTTP header received\n");
+		perror("fgets");
 		return (1);
 	}
 	if (strncmp(line, "GET /", 5) != 0) {

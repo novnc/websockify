@@ -1,3 +1,15 @@
+wsproxy (1.0-1KUMIRELEASE3) unstable; urgency=low
+
+  * Add support for Flash headers.
+
+ -- Ed Schouten <ed@kumina.nl>  Tue, 28 Jun 2011 15:32:49 +0200
+
+wsproxy (1.0-1KUMIRELEASE2) unstable; urgency=low
+
+  * Don't spam to stderr.
+
+ -- Ed Schouten <ed@kumina.nl>  Tue, 28 Jun 2011 13:35:03 +0200
+
 wsproxy (1.0-1KUMIRELEASE1) unstable; urgency=low
 
   * Initial release.
