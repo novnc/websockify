@@ -1,0 +1,31 @@
+#!/usr/bin/make -f
+
+NPDIR=${CURDIR}/debian/wsproxy
+
+build:
+	dh_testdir
+	$(MAKE)
+	touch build
+
+clean:
+	dh_testdir
+	rm -f build
+	$(MAKE) clean
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_installdirs /usr/sbin
+	install -m 755 wsproxy ${NPDIR}/usr/sbin
+	dh_installchangelogs
+	dh_compress
+
+binary: build install
+	dh_testdir -s
+	dh_strip -s
+	dh_shlibdeps -s
+	dh_gencontrol -s
+	dh_md5sums -s
+	dh_builddeb -s
+
+.PHONY: clean install binary

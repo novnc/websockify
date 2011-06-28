@@ -1,0 +1,12 @@
+Source: wsproxy
+Section: net
+Priority: optional
+Maintainer: Ed Schouten <ed@kumina.nl>
+Build-Depends: debhelper (>= 5), build-essential, libssl-dev
+
+Package: wsproxy
+Architecture: any
+Depends: ${shlibs:Depends}
+Description: WebSockets Proxy
+ The WebSockets Proxy can tunnel Base64 encoded frames of traffic
+ transmitted through a WebSockets connection to a TCP connection.
