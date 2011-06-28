@@ -284,7 +284,7 @@ parsehdrkey(const char *key)
 		else if (*key == ' ')
 			spaces++;
 	}
-	return (sum / spaces);
+	return (spaces == 0 ? 0 : sum / spaces);
 }
 
 static void
