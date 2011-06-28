@@ -356,7 +356,11 @@ calcresponse(uint32_t key1, uint32_t key2, const char *key3, char *out)
 int
 main(int argc, char *argv[])
 {
-	struct sockaddr_storage sa;
+	union {
+		struct sockaddr sa;
+		struct sockaddr_in sa_in;
+		struct sockaddr_in6 sa_in6;
+	} sa;
 	char line[512], key3[8], response[16], *host = NULL, *origin = NULL;
 	unsigned long minport, maxport, port;
 	uint32_t key1 = 0, key2 = 0;
@@ -411,31 +415,30 @@ main(int argc, char *argv[])
 
 	/* Use our own address. Fall back to 127.0.0.1 on failure. */
 	salen = sizeof sa;
-	if (getsockname(STDIN_FILENO, (struct sockaddr *)&sa, &salen) == -1) {
-		struct sockaddr_in *sin = (struct sockaddr_in *)&sa;
-		salen = sizeof *sin;
-		memset(sin, 0, salen);
-		sin->sin_family = AF_INET;
-		sin->sin_addr.s_addr = inet_addr("127.0.0.1");
+	if (getsockname(STDIN_FILENO, &sa.sa, &salen) == -1) {
+		salen = sizeof sa.sa_in;
+		memset(&sa.sa_in, 0, salen);
+		sa.sa_in.sin_family = AF_INET;
+		sa.sa_in.sin_addr.s_addr = inet_addr("127.0.0.1");
 	}
-	switch (sa.ss_family) {
+	switch (sa.sa.sa_family) {
 	case AF_INET:
-		((struct sockaddr_in *)&sa)->sin_port = htons(port);
+		sa.sa_in.sin_port = htons(port);
 		break;
 	case AF_INET6:
-		((struct sockaddr_in6 *)&sa)->sin6_port = htons(port);
+		sa.sa_in6.sin6_port = htons(port);
 		break;
 	default:
 		/* Unknown protocol. */
 		fprintf(stderr, "unsupported network protocol\n");
 		return (1);
 	}
-	s = socket(sa.ss_family, SOCK_STREAM, 0);
+	s = socket(sa.sa.sa_family, SOCK_STREAM, 0);
 	if (s == -1) {
 		perror("socket");
 		return (1);
 	}
-	if (connect(s, (struct sockaddr *)&sa, salen) == -1) {
+	if (connect(s, &sa.sa, salen) == -1) {
 		perror("connect");
 		return (1);
 	}
