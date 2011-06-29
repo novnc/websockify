@@ -74,52 +74,58 @@ implementations:
 <table>
     <tr>
         <th>Program</th>
-        <th>Language</th>
-        <th>Multiproc</th>
-        <th>Daemon</th>
-        <th>SSL wss</th>
-        <th>Flash Policy Server</th>
-        <th>Session Record</th>
-        <th>Web Server</th>
-        <th>Program Wrap</th>
-        <th>Hixie 75/76</th>
-        <th>IETF/HyBi 07</th>
+        <th>websockify</th>
+        <th>other/websockify</th>
+        <th>other/websockify.js</th>
     </tr> <tr>
-        <td>websockify</td>
+        <th>Language</th>
         <td>python</td>
+        <td>C</td>
+        <td>Node (node.js)</td>
+    </tr> <tr>
+        <th>Multiproc</th>
         <td>yes</td>
         <td>yes</td>
+        <td>yes</td>
+    </tr> <tr>
+        <th>Daemon</th>
+        <td>yes</td>
+        <td>yes</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>SSL wss</th>
         <td>yes 1</td>
         <td>yes</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>Flash Policy Server</th>
+        <td>yes</td>
+        <td>yes</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>Session Record</th>
         <td>yes 2</td>
+        <td>no</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>Web Server</th>
         <td>yes</td>
+        <td>no</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>Program Wrap</th>
+        <td>yes</td>
+        <td>no</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>Hixie 75/76</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
     </tr> <tr>
-        <td>other/websockify</td>
-        <td>C</td>
-        <td>yes</td>
-        <td>yes</td>
-        <td>yes</td>
+        <th>IETF/HyBi 07</th>
         <td>yes</td>
         <td>no</td>
-        <td>no</td>
-        <td>no</td>
-        <td>yes</td>
-        <td>no</td>
-    </tr>
-    </tr> <tr>
-        <td>other/websockify.js</td>
-        <td>Node (node.js)</td>
-        <td>yes</td>
-        <td>no</td>
-        <td>no</td>
-        <td>no</td>
-        <td>no</td>
-        <td>no</td>
-        <td>no</td>
-        <td>yes</td>
         <td>no</td>
     </tr>
 </table>
