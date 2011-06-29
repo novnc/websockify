@@ -386,7 +386,6 @@ eat_flash_magic(void)
 int
 main(int argc, char *argv[])
 {
-	struct stat sb;
 	union {
 		struct sockaddr sa;
 		struct sockaddr_in sa_in;
@@ -397,10 +396,10 @@ main(int argc, char *argv[])
 	uint32_t key1 = 0, key2 = 0;
 	socklen_t salen;
 	pid_t pid;
-	int fd, s;
+	int fd, monitoring = 0, s;
 
 	/* Squelch stderr when it is a socket. */
-	if (fstat(STDERR_FILENO, &sb) == -1 || S_ISSOCK(sb.st_mode)) {
+	if (!isatty(STDERR_FILENO)) {
 		fd = open("/dev/null", O_WRONLY);
 		if (fd == -1) {
 			perror("open");
@@ -430,8 +429,10 @@ main(int argc, char *argv[])
 		fprintf(stderr, "malformed HTTP header received\n");
 		return (1);
 	}
+	if (strncmp(line, "GET /wsproxy-monitoring/ ", 25) == 0)
+		monitoring = 1;
 	port = strtoul(line + 5, NULL, 10);
-	if (port < minport || port > maxport) {
+	if (!monitoring && (port < minport || port > maxport)) {
 		fprintf(stderr, "port not allowed\n");
 		return (1);
 	}
@@ -452,6 +453,15 @@ main(int argc, char *argv[])
 			key2 = parsehdrkey(line + 20);
 		}
 	} while (strcmp(line, "\n") != 0 && strcmp(line, "\r\n") != 0);
+
+	/* Simple monitoring. */
+	if (monitoring) {
+		printf("HTTP/1.1 200 OK\r\n"
+		    "Content-Type: text/plain\r\n"
+		    "\r\n"
+		    "RUNNING\n");
+		return (0);
+	}
 
 	/* Eight byte payload. */
 	if (fread(key3, sizeof key3, 1, stdin) != 1) {
