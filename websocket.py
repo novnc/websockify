@@ -140,6 +140,17 @@ Sec-WebSocket-Accept: %s\r
     #
     # WebSocketServer static methods
     #
+    
+    @staticmethod
+    def addrinfo(host, port=None):
+        """ Resolve a host (and optional port) to an IPv4 or IPv6 address.
+        Returns: family, socktype, proto, canonname, sockaddr
+        """
+        addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM, socket.IPPROTO_TCP)
+        if not addrs:
+            raise Exception("Could resolve host '%s'" % self.target_host)
+        return addrs[0]
+
     @staticmethod
     def daemonize(keepfd=None, chdir='/'):
         os.umask(0)
@@ -687,14 +698,12 @@ Sec-WebSocket-Accept: %s\r
         is a WebSockets client then call new_client() method (which must
         be overridden) for each new client connection.
         """
-        for res in socket.getaddrinfo(self.listen_host, self.listen_port, 0, socket.SOCK_STREAM, 6):
-            af, socktype, proto, canonname, sa = res
-            lsock = socket.socket(af, socktype)
-            lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            lsock.bind((self.listen_host, self.listen_port))
-            lsock.listen(100)
-            break
-            
+        addr = WebSocketServer.addrinfo(self.listen_host, self.listen_port)
+        lsock = socket.socket(addr[0], addr[1])
+        lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        lsock.bind((self.listen_host, self.listen_port))
+        lsock.listen(100)
+                    
         if self.daemon:
             self.daemonize(keepfd=lsock.fileno(), chdir=self.web)
 

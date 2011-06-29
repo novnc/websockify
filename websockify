@@ -150,12 +150,10 @@ Traffic Legend:
         # Connect to the target
         self.msg("connecting to: %s:%s" % (
                  self.target_host, self.target_port))
-        for res in socket.getaddrinfo(self.target_host, self.target_port, 0, socket.SOCK_STREAM, 6):
-            af, socktype, proto, canonname, sa = res
-            tsock = socket.socket(af, socktype)
-            tsock.connect((self.target_host, self.target_port))
-            break
-                        
+        addr = WebSocketServer.addrinfo(self.target_host, self.target_port)
+        tsock = socket.socket(addr[0], addr[1])
+        tsock.connect((self.target_host, self.target_port))
+                                
         if self.verbose and not self.daemon:
             print(self.traffic_legend)
 
