@@ -2,9 +2,6 @@
  * Copyright (c) 2011 Ed Schouten <ed@kumina.nl>
  * All rights reserved.
  *
- * Portions of this software were developed under sponsorship from Snow
- * B.V., the Netherlands.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
