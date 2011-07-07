@@ -736,12 +736,12 @@ Sec-WebSocket-Accept: %s\r
         is a WebSockets client then call new_client() method (which must
         be overridden) for each new client connection.
         """
-        addr = WebSocketServer.addrinfo(self.listen_host, self.listen_port)
+        addr = self.addrinfo(self.listen_host, self.listen_port)
         lsock = socket.socket(addr[0], addr[1])
         lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         lsock.bind((self.listen_host, self.listen_port))
         lsock.listen(100)
-                    
+
         if self.daemon:
             self.daemonize(keepfd=lsock.fileno(), chdir=self.web)
 
