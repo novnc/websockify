@@ -1,4 +1,4 @@
-TARGETS=websockify wswrapper.so
+TARGETS=websockify wswrapper.so kumina
 CFLAGS += -fPIC
 
 all: $(TARGETS)
@@ -16,6 +16,9 @@ wswrapper.o: wswrapper.c
 	$(CC) -c $(CFLAGS) -o $@ $*.c
 md5.o: md5.c md5.h
 	$(CC) -c $(CFLAGS) -o $@ $*.c -DHAVE_MEMCPY -DSTDC_HEADERS
+
+kumina: kumina.o
+	$(CC) $(LDFLAGS) $^ -lresolv -lssl -o $@
 
 clean:
 	rm -f websockify wswrapper.so *.o
