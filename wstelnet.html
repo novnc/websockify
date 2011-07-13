@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html>
 
     <head>
@@ -5,13 +6,13 @@
         <script src="include/base64.js"></script>
         <script src="include/websock.js"></script>
         <script src="include/util.js"></script>
-        <script src="include/webutil.js"></script> 
-        <script src="include/keysym.js"></script> 
-        <script src="include/VT100.js"></script> 
-        <script src="include/wstelnet.js"></script> 
+        <script src="include/webutil.js"></script>
+        <script src="include/keysym.js"></script>
+        <script src="include/VT100.js"></script>
+        <script src="include/wstelnet.js"></script>
         <!-- Uncomment to activate firebug lite -->
         <!--
-        <script type='text/javascript' 
+        <script type='text/javascript'
             src='http://getfirebug.com/releases/lite/1.2/firebug-lite-compressed.js'></script>
         -->
 
@@ -64,7 +65,7 @@
                 var url = document.location.href;
                 $D('host').value = (url.match(/host=([^&#]*)/) || ['',''])[1];
                 $D('port').value = (url.match(/port=([^&#]*)/) || ['',''])[1];
-                
+
                 telnet = Telnet('terminal', connected, disconnected);
             }
         </script>

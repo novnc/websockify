@@ -1,9 +1,12 @@
 #include <openssl/ssl.h>
 
+typedef enum { binary = 1, base64 } protocol_t;
+
 typedef struct {
-    int      sockfd;
-    SSL_CTX *ssl_ctx;
-    SSL     *ssl;
+    int        sockfd;
+    SSL_CTX    *ssl_ctx;
+    SSL        *ssl;
+	protocol_t protocol;
 } ws_ctx_t;
 
 typedef struct {
@@ -18,15 +21,25 @@ typedef struct {
     int daemon;
 } settings_t;
 
+/*
 typedef struct {
     char path[1024+1];
     char host[1024+1];
     char origin[1024+1];
+	char protocols[512+1];
+	char key[1024+1];
     char key1[1024+1];
     char key2[1024+1];
     char key3[8+1];
+	char version[4+1];
 } headers_t;
+*/
 
+// 2011-06-01 gygax@practicomp.ch Better way ?
+#ifndef ssize_t
+#define ssize_t size_t
+#endif
+//---
 
 ssize_t ws_recv(ws_ctx_t *ctx, void *buf, size_t len);
 
