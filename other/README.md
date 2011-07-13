@@ -21,7 +21,10 @@ of websockify.
 
 ### Description
 
-The upstream source of kumina is here: https://github.com/kumina/wsproxy
+The upstream source of the kumina proxy is [here](https://github.com/kumina/wsproxy).
+
+[This article](http://blog.kumina.nl/2011/06/proxying-and-multiplexing-novnc-using-wsproxy/)
+describes the kumina proxy.
 
 kumina is an application that can be run from inetd, which allows noVNC
 to connect to an unmodified libvncserver. Furthermore, it makes use of
