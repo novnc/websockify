@@ -64,9 +64,8 @@ These are not necessary for the basic operation.
 
 ### Implementations of websockify
 
-The primary implementation of websockify is in python. There are two
-other implementations of websockify in C, and Node (node.js) in the
-`other/` subdirectory.
+The primary implementation of websockify is in python. There are also
+alternative implementations in the `other/` subdirectory.
 
 Here is the feature support matrix for the the websockify
 implementations:
@@ -127,7 +126,7 @@ implementations:
         <td>no</td>
         <td>no</td>
     </tr> <tr>
-        <th>Multiple targets</th>
+        <th>Multiple Targets</th>
         <td>no</td>
         <td>no</td>
         <td>no</td>
