@@ -124,7 +124,7 @@ Sec-WebSocket-Accept: %s\r
                 self.listen_host, self.listen_port))
         print("  - Flash security policy server")
         if self.web:
-            print("  - Web server")
+            print("  - Web server. Web root: %s" % self.web)
         if ssl:
             if os.path.exists(self.cert):
                 print("  - SSL/TLS support")
