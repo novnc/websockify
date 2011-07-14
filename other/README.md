@@ -26,8 +26,8 @@ The upstream source of the kumina proxy is [here](https://github.com/kumina/wspr
 [This article](http://blog.kumina.nl/2011/06/proxying-and-multiplexing-novnc-using-wsproxy/)
 describes the kumina proxy.
 
-kumina is an application that can be run from inetd, which allows noVNC
-to connect to an unmodified libvncserver. Furthermore, it makes use of
+kumina is an application that is run from inetd, which allows noVNC
+to connect to an unmodified VNC server. Furthermore, it makes use of
 the recently added support in noVNC for file names. The file name is
 used to denote the port number. Say, you connect to:
 

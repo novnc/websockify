@@ -21,5 +21,5 @@ kumina: kumina.o
 	$(CC) $(LDFLAGS) $^ -lresolv -lssl -o $@
 
 clean:
-	rm -f websockify wswrapper.so *.o
+	rm -f websockify wswrapper.so kumina *.o
 

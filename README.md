@@ -77,34 +77,41 @@ implementations:
         <th>websockify</th>
         <th>other/websockify</th>
         <th>other/websockify.js</th>
+        <th>other/kumina</th>
     </tr> <tr>
         <th>Language</th>
         <td>python</td>
         <td>C</td>
         <td>Node (node.js)</td>
+        <td>C</td>
     </tr> <tr>
         <th>Multiproc</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
+        <td>no</td>
     </tr> <tr>
         <th>Daemon</th>
         <td>yes</td>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
     </tr> <tr>
         <th>SSL wss</th>
         <td>yes 1</td>
         <td>yes</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Flash Policy Server</th>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
+        <td>yes</td>
     </tr> <tr>
         <th>Session Record</th>
         <td>yes 2</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
     </tr> <tr>
@@ -112,19 +119,35 @@ implementations:
         <td>yes</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Program Wrap</th>
         <td>yes</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
-        <th>Hixie 75/76</th>
+        <th>Multiple targets</th>
+        <td>no</td>
+        <td>no</td>
+        <td>no</td>
+        <td>yes</td>
+    </tr> <tr>
+        <th>Hixie 75</th>
+        <td>yes</td>
+        <td>yes</td>
+        <td>yes</td>
+        <td>no</td>
+    </tr> <tr>
+        <th>Hixie 76</th>
+        <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
     </tr> <tr>
         <th>IETF/HyBi 07</th>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
     </tr>
