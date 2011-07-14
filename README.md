@@ -109,7 +109,7 @@ implementations:
         <td>yes</td>
     </tr> <tr>
         <th>Session Record</th>
-        <td>yes 2</td>
+        <td>yes</td>
         <td>no</td>
         <td>no</td>
         <td>no</td>
@@ -155,8 +155,6 @@ implementations:
 
 * Note 1: to use SSL/wss with python 2.5 or older, see the following
   section on *Building the Python ssl module*.
-
-* Note 2: temporarily broken by IETF/HyBi 07 upgrade.
 
 
 ### Wrap a Program
