@@ -132,19 +132,19 @@ implementations:
         <td>no</td>
         <td>yes</td>
     </tr> <tr>
-        <th>[Hixie 75](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75)</th>
+        <th>Hixie 75</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
     </tr> <tr>
-        <th>[Hixie 76](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76)</th>
+        <th>Hixie 76</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
     </tr> <tr>
-        <th>[IETF/HyBi 07-10](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10)</th>
+        <th>IETF/HyBi 07-10</th>
         <td>yes</td>
         <td>no</td>
         <td>no</td>
@@ -156,6 +156,12 @@ implementations:
 * Note 1: to use SSL/wss with python 2.5 or older, see the following
   section on *Building the Python ssl module*.
 
+Protocol draft/specification links:
+
+    * [Hixie 75](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75)
+    * [Hixie 76](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76)
+    * [IETF/HyBi 07](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07)
+    * [IETF/HyBi 10](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10)
 
 ### Wrap a Program
 
