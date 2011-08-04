@@ -132,19 +132,19 @@ implementations:
         <td>no</td>
         <td>yes</td>
     </tr> <tr>
-        <th>Hixie 75</th>
+        <th>[Hixie 75](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75)</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
     </tr> <tr>
-        <th>Hixie 76</th>
+        <th>[Hixie 76](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76)</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
     </tr> <tr>
-        <th>IETF/HyBi 07</th>
+        <th>[IETF/HyBi 07-10](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10)</th>
         <td>yes</td>
         <td>no</td>
         <td>no</td>

@@ -8,7 +8,7 @@ Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 Supports following protocol versions:
     - http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-75
     - http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76
-    - http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07
+    - http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
 
 You can make a cert/key with openssl using:
 openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
@@ -615,7 +615,9 @@ Sec-WebSocket-Accept: %s\r
             if sys.hexversion < 0x2060000 or not numpy:
                 raise self.EClose("Python >= 2.6 and numpy module is required for HyBi-07 or greater")
 
-            if ver in ['7', '8', '9']:
+            # HyBi-07 report version 7
+            # HyBi-08 - HyBi-10 report version 8
+            if ver in ['7', '8']:
                 self.version = "hybi-0" + ver
             else:
                 raise self.EClose('Unsupported protocol version %s' % ver)
