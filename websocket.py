@@ -49,8 +49,7 @@ else:
 
 # Degraded functionality if these imports are missing
 for mod, sup in [('numpy', 'HyBi protocol'),
-        ('ctypes', 'HyBi protocol'), ('ssl', 'TLS/SSL/wss'),
-        ('resource', 'daemonizing')]:
+        ('ssl', 'TLS/SSL/wss'), ('resource', 'daemonizing')]:
     try:
         globals()[mod] = __import__(mod)
     except ImportError:
@@ -298,9 +297,9 @@ Sec-WebSocket-Accept: %s\r
             f['mask'] = buf[f['hlen']:f['hlen']+4]
             b = c = ''
             if f['length'] >= 4:
-                mask = numpy.frombuffer(buf, dtype=numpy.dtype('<L4'),
+                mask = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
                         offset=f['hlen'], count=1)
-                data = numpy.frombuffer(buf, dtype=numpy.dtype('<L4'),
+                data = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
                         offset=f['hlen'] + 4, count=int(f['length'] / 4))
                 #b = numpy.bitwise_xor(data, mask).data
                 b = numpy.bitwise_xor(data, mask).tostring()

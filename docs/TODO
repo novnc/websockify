@@ -1,17 +1,9 @@
-- Support protocol version 07:
-    http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07
+- Go implementation
 
 - Support multiple targets that are selected by the path line. Some
   sort of wildcarding of ports too.
 
+- Support SSL targets too.
+
 - wstelnet: support CSI L and CSI M
 
-- create gevent version:
-    http://nichol.as/benchmark-of-python-web-servers
-    http://n01se.net/paste/QXO
-
-    - Need at least libevent-1.4 (i.e. not 9.04 Jaunty)
-
-    sudo aptitude install python-dev libevent-dev python-setuptools
-
-    sudo easy_install gevent
