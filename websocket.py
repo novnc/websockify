@@ -312,7 +312,7 @@ Sec-WebSocket-Accept: %s\r
                         offset=full_len - (f['length'] % 4),
                         count=(f['length'] % 4))
                 c = numpy.bitwise_xor(data, mask).tostring()
-            f['payload'] = b + c
+            f['payload'] = b + s2b(c)
         else:
             print("Unmasked frame: %s" % repr(buf))
             f['payload'] = buf[(f['hlen'] + has_mask * 4):full_len]
@@ -635,7 +635,7 @@ Sec-WebSocket-Accept: %s\r
             # Generate the hash value for the accept header
             accept = b64encode(sha1(s2b(key + self.GUID)).digest())
 
-            response = self.server_handshake_hybi % accept
+            response = self.server_handshake_hybi % b2s(accept)
             if self.base64:
                 response += "Sec-WebSocket-Protocol: base64\r\n"
             else:
