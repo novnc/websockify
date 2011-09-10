@@ -26,8 +26,8 @@ if sys.hexversion > 0x3000000:
     from io import StringIO
     from http.server import SimpleHTTPRequestHandler
     from urllib.parse import urlsplit
-    b2s = lambda buf: buf.decode('latin_1')
-    s2b = lambda s: s.encode('latin_1')
+    b2s = lambda buf: buf.decode('latin_1') if isinstance(buf, bytes) else buf
+    s2b = lambda s: s.encode('latin_1') if isinstance(s, str) else s
 else:
     # python 2.X
     from cStringIO import StringIO
