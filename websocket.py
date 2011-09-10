@@ -312,7 +312,7 @@ Sec-WebSocket-Accept: %s\r
                         offset=full_len - (f['length'] % 4),
                         count=(f['length'] % 4))
                 c = numpy.bitwise_xor(data, mask).tostring()
-            f['payload'] = b + s2b(c)
+            f['payload'] = s2b(b) + s2b(c)
         else:
             print("Unmasked frame: %s" % repr(buf))
             f['payload'] = buf[(f['hlen'] + has_mask * 4):full_len]
