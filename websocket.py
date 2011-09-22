@@ -88,7 +88,8 @@ Sec-WebSocket-Accept: %s\r
 
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web=''):
+            daemon=False, record='', web='',
+            run_once=False, timeout=0):
 
         # settings
         self.verbose        = verbose
@@ -96,6 +97,11 @@ Sec-WebSocket-Accept: %s\r
         self.listen_port    = listen_port
         self.ssl_only       = ssl_only
         self.daemon         = daemon
+        self.run_once       = run_once
+        self.timeout        = timeout
+
+        self.launch_time    = time.time()
+        self.ws_connection  = False
         self.handler_id     = 1
 
         # Make paths settings absolute
@@ -727,6 +733,7 @@ Sec-WebSocket-Accept: %s\r
                     self.rec = open(fname, 'w+')
                     self.rec.write("var VNC_frame_data = [\n")
 
+                self.ws_connection = True
                 self.new_client()
             except self.EClose:
                 _, exc, _ = sys.exc_info()
@@ -777,6 +784,12 @@ Sec-WebSocket-Accept: %s\r
                     startsock = None
                     pid = err = 0
 
+                    time_elapsed = time.time() - self.launch_time
+                    if self.timeout and time_elapsed > self.timeout:
+                        self.msg('listener exit due to --timeout %s'
+                                % self.timeout)
+                        break
+
                     try:
                         self.poll()
 
@@ -799,7 +812,14 @@ Sec-WebSocket-Accept: %s\r
                         else:
                             raise
 
-                    if Process:
+                    if self.run_once:
+                        # Run in same process if run_once
+                        self.top_new_client(startsock, address)
+                        if self.ws_connection :
+                            self.msg('%s: exiting due to --run-once'
+                                    % address[0])
+                            break
+                    elif Process:
                         self.vmsg('%s: new handler Process' % address[0])
                         p = Process(target=self.top_new_client,
                                 args=(startsock, address))
