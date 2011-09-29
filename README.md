@@ -77,7 +77,7 @@ implementations:
         <th>other/websockify</th>
         <th>other/websockify.js</th>
         <th>other/kumina</th>
-        <th>[http://code.osuosl.org/projects/twisted-vncauthproxy](VNCAuthProxy)</th>
+        <th>VNCAuthProxy 1</th>
     </tr> <tr>
         <th>Language</th>
         <td>python</td>
@@ -101,7 +101,7 @@ implementations:
         <td>yes</td>
     </tr> <tr>
         <th>SSL wss</th>
-        <td>yes 1</td>
+        <td>yes 2</td>
         <td>yes</td>
         <td>no</td>
         <td>no</td>
@@ -166,8 +166,13 @@ implementations:
 </table>
 
 
-* Note 1: to use SSL/wss with python 2.5 or older, see the following
+* Note 1:
+  [http://code.osuosl.org/projects/twisted-vncauthproxy](VNCAuthProxy)
+  is part of Ganeti Web Manger and is not included with websockify.
+
+* Note 2: to use SSL/wss with python 2.5 or older, see the following
   section on *Building the Python ssl module*.
+
 
 Protocol draft/specification links:
 
