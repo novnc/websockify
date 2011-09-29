@@ -77,39 +77,46 @@ implementations:
         <th>other/websockify</th>
         <th>other/websockify.js</th>
         <th>other/kumina</th>
+        <th>[http://code.osuosl.org/projects/twisted-vncauthproxy](VNCAuthProxy)</th>
     </tr> <tr>
         <th>Language</th>
         <td>python</td>
         <td>C</td>
         <td>Node (node.js)</td>
         <td>C</td>
+        <td>python (twisted)</td>
     </tr> <tr>
         <th>Multiproc</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
+        <td>yes</td>
     </tr> <tr>
         <th>Daemon</th>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
         <td>no</td>
+        <td>yes</td>
     </tr> <tr>
         <th>SSL wss</th>
         <td>yes 1</td>
         <td>yes</td>
         <td>no</td>
         <td>no</td>
+        <td>yes</td>
     </tr> <tr>
         <th>Flash Policy Server</th>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
         <td>yes</td>
+        <td>no</td>
     </tr> <tr>
         <th>Session Record</th>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
         <td>no</td>
@@ -119,9 +126,11 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Program Wrap</th>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
         <td>no</td>
@@ -131,14 +140,17 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>yes</td>
+        <td>no</td>
     </tr> <tr>
         <th>Hixie 75</th>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Hixie 76</th>
+        <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
@@ -149,6 +161,7 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
+        <td>yes</td>
     </tr>
 </table>
 
