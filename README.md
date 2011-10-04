@@ -76,6 +76,7 @@ implementations:
         <th>websockify</th>
         <th>other/websockify</th>
         <th>other/websockify.js</th>
+        <th>other/websockify.rb</th>
         <th>other/kumina</th>
         <th>VNCAuthProxy 1</th>
     </tr> <tr>
@@ -83,6 +84,7 @@ implementations:
         <td>python</td>
         <td>C</td>
         <td>Node (node.js)</td>
+        <td>Ruby</td>
         <td>C</td>
         <td>python (twisted)</td>
     </tr> <tr>
@@ -91,11 +93,13 @@ implementations:
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
+        <td>no</td>
         <td>yes</td>
     </tr> <tr>
         <th>Daemon</th>
         <td>yes</td>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
         <td>yes</td>
@@ -105,17 +109,20 @@ implementations:
         <td>yes</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
         <td>yes</td>
     </tr> <tr>
         <th>Flash Policy Server</th>
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
+        <td>no</td>
         <td>yes</td>
         <td>no</td>
     </tr> <tr>
         <th>Session Record</th>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
         <td>no</td>
@@ -127,6 +134,7 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Program Wrap</th>
         <td>yes</td>
@@ -134,8 +142,10 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Multiple Targets</th>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
         <td>no</td>
@@ -148,8 +158,10 @@ implementations:
         <td>yes</td>
         <td>no</td>
         <td>no</td>
+        <td>no</td>
     </tr> <tr>
         <th>Hixie 76</th>
+        <td>yes</td>
         <td>yes</td>
         <td>yes</td>
         <td>yes</td>
@@ -158,6 +170,7 @@ implementations:
     </tr> <tr>
         <th>IETF/HyBi 07-10</th>
         <td>yes</td>
+        <td>no</td>
         <td>no</td>
         <td>no</td>
         <td>no</td>
