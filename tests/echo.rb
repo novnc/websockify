@@ -12,17 +12,17 @@ require 'websocket'
 class WebSocketEcho < WebSocketServer
 
   # Echo back whatever is received    
-  def new_client()
+  def new_client(client)
 
     cqueue = []
     c_pend = 0
-    rlist = [@client]
+    rlist = [client]
 
     loop do
       wlist = []
 
       if cqueue.length > 0 or c_pend
-        wlist << @client
+        wlist << client
       end
 
       ins, outs, excepts = IO.select(rlist, wlist, nil, 1)
@@ -30,17 +30,16 @@ class WebSocketEcho < WebSocketServer
         raise Exception, "Socket exception"
       end
 
-      if outs.include?(@client)
+      if outs.include?(client)
         # Send queued data to the client
         c_pend = send_frames(cqueue)
         cqueue = []
       end
 
-      if ins.include?(@client)
+      if ins.include?(client)
         # Receive client data, decode it, and send it back
         frames, closed = recv_frames
         cqueue += frames
-        #puts "#{@my_client_id}: >#{cqueue.inspect}<"
 
         if closed
           raise EClose, closed
@@ -51,15 +50,12 @@ class WebSocketEcho < WebSocketServer
   end
 end
 
+port = ARGV[0].to_i
+puts "Starting server on port #{port}"
 
-puts "Starting server on port 1234"
-
-server = WebSocketEcho.new(1234)
+server = WebSocketEcho.new('listen_port' => port, 'verbose' => true)
 server.start
-
-loop do
-  break if server.stopped?
-end
+server.join
 
 puts "Server has been terminated"
 

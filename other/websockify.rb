@@ -10,26 +10,44 @@ $: << "../other"
 require 'websocket'
 require 'optparse'
 
+# Proxy traffic to and from a WebSockets client to a normal TCP
+# socket server target. All traffic to/from the client is base64
+# encoded/decoded to allow binary data to be sent/received to/from
+# the target.
 class WebSocketProxy < WebSocketServer
 
-  def initialize(port, host, opts, *args)
+  @@Traffic_legend = "
+Traffic Legend:
+    }  - Client receive
+    }. - Client receive partial
+    {  - Target receive
+
+    >  - Target send
+    >. - Target send partial
+    <  - Client send
+    <. - Client send partial
+"
+
+
+  def initialize(opts)
     vmsg "in WebSocketProxy.initialize"
 
-    super(port, host, opts, *args)
+    super(opts)
     
     @target_host = opts["target_host"]
     @target_port = opts["target_port"]
   end
 
   # Echo back whatever is received    
-  def new_client()
-    vmsg "in new_client"
+  def new_client(client)
 
+    msg "connecting to: %s:%s" % [@target_host, @target_port]
     tsock = TCPSocket.open(@target_host, @target_port)
-    msg "opened target socket"
+
+    if @verbose then puts @@Traffic_legend end
 
     begin
-      do_proxy(tsock)
+      do_proxy(client, tsock)
     rescue
       tsock.shutdown(Socket::SHUT_RDWR)
       tsock.close
@@ -37,13 +55,12 @@ class WebSocketProxy < WebSocketServer
     end
   end
 
-
-  def do_proxy(target)
-
+  # Proxy client WebSocket to normal target socket.
+  def do_proxy(client, target)
     cqueue = []
     c_pend = 0
     tqueue = []
-    rlist = [@client, target]
+    rlist = [client, target]
 
     loop do
       wlist = []
@@ -52,7 +69,7 @@ class WebSocketProxy < WebSocketServer
         wlist << target
       end
       if cqueue.length > 0 || c_pend > 0
-        wlist << @client
+        wlist << client
       end
 
       ins, outs, excepts = IO.select(rlist, wlist, nil, 0.001)
@@ -60,8 +77,8 @@ class WebSocketProxy < WebSocketServer
         raise Exception, "Socket exception"
       end
 
+      # Send queued client data to the target
       if outs && outs.include?(target)
-        # Send queued client data to the target
         dat = tqueue.shift
         sent = target.send(dat, 0)
         if sent == dat.length
@@ -72,9 +89,9 @@ class WebSocketProxy < WebSocketServer
         end
       end
 
+      # Receive target data and queue for the client
       if ins && ins.include?(target)
-        # Receive target data and queue for the client
-        buf = target.recv(@@buffer_size)
+        buf = target.recv(@@Buffer_size)
         if buf.length == 0:
           raise EClose, "Target closed"
         end
@@ -83,17 +100,16 @@ class WebSocketProxy < WebSocketServer
         traffic "{"
       end
 
-      if outs && outs.include?(@client)
-        # Encode and send queued data to the client
+      # Encode and send queued data to the client
+      if outs && outs.include?(client)
         c_pend = send_frames(cqueue)
         cqueue = []
       end
 
-      if ins && ins.include?(@client)
-        # Receive client data, decode it, and send it back
+      # Receive client data, decode it, and send it back
+      if ins && ins.include?(client)
         frames, closed = recv_frames
         tqueue += frames
-        #msg "[#{cqueue.inspect}]"
 
         if closed
           send_close
@@ -111,8 +127,6 @@ parser = OptionParser.new do |o|
   o.on('--verbose', '-v') { |b| opts['verbose'] = b }
   o.parse!
 end
-puts "opts: #{opts.inspect}"
-puts "ARGV: #{ARGV.inspect}"
 
 if ARGV.length < 2:
   puts "Too few arguments"
@@ -123,7 +137,7 @@ end
 if ARGV[0].count(":") > 0
   opts['listen_host'], _, opts['listen_port'] = ARGV[0].rpartition(':')
 else
-  opts['listen_host'], opts['listen_port'] = GServer::DEFAULT_HOST, ARGV[0]
+  opts['listen_host'], opts['listen_port'] = nil, ARGV[0]
 end
 
 begin
@@ -148,13 +162,9 @@ rescue
 end
 
 puts "Starting server on #{opts['listen_host']}:#{opts['listen_port']}"
-server = WebSocketProxy.new(opts['listen_port'], opts['listen_host'], opts)
-#server = WebSocketProxy.new(opts['listen_port'])
-server.start
-
-loop do
-  break if server.stopped?
-end
+server = WebSocketProxy.new(opts)
+server.start(100)
+server.join
 
 puts "Server has been terminated"
 
