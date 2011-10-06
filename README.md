@@ -4,16 +4,18 @@ websockify was formerly named wsproxy and was part of the
 [noVNC](https://github.com/kanaka/noVNC) project.
 
 At the most basic level, websockify just translates WebSockets traffic
-to normal socket traffic. websockify accepts the WebSockets handshake,
+to normal socket traffic. Websockify accepts the WebSockets handshake,
 parses it, and then begins forwarding traffic between the client and
-the target in both directions. WebSockets payload data is UTF-8
-encoded so in order to transport binary data it must use an encoding
-that can be encapsulated within UTF-8. websockify uses base64 to encode
-all traffic to and from the client. Also, WebSockets traffic starts
-with '\0' (0) and ends with '\xff' (255). Some buffering is done in
-case the data from the client is not a full WebSockets frame (i.e.
-does not end in 255).
+the target in both directions.
 
+### WebSockets binary data
+
+Websockify supports all versions of the WebSockets protocol (Hixie and
+HyBI). The older Hixie versions of the protocol only support UTF-8
+text payloads. In order to transport binary data over UTF-8 an
+encoding must used to encapsulate the data within UTF-8. Websockify
+uses base64 to encode all traffic to and from the client. This does
+not affect the data between websockify and the server.
 
 ### Websock Javascript library
 
@@ -168,7 +170,7 @@ implementations:
         <td>yes</td>
         <td>yes</td>
     </tr> <tr>
-        <th>IETF/HyBi 07-10</th>
+        <th>IETF/HyBi (07+)</th>
         <td>yes</td>
         <td>no</td>
         <td>no</td>
@@ -193,6 +195,7 @@ Protocol draft/specification links:
 * [Hixie 76](http://tools.ietf.org/html/draft-hixie-thewebsocketprotocol-76)
 * [IETF/HyBi 07](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07)
 * [IETF/HyBi 10](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10)
+* [IETF/HyBi 17](http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-17)
 
 ### Wrap a Program
 
