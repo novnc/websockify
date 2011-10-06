@@ -17,9 +17,9 @@
 
 // Load Flash WebSocket emulator if needed
 
-if (window.WebSocket) {
+if (window.WebSocket && !window.WEB_SOCKET_FORCE_FLASH) {
     Websock_native = true;
-} else if (window.MozWebSocket) {
+} else if (window.MozWebSocket && !window.WEB_SOCKET_FORCE_FLASH) {
     Websock_native = true;
     window.WebSocket = window.MozWebSocket;
 } else {
@@ -115,6 +115,7 @@ function rQshift32() {
            (rQ[rQi++]      );
 }
 function rQshiftStr(len) {
+    if (typeof(len) === 'undefined') { len = rQlen(); }
     var arr = rQ.slice(rQi, rQi + len);
     rQi += len;
     return arr.map(function (num) {
@@ -122,6 +123,7 @@ function rQshiftStr(len) {
 
 }
 function rQshiftBytes(len) {
+    if (typeof(len) === 'undefined') { len = rQlen(); }
     rQi += len;
     return rQ.slice(rQi-len, rQi);
 }

@@ -19,6 +19,7 @@ not affect the data between websockify and the server.
 
 ### Websock Javascript library
 
+
 The `include/websock.js` Javascript library library provides a Websock
 object that is similar to the standard WebSocket object but Websock
 enables communication with raw TCP sockets (i.e. the binary stream)
@@ -29,6 +30,8 @@ Websock has built-in receive queue buffering; the message event
 does not contain actual data but is simply a notification that
 there is new data available. Several rQ* methods are available to
 read binary data off of the receive queue.
+
+The Websock API is documented on the [websock.js API wiki page](https://github.com/kanaka/websockify/wiki/websock.js)
 
 See the "Wrap a Program" section below for an example of using Websock
 and websockify as a browser telnet client (`wstelnet.html`).
