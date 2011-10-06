@@ -17,7 +17,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, time, errno, signal, socket, traceback, select
-import struct, array
+import array
 from cgi import parse_qsl
 from base64 import b64encode, b64decode
 
@@ -49,6 +49,18 @@ else:
     Process = None
     from md5 import md5
     from sha import sha as sha1
+
+if sys.hexversion >= 0x2050000:
+    # python >= 2.5
+    import struct
+else:
+    # python < 2.5
+    import struct
+    # unpack_from was introduced in python 2.5
+    def _unpack_from(fmt, buf, offset=0):
+        slice = buffer(buf, offset, struct.calcsize(fmt))
+        return struct.unpack(fmt, slice)
+    struct.unpack_from = _unpack_from
 
 # Degraded functionality if these imports are missing
 for mod, sup in [('numpy', 'HyBi protocol'),
