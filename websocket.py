@@ -17,6 +17,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, time, errno, signal, socket, traceback, select
+import warnings, logging
 import array, struct
 from cgi import parse_qsl
 from base64 import b64encode, b64decode
@@ -60,8 +61,8 @@ for mod, sup in [('numpy', 'HyBi protocol'), ('ssl', 'TLS/SSL/wss'),
         globals()[mod] = __import__(mod)
     except ImportError:
         globals()[mod] = None
-        print("WARNING: no '%s' module, %s is slower or disabled" % (
-            mod, sup))
+        warnings.warn("WARNING: no '%s' module, %s is slower or disabled" % (
+            mod, sup), RuntimeWarning)
 if multiprocessing and sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
@@ -97,7 +98,7 @@ Sec-WebSocket-Accept: %s\r
 
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web='',
+            daemon=False, record='', web='', logfile=None, loglevel='4',
             run_once=False, timeout=0):
 
         # settings
@@ -126,6 +127,28 @@ Sec-WebSocket-Accept: %s\r
         if self.web:
             os.chdir(self.web)
 
+        # Handle logging
+        if loglevel.isdigit == False:
+			raise Exception("Invalid loglevel specified, must be 0-5")
+
+        log_levels = { 
+            '0': None,
+            '1': logging.CRITICAL,
+            '2': logging.ERROR,
+            '3': logging.WARNING,
+            '4': logging.INFO,
+            '5': logging.DEBUG,
+        }
+        if int(loglevel) > 5: loglevel = 5
+			
+        logformat = '%(asctime)s %(levelname)s, %(message)s'
+        if logfile == None:
+            logging.basicConfig(format=logformat)
+        else:
+            logging.basicConfig(format=logformat, filename=logfile)
+        self.log = logging.getLogger('websocket')
+        self.log.setLevel(log_levels[loglevel])
+
         # Sanity checks
         if not ssl and self.ssl_only:
             raise Exception("No 'ssl' module and SSL-only specified")
@@ -133,25 +156,25 @@ Sec-WebSocket-Accept: %s\r
             raise Exception("Module 'resource' required to daemonize")
 
         # Show configuration
-        print("WebSocket server settings:")
-        print("  - Listen on %s:%s" % (
+        self.log.info("WebSocket server settings:")
+        self.log.info("  - Listen on %s:%s" % (
                 self.listen_host, self.listen_port))
-        print("  - Flash security policy server")
+        self.log.info("  - Flash security policy server")
         if self.web:
-            print("  - Web server. Web root: %s" % self.web)
+            self.log.info("  - Web server. Web root: %s" % self.web)
         if ssl:
             if os.path.exists(self.cert):
-                print("  - SSL/TLS support")
+                self.log.info("  - SSL/TLS support")
                 if self.ssl_only:
-                    print("  - Deny non-SSL/TLS connections")
+                    self.log.info("  - Deny non-SSL/TLS connections")
             else:
-                print("  - No SSL/TLS support (no cert file)")
+                self.log.info("  - No SSL/TLS support (no cert file)")
         else:
-            print("  - No SSL/TLS support (no 'ssl' module)")
+            self.log.info("  - No SSL/TLS support (no 'ssl' module)")
         if self.daemon:
-            print("  - Backgrounding (daemon)")
+            self.log.info("  - Backgrounding (daemon)")
         if self.record:
-            print("  - Recording to '%s.*'" % self.record)
+            self.log.info("  - Recording to '%s.*'" % self.record)
 
     #
     # WebSocketServer static methods
@@ -344,14 +367,14 @@ Sec-WebSocket-Accept: %s\r
             f['mask'] = buf[f['hlen']:f['hlen']+4]
             f['payload'] = WebSocketServer.unmask(buf, f)
         else:
-            print("Unmasked frame: %s" % repr(buf))
+            self.log.debug("Unmasked frame: %s" % repr(buf))
             f['payload'] = buf[(f['hlen'] + has_mask * 4):full_len]
 
         if base64 and f['opcode'] in [1, 2]:
             try:
                 f['payload'] = b64decode(f['payload'])
             except:
-                print("Exception while b64decoding buffer: %s" %
+                self.log.error("Exception while b64decoding buffer: %s" %
                         repr(buf))
                 raise
 
@@ -403,7 +426,7 @@ Sec-WebSocket-Accept: %s\r
     def msg(self, msg):
         """ Output message with handler_id prefix. """
         if not self.daemon:
-            print("% 3d: %s" % (self.handler_id, msg))
+            self.log.debug("% 3d: %s" % (self.handler_id, msg))
 
     def vmsg(self, msg):
         """ Same as msg() but only if verbose. """
@@ -820,6 +843,7 @@ Sec-WebSocket-Accept: %s\r
                         ready = select.select([lsock], [], [], 1)[0]
                         if lsock in ready:
                             startsock, address = lsock.accept()
+                            self.log.info("Accepted connection from %s on port %i" % (address[0], address[1]))
                         else:
                             continue
                     except Exception:
@@ -864,11 +888,11 @@ Sec-WebSocket-Accept: %s\r
 
                 except KeyboardInterrupt:
                     _, exc, _ = sys.exc_info()
-                    print("In KeyboardInterrupt")
+                    self.log.debug("In KeyboardInterrupt")
                     pass
                 except SystemExit:
                     _, exc, _ = sys.exc_info()
-                    print("In SystemExit")
+                    self.log.debug("In SystemExit")
                     break
                 except Exception:
                     _, exc, _ = sys.exc_info()
