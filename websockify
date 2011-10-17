@@ -12,6 +12,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import socket, optparse, time, os, sys, subprocess
+import pdb#;pdb.set_trace();
 from select import select
 from websocket import WebSocketServer
 
@@ -149,7 +150,7 @@ Traffic Legend:
 
         # Start proxying
         try:
-            self.do_proxy(tsock)
+          self.do_proxy(tsock)
         except:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
@@ -242,6 +243,7 @@ if __name__ == '__main__':
             choices=["exit", "ignore", "respawn"],
             help="action to take when the wrapped program exits "
             "or daemonizes: exit (default), ignore, respawn")
+    parser.add_option("--auth_hook", default="")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
