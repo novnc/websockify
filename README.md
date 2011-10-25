@@ -98,7 +98,7 @@ implementations:
         <td>yes</td>
         <td>yes</td>
         <td>no</td>
-        <td>no</td>
+        <td>via inetd</td>
         <td>yes</td>
     </tr> <tr>
         <th>Daemon</th>
@@ -106,7 +106,7 @@ implementations:
         <td>yes</td>
         <td>no</td>
         <td>no</td>
-        <td>no</td>
+        <td>via inetd</td>
         <td>yes</td>
     </tr> <tr>
         <th>SSL wss</th>
@@ -178,7 +178,7 @@ implementations:
         <td>no</td>
         <td>no</td>
         <td>no</td>
-        <td>no</td>
+        <td>yes</td>
         <td>yes</td>
     </tr>
 </table>
