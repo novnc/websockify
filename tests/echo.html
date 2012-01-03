@@ -2,9 +2,10 @@
 
     <head>
         <title>WebSockets Echo Test</title>
-        <script src="include/base64.js"></script>
         <script src="include/util.js"></script>
         <script src="include/webutil.js"></script> 
+        <script src="include/base64.js"></script>
+        <script src="include/websock.js"></script> 
         <!-- Uncomment to activate firebug lite -->
         <!--
         <script type='text/javascript' 
@@ -50,13 +51,8 @@
         }
 
         function send_msg() {
-            if (ws.bufferedAmount > 0) {
-                console.log("Delaying send");
-                return;
-            }
-            var str = "Message #" + send_cnt, arr = [];
-            arr.pushStr(str)
-            ws.send(Base64.encode(arr));
+            var str = "Message #" + send_cnt;
+            ws.send_string(str);
             message("Sent message: '" + str + "'");
             send_cnt++;
         }
@@ -65,11 +61,6 @@
             $D('sent').innerHTML = sent;
             $D('received').innerHTML = received;
             $D('errors').innerHTML = errors;
-        }
-
-        function init_ws() {
-            console.log(">> init_ws");
-            console.log("<< init_ws");
         }
 
         function connect() {
@@ -92,40 +83,38 @@
             }
             uri = scheme + host + ":" + port;
             message("connecting to " + uri);
-            ws = new WebSocket(uri, "base64");
 
-            ws.onmessage = function(e) {
+            ws = new Websock();
+            ws.open(uri);
+
+            ws.on('message', function(e) {
                 //console.log(">> WebSockets.onmessage");
-                var arr = Base64.decode(e.data), str = "", i;
-
-                for (i = 0; i < arr.length; i++) {
-                    str = str + String.fromCharCode(arr[i]);
-                }
+                var str = ws.rQshiftStr();
 
                 message("Received message '" + str + "'");
                 //console.log("<< WebSockets.onmessage");
-            };
-            ws.onopen = function(e) {
+            });
+            ws.on('open', function(e) {
                 console.log(">> WebSockets.onopen");
                 echo_ref = setInterval(send_msg, echoDelay);
                 console.log("<< WebSockets.onopen");
-            };
-            ws.onclose = function(e) {
+            });
+            ws.on('close', function(e) {
                 console.log(">> WebSockets.onclose");
                 if (echo_ref) {
                     clearInterval(echo_ref);
                     echo_ref = null;
                 }
                 console.log("<< WebSockets.onclose");
-            };
-            ws.onerror = function(e) {
+            });
+            ws.on('error', function(e) {
                 console.log(">> WebSockets.onerror");
                 if (echo_ref) {
                     clearInterval(echo_ref);
                     echo_ref = null;
                 }
                 console.log("<< WebSockets.onerror");
-            };
+            });
 
             $D('connectButton').value = "Stop";
             $D('connectButton').onclick = disconnect;
@@ -148,25 +137,8 @@
         }
 
 
-        /* If no builtin websockets then load web_socket.js */
-        if (window.WebSocket) {
-            VNC_native_ws = true;
-        } else {
-            VNC_native_ws = false;
-            console.log("Loading web-socket-js flash bridge");
-            var extra = "<script src='include/web-socket-js/swfobject.js'><\/script>";
-            extra += "<script src='include/web-socket-js/FABridge.js'><\/script>";
-            extra += "<script src='include/web-socket-js/web_socket.js'><\/script>";
-            document.write(extra);
-        }
-
         window.onload = function() {
             console.log("onload");
-            if (!VNC_native_ws) {
-                console.log("initializing web-socket-js flash bridge");
-                WebSocket.__swfLocation = "include/web-socket-js/WebSocketMain.swf";
-                WebSocket.__initialize();
-            }
             var url = document.location.href;
             $D('host').value = (url.match(/host=([^&#]*)/) || ['',''])[1];
             $D('port').value = (url.match(/port=([^&#]*)/) || ['',''])[1];
