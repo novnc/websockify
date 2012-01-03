@@ -45,7 +45,7 @@ class WebSocketEcho(WebSocketServer):
             if self.client in ins:
                 # Receive client data, decode it, and send it back
                 frames, closed = self.recv_frames()
-                cqueue.extend(frames)
+                cqueue.extend(["You said: " + f for f in frames])
 
                 if closed:
                     self.send_close()
