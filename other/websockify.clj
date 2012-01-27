@@ -74,9 +74,13 @@
 ;; WebSockets
 
 (defn target-open [ctx e]
-  (println "channelConnected:" e))
+  (println "Connected to target")
+  #_(println "channelConnected:" e))
 (defn target-close [ctx e]
-  (println "channelDisconnected:" e))
+  #_(println "channelDisconnected:" e)
+  (println "Target closed")
+  (when-let [channel (get @targets (.getChannel ctx))]
+    (.disconnect channel)))
 (defn target-message [ctx e]
   (let [channel (.getChannel ctx)
         client (get @targets channel)
@@ -84,18 +88,18 @@
         len (.readableBytes msg)
         b64 (Base64/encode msg false)
         blen (.readableBytes b64)]
-    (println "received " len "bytes from target")
+    #_(println "received" len "bytes from target")
     #_(println "target receive:" (.toString msg 0 len CharsetUtil/UTF_8))
     #_(println "sending to client:" (.toString b64 0 blen CharsetUtil/UTF_8))
-    (.sendMessage client (.toString b64 0 blen CharsetUtil/UTF_8))
-    ))
+    (.sendMessage client (.toString b64 0 blen CharsetUtil/UTF_8))))
 
 
 ;; http://wiki.eclipse.org/Jetty/Feature/WebSockets
 (defn make-websocket-handler []
   (reify org.eclipse.jetty.websocket.WebSocket$OnTextMessage
     (onOpen [this connection]
-      (println "Got WebSocket connection:" connection)
+      #_(println "Got WebSocket connection:" connection)
+      (println "New client")
       (let [target (netty-client
                     "localhost" 5901
                     target-open target-close target-message)]
@@ -103,20 +107,22 @@
                                    :target target})
         (swap! targets assoc target connection)))
     (onClose [this code message]
-      (do
-        (let [target (:target (get @clients this))]
-          (swap! clients dissoc this)
-          (swap! targets dissoc target)
-          )))
+      (println "WebSocket connection closed")
+      (when-let [target (:target (get @clients this))]
+        (println "Closing target")
+        (.close target)
+        (println "Target closed")
+        (swap! targets dissoc target))
+      (swap! clients dissoc this))
     (onMessage [this data]
-      (println "WebSocket onMessage:" data)
+      #_(println "WebSocket onMessage:" data)
       (let [target (:target (get @clients this))
             cbuf (ChannelBuffers/copiedBuffer data CharsetUtil/UTF_8)
             decbuf (Base64/decode cbuf)
             rlen (.readableBytes decbuf)]
-        (println "Sending to target:" (.toString decbuf 0 rlen CharsetUtil/UTF_8))
-        (.write target decbuf)
-        ))))
+        #_(println "Sending" rlen "bytes to target")
+        #_(println "Sending to target:" (.toString decbuf 0 rlen CharsetUtil/UTF_8))
+        (.write target decbuf)))))
 
 (defn make-websocket-servlet []
   (proxy [org.eclipse.jetty.websocket.WebSocketServlet] []
@@ -158,6 +164,9 @@
       (println "Not serving web requests"))
     
     (defn stop []
+      (doseq [client (vals @clients)]
+        (.disconnect (:client client))
+        (.close (:target client)))
       (.stop server)
       (reset! clients {})
       (reset! targets {})
