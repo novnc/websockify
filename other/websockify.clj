@@ -1,5 +1,7 @@
 (ns websockify
-  (:use ring.adapter.jetty)
+  ;(:use ring.adapter.jetty)
+  (:require [clojure.tools.cli :as cli]
+            [clojure.string :as string])
 
   (:import
    
@@ -20,8 +22,8 @@
    [org.eclipse.jetty.servlet
     ServletContextHandler ServletHolder DefaultServlet]
    [org.eclipse.jetty.websocket
-     WebSocket WebSocketClientFactory WebSocketClient
-     WebSocketServlet]))
+    WebSocket WebSocket$OnTextMessage
+    WebSocketClientFactory WebSocketClient WebSocketServlet]))
 
 
 ;; TCP / NIO
@@ -69,7 +71,7 @@
 
 ;; http://wiki.eclipse.org/Jetty/Feature/WebSockets
 (defn make-websocket-servlet [open close message]
-  (proxy [org.eclipse.jetty.websocket.WebSocketServlet] []
+  (proxy [WebSocketServlet] []
     (doGet [request response]
       ;;(println "doGet" request)
       (.. (proxy-super getServletContext)
@@ -77,7 +79,7 @@
           (forward request response)))
     (doWebSocketConnect [request response]
       (println "doWebSocketConnect")
-      (reify org.eclipse.jetty.websocket.WebSocket$OnTextMessage
+      (reify WebSocket$OnTextMessage
         (onOpen [this connection] (open this connection))
         (onClose [this code message] (close this code message))
         (onMessage [this data] (message this data))))))
@@ -208,3 +210,24 @@
       (reset! targets {})
       nil)))
 
+(defn -main [& args]
+  (let [[options args banner]
+        (cli/cli
+         args
+         ["-v" "--[no-]verbose" "Verbose output"]
+         ["--web" "Run webserver with root at given location"]
+         ["-h" "--help" "Show help" :default false :flag true]
+         )]
+    (when (or (:help options)
+              (not= 2 (count args)))
+      (println banner)
+      (System/exit 0))
+    (println options)
+    (println args)
+    (let [target (second args)
+          [target-host target-port] (string/split target #":")]
+      (start-websockify :listen-port (Integer/parseInt (first args))
+                        :target-host target-host 
+                        :target-port (Integer/parseInt target-port)
+                        :web (:web options))))
+  nil)
