@@ -17,6 +17,20 @@ encoding must used to encapsulate the data within UTF-8. Websockify
 uses base64 to encode all traffic to and from the client. This does
 not affect the data between websockify and the server.
 
+### Encrypted WebSocket connections (wss://)
+
+To encrypt the traffic using the WebSocket 'wss://' URI scheme you
+need to generate a certificate for websockify to load. By default websockify
+loads a certificate file name `self.pem` but the `--cert=CERT` option can
+override the file name. You can generate a self-signed certificate using
+openssl. When asked for the common name, use the hostname of the server where
+the proxy will be running:
+
+```
+openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
+```
+
+
 ### Websock Javascript library
 
 
