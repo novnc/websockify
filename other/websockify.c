@@ -343,7 +343,7 @@ int main(int argc, char *argv[])
     }
 
     if (ssl_only) {
-        if (!access(settings.cert, R_OK)) {
+        if (access(settings.cert, R_OK) != 0) {
             usage("SSL only and cert file '%s' not found\n", settings.cert);
         }
     } else if (access(settings.cert, R_OK) != 0) {
