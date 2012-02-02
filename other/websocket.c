@@ -22,17 +22,9 @@
 #include <openssl/err.h>
 #include <openssl/ssl.h>
 #include <resolv.h>      /* base64 encode/decode */
+#include <openssl/md5.h> /* md5 hash */
+#include <openssl/sha.h> /* sha1 hash */
 #include "websocket.h"
-
-const char server_handshake[] = "HTTP/1.1 101 Web Socket Protocol Handshake\r\n\
-Upgrade: WebSocket\r\n\
-Connection: Upgrade\r\n\
-%sWebSocket-Origin: %s\r\n\
-%sWebSocket-Location: %s://%s%s\r\n\
-%sWebSocket-Protocol: sample\r\n\
-\r\n%s";
-
-const char policy_response[] = "<cross-domain-policy><allow-access-from domain=\"*\" to-ports=\"*\" /></cross-domain-policy>\n";
 
 /*
  * Global state
@@ -41,9 +33,8 @@ const char policy_response[] = "<cross-domain-policy><allow-access-from domain=\
  */
 int ssl_initialized = 0;
 int pipe_error = 0;
-char *tbuf, *cbuf, *tbuf_tmp, *cbuf_tmp;
-unsigned int bufsize, dbufsize;
 settings_t settings;
+
 
 void traffic(char * token) {
     if ((settings.verbose) && (! settings.daemon)) {
@@ -109,21 +100,43 @@ ssize_t ws_send(ws_ctx_t *ctx, const void *buf, size_t len) {
     }
 }
 
-ws_ctx_t *ws_socket(int socket) {
+ws_ctx_t *alloc_ws_ctx() {
     ws_ctx_t *ctx;
-    ctx = malloc(sizeof(ws_ctx_t));
-    ctx->sockfd = socket;
+    if (! (ctx = malloc(sizeof(ws_ctx_t))) )
+        { fatal("malloc()"); }
+
+    if (! (ctx->tbuf = malloc(BUFSIZE)) )
+        { fatal("malloc of tbuf"); }
+    if (! (ctx->cbuf = malloc(BUFSIZE)) )
+        { fatal("malloc of cbuf"); }
+    if (! (ctx->tbuf_tmp = malloc(BUFSIZE)) )
+        { fatal("malloc of tbuf_tmp"); }
+    if (! (ctx->cbuf_tmp = malloc(BUFSIZE)) )
+        { fatal("malloc of cbuf_tmp"); }
+
+    ctx->headers = malloc(sizeof(headers_t));
     ctx->ssl = NULL;
     ctx->ssl_ctx = NULL;
     return ctx;
 }
 
-ws_ctx_t *ws_socket_ssl(int socket, char * certfile, char * keyfile) {
+int free_ws_ctx(ws_ctx_t *ctx) {
+    free(ctx->tbuf);
+    free(ctx->cbuf);
+    free(ctx->tbuf_tmp);
+    free(ctx->cbuf_tmp);
+    free(ctx);
+}
+
+ws_ctx_t *ws_socket(ws_ctx_t *ctx, int socket) {
+    ctx->sockfd = socket;
+}
+
+ws_ctx_t *ws_socket_ssl(ws_ctx_t *ctx, int socket, char * certfile, char * keyfile) {
     int ret;
     char msg[1024];
     char * use_keyfile;
-    ws_ctx_t *ctx;
-    ctx = ws_socket(socket);
+    ws_socket(ctx, socket);
 
     if (keyfile && (keyfile[0] != '\0')) {
         // Separate key file
@@ -192,15 +205,14 @@ int ws_socket_free(ws_ctx_t *ctx) {
         close(ctx->sockfd);
         ctx->sockfd = 0;
     }
-    free(ctx);
 }
 
 /* ------------------------------------------------------- */
 
 
-int encode(u_char const *src, size_t srclength, char *target, size_t targsize) {
-    int i, sz = 0, len = 0;
-    unsigned char chr;
+int encode_hixie(u_char const *src, size_t srclength,
+                 char *target, size_t targsize) {
+    int sz = 0, len = 0;
     target[sz++] = '\x00';
     len = b64_ntop(src, srclength, target+sz, targsize-sz);
     if (len < 0) {
@@ -211,7 +223,8 @@ int encode(u_char const *src, size_t srclength, char *target, size_t targsize) {
     return sz;
 }
 
-int decode(char *src, size_t srclength, u_char *target, size_t targsize) {
+int decode_hixie(char *src, size_t srclength,
+                 u_char *target, size_t targsize, unsigned int *opcode) {
     char *start, *end, cntstr[4];
     int i, len, framecount = 0, retlen = 0;
     unsigned char chr;
@@ -219,10 +232,19 @@ int decode(char *src, size_t srclength, u_char *target, size_t targsize) {
         handler_emsg("WebSocket framing error\n");
         return -1;
     }
+    if (srclength == 2 &&
+        (src[0] == '\xff') && 
+        (src[1] == '\x00')) {
+        // client sent orderly close frame
+        *opcode = 0x8; // Close frame
+        return 0;
+    }
+    *opcode = 0x1; // Text frame
+
     start = src+1; // Skip '\x00' start
     do {
         /* We may have more than one frame */
-        end = memchr(start, '\xff', srclength);
+        end = (char *)memchr(start, '\xff', srclength);
         *end = '\x00';
         len = b64_pton(start, target+retlen, targsize-retlen);
         if (len < 0) {
@@ -239,9 +261,154 @@ int decode(char *src, size_t srclength, u_char *target, size_t targsize) {
     return retlen;
 }
 
-int parse_handshake(char *handshake, headers_t *headers) {
-    char *start, *end;
+int encode_hybi(u_char const *src, size_t srclength,
+                char *target, size_t targsize, unsigned int opcode)
+{
+    unsigned long long b64_sz, len_offset = 1, payload_offset = 2, len = 0;
+    
+    if ((int)srclength <= 0)
+    {
+        return 0;
+    }
 
+    b64_sz = ((srclength - 1) / 3) * 4 + 4;
+
+    target[0] = (char)(opcode & 0x0F | 0x80);
+
+    if (b64_sz <= 125) {
+        target[1] = (char) b64_sz;
+        payload_offset = 2;
+    } else if ((b64_sz > 125) && (b64_sz < 65536)) {
+        target[1] = (char) 126;
+        *(u_short*)&(target[2]) = htons(b64_sz);
+        payload_offset = 4;
+    } else {
+        handler_emsg("Sending frames larger than 65535 bytes not supported\n");
+        return -1;
+        //target[1] = (char) 127;
+        //*(u_long*)&(target[2]) = htonl(b64_sz);
+        //payload_offset = 10;
+    }
+
+    len = b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+    
+    if (len < 0) {
+        return len;
+    }
+
+    return len + payload_offset;
+}
+
+int decode_hybi(unsigned char *src, size_t srclength,
+                u_char *target, size_t targsize, unsigned int *opcode)
+{
+    unsigned char *frame, *mask, *payload, save_char, cntstr[4];;
+    int i = 0, len, framecount = 0;
+    unsigned int target_offset = 0, hdr_length = 0, payload_length = 0;
+    
+    if ((unsigned int) srclength <= 0)
+    {
+        return 0;
+    }
+
+    frame = src;
+
+    //printf("Deocde new frame\n");
+    while (frame - src < srclength) {
+        framecount ++;
+
+        *opcode = frame[0] & 0x0f;
+        //printf("opcode %d, frame[0..3]: 0x%x 0x%x 0x%x 0x%x\n", *opcode,
+        //       (unsigned char) frame[0],
+        //       (unsigned char) frame[1],
+        //       (unsigned char) frame[2],
+        //       (unsigned char) frame[3]);
+
+        payload_length = frame[1] & 0x7f;
+        if (payload_length == 0) {
+            // TODO: next frame
+            handler_msg("empty frame\n");
+            frame += 6;
+            continue;
+        } else if (payload_length < 126) {
+            hdr_length = 2;
+            //frame += 2 * sizeof(char);
+        } else if (payload_length == 126) {
+            payload_length = (frame[2] << 8) + frame[3];
+            hdr_length = 4;
+        } else {
+            handler_emsg("Receiving frames larger than 65535 bytes not supported\n");
+            return -1;
+        }
+        //printf("    payload_length: %u, raw remaining: %u\n", payload_length, (unsigned int) srclength - target_offset);
+        payload = frame + hdr_length + 4;
+
+        if (*opcode == 0x8) {
+            // client sent orderly close frame
+            break;
+        }
+
+        if (*opcode != 1 && *opcode != 2) {
+            handler_msg("Ignoring non-data frame, opcode 0x%x\n", *opcode);
+            frame = frame + hdr_length + 4 + payload_length;
+            continue;
+        }
+
+
+        if ((payload_length > 0) && (!(frame[1] & 0x80))) {
+            handler_emsg("Received unmasked payload from client\n");
+            return -1;
+        }
+
+        if ((hdr_length + 4 + payload_length) > (srclength - target_offset)) {
+            handler_emsg("Truncated frame received from client\n");
+            return -1;
+        }
+
+        // Terminate with a null for base64 decode
+        save_char = payload[payload_length];
+        payload[payload_length] = '\0';
+
+        // unmask the data
+        mask = payload - 4;
+        for (i = 0; i < payload_length; i++) {
+            payload[i] ^= mask[i%4];
+        }
+
+        // base64 decode the data
+        len = b64_pton((const char*)payload, target+target_offset, targsize);
+
+        // Restore the first character of the next frame
+        payload[payload_length] = save_char;
+        if (len < 0) {
+            handler_emsg("Base64 decode error code %d", len);
+            return len;
+        }
+
+        //printf("    len %d, raw %s\n", len, frame);
+
+        target_offset += len;
+        frame = frame + hdr_length + 4 + payload_length;
+    }
+
+    if (framecount > 1) {
+        snprintf(cntstr, 3, "%d", framecount);
+        traffic(cntstr);
+    }
+    
+    return target_offset;
+}
+
+
+
+int parse_handshake(ws_ctx_t *ws_ctx, char *handshake) {
+    char *start, *end;
+    headers_t *headers = ws_ctx->headers;
+
+    headers->key1[0] = '\0';
+    headers->key2[0] = '\0';
+    headers->key3[0] = '\0';
+    
     if ((strlen(handshake) < 92) || (bcmp(handshake, "GET ", 4) != 0)) {
         return 0;
     }
@@ -258,92 +425,137 @@ int parse_handshake(char *handshake, headers_t *headers) {
     strncpy(headers->host, start, end-start);
     headers->host[end-start] = '\0';
 
+    headers->origin[0] = '\0';
     start = strstr(handshake, "\r\nOrigin: ");
-    if (!start) { return 0; }
-    start += 10;
+    if (start) {
+        start += 10;
+    } else {
+        start = strstr(handshake, "\r\nSec-WebSocket-Origin: ");
+        if (!start) { return 0; }
+        start += 24;
+    }
     end = strstr(start, "\r\n");
     strncpy(headers->origin, start, end-start);
     headers->origin[end-start] = '\0';
    
-    start = strstr(handshake, "\r\n\r\n");
-    if (!start) { return 0; }
-    start += 4;
-    if (strlen(start) == 8) {
-        strncpy(headers->key3, start, 8);
-        headers->key3[8] = '\0';
+    start = strstr(handshake, "\r\nSec-WebSocket-Version: ");
+    if (start) {
+        // HyBi/RFC 6455
+        start += 25;
+        end = strstr(start, "\r\n");
+        strncpy(headers->version, start, end-start);
+        headers->version[end-start] = '\0';
+        ws_ctx->hixie = 0;
+        ws_ctx->hybi = strtol(headers->version, NULL, 10);
 
-        start = strstr(handshake, "\r\nSec-WebSocket-Key1: ");
+        start = strstr(handshake, "\r\nSec-WebSocket-Key: ");
         if (!start) { return 0; }
-        start += 22;
+        start += 21;
         end = strstr(start, "\r\n");
         strncpy(headers->key1, start, end-start);
         headers->key1[end-start] = '\0';
-    
-        start = strstr(handshake, "\r\nSec-WebSocket-Key2: ");
+   
+        start = strstr(handshake, "\r\nConnection: ");
         if (!start) { return 0; }
-        start += 22;
+        start += 14;
         end = strstr(start, "\r\n");
-        strncpy(headers->key2, start, end-start);
-        headers->key2[end-start] = '\0';
+        strncpy(headers->connection, start, end-start);
+        headers->connection[end-start] = '\0';
+   
+        start = strstr(handshake, "\r\nSec-WebSocket-Protocol: ");
+        if (!start) { return 0; }
+        start += 26;
+        end = strstr(start, "\r\n");
+        strncpy(headers->protocols, start, end-start);
+        headers->protocols[end-start] = '\0';
     } else {
-        headers->key1[0] = '\0';
-        headers->key2[0] = '\0';
-        headers->key3[0] = '\0';
+        // Hixie 75 or 76
+        ws_ctx->hybi = 0;
+
+        start = strstr(handshake, "\r\n\r\n");
+        if (!start) { return 0; }
+        start += 4;
+        if (strlen(start) == 8) {
+            ws_ctx->hixie = 76;
+            strncpy(headers->key3, start, 8);
+            headers->key3[8] = '\0';
+
+            start = strstr(handshake, "\r\nSec-WebSocket-Key1: ");
+            if (!start) { return 0; }
+            start += 22;
+            end = strstr(start, "\r\n");
+            strncpy(headers->key1, start, end-start);
+            headers->key1[end-start] = '\0';
+        
+            start = strstr(handshake, "\r\nSec-WebSocket-Key2: ");
+            if (!start) { return 0; }
+            start += 22;
+            end = strstr(start, "\r\n");
+            strncpy(headers->key2, start, end-start);
+            headers->key2[end-start] = '\0';
+        } else {
+            ws_ctx->hixie = 75;
+        }
+
     }
 
     return 1;
+}
+
+int parse_hixie76_key(char * key) {
+    unsigned long i, spaces = 0, num = 0;
+    for (i=0; i < strlen(key); i++) {
+        if (key[i] == ' ') {
+            spaces += 1;
+        }
+        if ((key[i] >= 48) && (key[i] <= 57)) {
+            num = num * 10 + (key[i] - 48);
+        }
+    }
+    return num / spaces;
 }
 
 int gen_md5(headers_t *headers, char *target) {
-    unsigned int i, spaces1 = 0, spaces2 = 0;
-    unsigned long num1 = 0, num2 = 0;
-    unsigned char buf[17];
-    for (i=0; i < strlen(headers->key1); i++) {
-        if (headers->key1[i] == ' ') {
-            spaces1 += 1;
-        }
-        if ((headers->key1[i] >= 48) && (headers->key1[i] <= 57)) {
-            num1 = num1 * 10 + (headers->key1[i] - 48);
-        }
-    }
-    num1 = num1 / spaces1;
+    unsigned long key1 = parse_hixie76_key(headers->key1);
+    unsigned long key2 = parse_hixie76_key(headers->key2);
+    char *key3 = headers->key3;
 
-    for (i=0; i < strlen(headers->key2); i++) {
-        if (headers->key2[i] == ' ') {
-            spaces2 += 1;
-        }
-        if ((headers->key2[i] >= 48) && (headers->key2[i] <= 57)) {
-            num2 = num2 * 10 + (headers->key2[i] - 48);
-        }
-    }
-    num2 = num2 / spaces2;
+    MD5_CTX c;
+    char in[HIXIE_MD5_DIGEST_LENGTH] = {
+        key1 >> 24, key1 >> 16, key1 >> 8, key1,
+        key2 >> 24, key2 >> 16, key2 >> 8, key2,
+        key3[0], key3[1], key3[2], key3[3],
+        key3[4], key3[5], key3[6], key3[7]
+    };
 
-    /* Pack it big-endian */
-    buf[0] = (num1 & 0xff000000) >> 24;
-    buf[1] = (num1 & 0xff0000) >> 16;
-    buf[2] = (num1 & 0xff00) >> 8;
-    buf[3] =  num1 & 0xff;
+    MD5_Init(&c);
+    MD5_Update(&c, (void *)in, sizeof in);
+    MD5_Final((void *)target, &c);
 
-    buf[4] = (num2 & 0xff000000) >> 24;
-    buf[5] = (num2 & 0xff0000) >> 16;
-    buf[6] = (num2 & 0xff00) >> 8;
-    buf[7] =  num2 & 0xff;
-
-    strncpy(buf+8, headers->key3, 8);
-    buf[16] = '\0';
-
-    md5_buffer(buf, 16, target);
-    target[16] = '\0';
+    target[HIXIE_MD5_DIGEST_LENGTH] = '\0';
 
     return 1;
 }
 
-    
+static void gen_sha1(headers_t *headers, char *target) {
+    SHA_CTX c;
+    unsigned char hash[SHA_DIGEST_LENGTH];
+    int r;
+
+    SHA1_Init(&c);
+    SHA1_Update(&c, headers->key1, strlen(headers->key1));
+    SHA1_Update(&c, HYBI_GUID, 36);
+    SHA1_Final(hash, &c);
+
+    r = b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
+    //assert(r == HYBI10_ACCEPTHDRLEN - 1);
+}
+
 
 ws_ctx_t *do_handshake(int sock) {
-    char handshake[4096], response[4096], trailer[17];
+    char handshake[4096], response[4096], sha1[29], trailer[17];
     char *scheme, *pre;
-    headers_t headers;
+    headers_t *headers;
     int len, ret;
     ws_ctx_t * ws_ctx;
 
@@ -357,7 +569,7 @@ ws_ctx_t *do_handshake(int sock) {
         len = recv(sock, handshake, 1024, 0);
         handshake[len] = 0;
         handler_msg("sending flash policy response\n");
-        send(sock, policy_response, sizeof(policy_response), 0);
+        send(sock, POLICY_RESPONSE, sizeof(POLICY_RESPONSE), 0);
         return NULL;
     } else if ((bcmp(handshake, "\x16", 1) == 0) ||
                (bcmp(handshake, "\x80", 1) == 0)) {
@@ -370,7 +582,8 @@ ws_ctx_t *do_handshake(int sock) {
                         settings.cert);
             return NULL;
         }
-        ws_ctx = ws_socket_ssl(sock, settings.cert, settings.key);
+        ws_ctx = alloc_ws_ctx();
+        ws_socket_ssl(ws_ctx, sock, settings.cert, settings.key);
         if (! ws_ctx) { return NULL; }
         scheme = "wss";
         handler_msg("using SSL socket\n");
@@ -378,7 +591,8 @@ ws_ctx_t *do_handshake(int sock) {
         handler_msg("non-SSL connection disallowed\n");
         return NULL;
     } else {
-        ws_ctx = ws_socket(sock);
+        ws_ctx = alloc_ws_ctx();
+        ws_socket(ws_ctx, sock);
         if (! ws_ctx) { return NULL; }
         scheme = "ws";
         handler_msg("using plain (not SSL) socket\n");
@@ -390,23 +604,31 @@ ws_ctx_t *do_handshake(int sock) {
     }
     handshake[len] = 0;
 
-    if (!parse_handshake(handshake, &headers)) {
+    //handler_msg("handshake: %s\n", handshake);
+    if (!parse_handshake(ws_ctx, handshake)) {
         handler_emsg("Invalid WS request\n");
         return NULL;
     }
 
-    if (headers.key3[0] != '\0') {
-        gen_md5(&headers, trailer);
-        pre = "Sec-";
-        handler_msg("using protocol version 76\n");
+    headers = ws_ctx->headers;
+    if (ws_ctx->hybi > 0) {
+        handler_msg("using protocol HyBi/IETF 6455 %d\n", ws_ctx->hybi);
+        gen_sha1(headers, sha1);
+        sprintf(response, SERVER_HANDSHAKE_HYBI, sha1, "base64");
     } else {
-        trailer[0] = '\0';
-        pre = "";
-        handler_msg("using protocol version 75\n");
+        if (ws_ctx->hixie == 76) {
+            handler_msg("using protocol Hixie 76\n");
+            gen_md5(headers, trailer);
+            pre = "Sec-";
+        } else {
+            handler_msg("using protocol Hixie 75\n");
+            trailer[0] = '\0';
+            pre = "";
+        }
+        sprintf(response, SERVER_HANDSHAKE_HIXIE, pre, headers->origin, pre, scheme,
+                headers->host, headers->path, pre, "base64", trailer);
     }
     
-    sprintf(response, server_handshake, pre, headers.origin, pre, scheme,
-            headers.host, headers.path, pre, trailer);
     //handler_msg("response: %s\n", response);
     ws_send(ws_ctx, response, strlen(response));
 
@@ -461,17 +683,8 @@ void start_server() {
     struct sockaddr_in serv_addr, cli_addr;
     ws_ctx_t *ws_ctx;
 
-    /* Initialize buffers */
-    bufsize = 65536;
-    if (! (tbuf = malloc(bufsize)) )
-            { fatal("malloc()"); }
-    if (! (cbuf = malloc(bufsize)) )
-            { fatal("malloc()"); }
-    if (! (tbuf_tmp = malloc(bufsize)) )
-            { fatal("malloc()"); }
-    if (! (cbuf_tmp = malloc(bufsize)) )
-            { fatal("malloc()"); }
 
+    /* Initialize buffers */
     lsock = socket(AF_INET, SOCK_STREAM, 0);
     if (lsock < 0) { error("ERROR creating listener socket"); }
     bzero((char *) &serv_addr, sizeof(serv_addr));
@@ -499,6 +712,7 @@ void start_server() {
         daemonize(lsock);
     }
 
+
     // Reep zombies
     signal(SIGCHLD, SIG_IGN);
 
@@ -518,9 +732,6 @@ void start_server() {
         }
         handler_msg("got client connection from %s\n",
                     inet_ntoa(cli_addr.sin_addr));
-        /* base64 is 4 bytes for every 3
-         *    20 for WS '\x00' / '\xff' and good measure  */
-        dbufsize = (bufsize * 3)/4 - 20;
 
         handler_msg("forking handler process\n");
         pid = fork();
@@ -544,6 +755,7 @@ void start_server() {
     if (pid == 0) {
         if (ws_ctx) {
             ws_socket_free(ws_ctx);
+            free_ws_ctx(ws_ctx);
         } else {
             shutdown(csock, SHUT_RDWR);
             close(csock);

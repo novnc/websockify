@@ -49,14 +49,12 @@ int target_port;
 
 extern pipe_error;
 extern settings_t settings;
-extern char *tbuf, *cbuf, *tbuf_tmp, *cbuf_tmp;
-extern unsigned int bufsize, dbufsize;
 
 void do_proxy(ws_ctx_t *ws_ctx, int target) {
     fd_set rlist, wlist, elist;
     struct timeval tv;
     int i, maxfd, client = ws_ctx->sockfd;
-    unsigned int tstart, tend, cstart, cend, ret;
+    unsigned int opcode, tstart, tend, cstart, cend, ret;
     ssize_t len, bytes;
 
     tstart = tend = cstart = cend = 0;
@@ -110,7 +108,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
         if (FD_ISSET(target, &wlist)) {
             len = tend-tstart;
-            bytes = send(target, tbuf + tstart, len, 0);
+            bytes = send(target, ws_ctx->tbuf + tstart, len, 0);
             if (pipe_error) { break; }
             if (bytes < 0) {
                 handler_emsg("target connection error: %s\n",
@@ -128,10 +126,12 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
         if (FD_ISSET(client, &wlist)) {
             len = cend-cstart;
-            bytes = ws_send(ws_ctx, cbuf + cstart, len);
+            bytes = ws_send(ws_ctx, ws_ctx->cbuf + cstart, len);
             if (pipe_error) { break; }
             if (len < 3) {
-                handler_emsg("len: %d, bytes: %d: %d\n", len, bytes, *(cbuf + cstart));
+                handler_emsg("len: %d, bytes: %d: %d\n",
+                             (int) len, (int) bytes,
+                             (int) *(ws_ctx->cbuf + cstart));
             }
             cstart += bytes;
             if (cstart >= cend) {
@@ -143,18 +143,24 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         }
 
         if (FD_ISSET(target, &rlist)) {
-            bytes = recv(target, cbuf_tmp, dbufsize , 0);
+            bytes = recv(target, ws_ctx->cbuf_tmp, DBUFSIZE , 0);
             if (pipe_error) { break; }
             if (bytes <= 0) {
                 handler_emsg("target closed connection\n");
                 break;
             }
             cstart = 0;
-            cend = encode(cbuf_tmp, bytes, cbuf, bufsize);
+            if (ws_ctx->hybi) {
+                cend = encode_hybi(ws_ctx->cbuf_tmp, bytes,
+                                   ws_ctx->cbuf, BUFSIZE, 1);
+            } else {
+                cend = encode_hixie(ws_ctx->cbuf_tmp, bytes,
+                                    ws_ctx->cbuf, BUFSIZE);
+            }
             /*
             printf("encoded: ");
             for (i=0; i< cend; i++) {
-                printf("%u,", (unsigned char) *(cbuf+i));
+                printf("%u,", (unsigned char) *(ws_ctx->cbuf+i));
             }
             printf("\n");
             */
@@ -166,29 +172,36 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         }
 
         if (FD_ISSET(client, &rlist)) {
-            bytes = ws_recv(ws_ctx, tbuf_tmp, bufsize-1);
+            bytes = ws_recv(ws_ctx, ws_ctx->tbuf_tmp, BUFSIZE-1);
             if (pipe_error) { break; }
             if (bytes <= 0) {
                 handler_emsg("client closed connection\n");
-                break;
-            } else if ((bytes == 2) &&
-                       (tbuf_tmp[0] == '\xff') && 
-                       (tbuf_tmp[1] == '\x00')) {
-                handler_emsg("client sent orderly close frame\n");
                 break;
             }
             /*
             printf("before decode: ");
             for (i=0; i< bytes; i++) {
-                printf("%u,", (unsigned char) *(tbuf_tmp+i));
+                printf("%u,", (unsigned char) *(ws_ctx->tbuf_tmp+i));
             }
             printf("\n");
             */
-            len = decode(tbuf_tmp, bytes, tbuf, bufsize-1);
+            if (ws_ctx->hybi) {
+                len = decode_hybi(ws_ctx->tbuf_tmp, bytes,
+                                  ws_ctx->tbuf, BUFSIZE-1, &opcode);
+            } else {
+                len = decode_hixie(ws_ctx->tbuf_tmp, bytes,
+                                   ws_ctx->tbuf, BUFSIZE-1, &opcode);
+            }
+
+            if (opcode == 8) {
+                handler_emsg("client sent orderly close frame\n");
+                break;
+            }
+
             /*
             printf("decoded: ");
             for (i=0; i< len; i++) {
-                printf("%u,", (unsigned char) *(tbuf+i));
+                printf("%u,", (unsigned char) *(ws_ctx->tbuf+i));
             }
             printf("\n");
             */
@@ -346,8 +359,4 @@ int main(int argc, char *argv[])
     settings.handler = proxy_handler; 
     start_server();
 
-    free(tbuf);
-    free(cbuf);
-    free(tbuf_tmp);
-    free(cbuf_tmp);
 }
