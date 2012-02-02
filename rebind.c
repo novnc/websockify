@@ -31,7 +31,7 @@
 
 #if defined(DO_DEBUG)
 #define DEBUG(...) \
-    fprintf(stderr, "wswrapper: "); \
+    fprintf(stderr, "rebind: "); \
     fprintf(stderr, __VA_ARGS__);
 #else
 #define DEBUG(...)
