@@ -45,10 +45,10 @@ typedef struct {
     int        hixie;
     int        hybi;
     headers_t *headers;
-    char      *tbuf;
-    char      *cbuf;
-    char      *tbuf_tmp;
-    char      *cbuf_tmp;
+    char      *cin_buf;
+    char      *cout_buf;
+    char      *tin_buf;
+    char      *tout_buf;
 } ws_ctx_t;
 
 typedef struct {
