@@ -1,4 +1,4 @@
-TARGETS=websockify wswrapper.so kumina
+TARGETS=websockify kumina
 CFLAGS += -fPIC
 
 all: $(TARGETS)
@@ -13,5 +13,5 @@ kumina: kumina.o
 	$(CC) $(LDFLAGS) $^ -lresolv -lssl -o $@
 
 clean:
-	rm -f websockify wswrapper.so kumina *.o
+	rm -f websockify kumina *.o
 
