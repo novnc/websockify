@@ -318,6 +318,12 @@ int decode_hybi(unsigned char *src, size_t srclength,
         framecount ++;
 
         *opcode = frame[0] & 0x0f;
+
+        if (*opcode == 0x8) {
+            // client sent orderly close frame
+            break;
+        }
+
         //printf("opcode %d, frame[0..3]: 0x%x 0x%x 0x%x 0x%x\n", *opcode,
         //       (unsigned char) frame[0],
         //       (unsigned char) frame[1],
@@ -342,11 +348,6 @@ int decode_hybi(unsigned char *src, size_t srclength,
         }
         //printf("    payload_length: %u, raw remaining: %u\n", payload_length, (unsigned int) srclength - target_offset);
         payload = frame + hdr_length + 4;
-
-        if (*opcode == 0x8) {
-            // client sent orderly close frame
-            break;
-        }
 
         if (*opcode != 1 && *opcode != 2) {
             handler_msg("Ignoring non-data frame, opcode 0x%x\n", *opcode);
