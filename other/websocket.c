@@ -105,14 +105,14 @@ ws_ctx_t *alloc_ws_ctx() {
     if (! (ctx = malloc(sizeof(ws_ctx_t))) )
         { fatal("malloc()"); }
 
-    if (! (ctx->tbuf = malloc(BUFSIZE)) )
-        { fatal("malloc of tbuf"); }
-    if (! (ctx->cbuf = malloc(BUFSIZE)) )
-        { fatal("malloc of cbuf"); }
-    if (! (ctx->tbuf_tmp = malloc(BUFSIZE)) )
-        { fatal("malloc of tbuf_tmp"); }
-    if (! (ctx->cbuf_tmp = malloc(BUFSIZE)) )
-        { fatal("malloc of cbuf_tmp"); }
+    if (! (ctx->cin_buf = malloc(BUFSIZE)) )
+        { fatal("malloc of cin_buf"); }
+    if (! (ctx->cout_buf = malloc(BUFSIZE)) )
+        { fatal("malloc of cout_buf"); }
+    if (! (ctx->tin_buf = malloc(BUFSIZE)) )
+        { fatal("malloc of tin_buf"); }
+    if (! (ctx->tout_buf = malloc(BUFSIZE)) )
+        { fatal("malloc of tout_buf"); }
 
     ctx->headers = malloc(sizeof(headers_t));
     ctx->ssl = NULL;
@@ -121,10 +121,10 @@ ws_ctx_t *alloc_ws_ctx() {
 }
 
 int free_ws_ctx(ws_ctx_t *ctx) {
-    free(ctx->tbuf);
-    free(ctx->cbuf);
-    free(ctx->tbuf_tmp);
-    free(ctx->cbuf_tmp);
+    free(ctx->cin_buf);
+    free(ctx->cout_buf);
+    free(ctx->tin_buf);
+    free(ctx->tout_buf);
     free(ctx);
 }
 
@@ -224,7 +224,8 @@ int encode_hixie(u_char const *src, size_t srclength,
 }
 
 int decode_hixie(char *src, size_t srclength,
-                 u_char *target, size_t targsize, unsigned int *opcode) {
+                 u_char *target, size_t targsize,
+                 unsigned int *opcode, unsigned int *left) {
     char *start, *end, cntstr[4];
     int i, len, framecount = 0, retlen = 0;
     unsigned char chr;
@@ -232,6 +233,8 @@ int decode_hixie(char *src, size_t srclength,
         handler_emsg("WebSocket framing error\n");
         return -1;
     }
+    *left = srclength;
+
     if (srclength == 2 &&
         (src[0] == '\xff') && 
         (src[1] == '\x00')) {
@@ -258,6 +261,7 @@ int decode_hixie(char *src, size_t srclength,
         snprintf(cntstr, 3, "%d", framecount);
         traffic(cntstr);
     }
+    *left = 0;
     return retlen;
 }
 
@@ -300,43 +304,51 @@ int encode_hybi(u_char const *src, size_t srclength,
 }
 
 int decode_hybi(unsigned char *src, size_t srclength,
-                u_char *target, size_t targsize, unsigned int *opcode)
+                u_char *target, size_t targsize,
+                unsigned int *opcode, unsigned int *left)
 {
     unsigned char *frame, *mask, *payload, save_char, cntstr[4];;
+    int masked = 0;
     int i = 0, len, framecount = 0;
+    size_t remaining;
     unsigned int target_offset = 0, hdr_length = 0, payload_length = 0;
     
-    if ((unsigned int) srclength <= 0)
-    {
-        return 0;
-    }
-
+    *left = srclength;
     frame = src;
 
     //printf("Deocde new frame\n");
-    while (frame - src < srclength) {
+    while (1) {
+        // Need at least two bytes of the header
+        // Find beginning of next frame. First time hdr_length, masked and
+        // payload_length are zero
+        frame += hdr_length + 4*masked + payload_length;
+        //printf("frame[0..3]: 0x%x 0x%x 0x%x 0x%x (tot: %d)\n",
+        //       (unsigned char) frame[0],
+        //       (unsigned char) frame[1],
+        //       (unsigned char) frame[2],
+        //       (unsigned char) frame[3], srclength);
+
+        if (frame > src + srclength) {
+            //printf("Truncated frame from client, need %d more bytes\n", frame - (src + srclength) );
+            break;
+        }
+        remaining = (src + srclength) - frame;
+        if (remaining < 2) {
+            //printf("Truncated frame header from client\n");
+            break;
+        }
         framecount ++;
 
         *opcode = frame[0] & 0x0f;
+        masked = (frame[1] & 0x80) >> 7;
 
         if (*opcode == 0x8) {
             // client sent orderly close frame
             break;
         }
 
-        //printf("opcode %d, frame[0..3]: 0x%x 0x%x 0x%x 0x%x\n", *opcode,
-        //       (unsigned char) frame[0],
-        //       (unsigned char) frame[1],
-        //       (unsigned char) frame[2],
-        //       (unsigned char) frame[3]);
-
         payload_length = frame[1] & 0x7f;
-        if (payload_length == 0) {
-            // TODO: next frame
-            handler_msg("empty frame\n");
-            frame += 6;
-            continue;
-        } else if (payload_length < 126) {
+        if (payload_length < 126) {
             hdr_length = 2;
             //frame += 2 * sizeof(char);
         } else if (payload_length == 126) {
@@ -346,23 +358,24 @@ int decode_hybi(unsigned char *src, size_t srclength,
             handler_emsg("Receiving frames larger than 65535 bytes not supported\n");
             return -1;
         }
-        //printf("    payload_length: %u, raw remaining: %u\n", payload_length, (unsigned int) srclength - target_offset);
-        payload = frame + hdr_length + 4;
+        if ((hdr_length + 4*masked + payload_length) > remaining) {
+            continue;
+        }
+        //printf("    payload_length: %u, raw remaining: %u\n", payload_length, remaining);
+        payload = frame + hdr_length + 4*masked;
 
         if (*opcode != 1 && *opcode != 2) {
             handler_msg("Ignoring non-data frame, opcode 0x%x\n", *opcode);
-            frame = frame + hdr_length + 4 + payload_length;
             continue;
         }
 
-
-        if ((payload_length > 0) && (!(frame[1] & 0x80))) {
-            handler_emsg("Received unmasked payload from client\n");
-            return -1;
+        if (payload_length == 0) {
+            handler_msg("Ignoring empty frame\n");
+            continue;
         }
 
-        if ((hdr_length + 4 + payload_length) > (srclength - target_offset)) {
-            handler_emsg("Truncated frame received from client\n");
+        if ((payload_length > 0) && (!masked)) {
+            handler_emsg("Received unmasked payload from client\n");
             return -1;
         }
 
@@ -385,11 +398,9 @@ int decode_hybi(unsigned char *src, size_t srclength,
             handler_emsg("Base64 decode error code %d", len);
             return len;
         }
+        target_offset += len;
 
         //printf("    len %d, raw %s\n", len, frame);
-
-        target_offset += len;
-        frame = frame + hdr_length + 4 + payload_length;
     }
 
     if (framecount > 1) {
@@ -397,6 +408,7 @@ int decode_hybi(unsigned char *src, size_t srclength,
         traffic(cntstr);
     }
     
+    *left = remaining;
     return target_offset;
 }
 
@@ -557,7 +569,7 @@ ws_ctx_t *do_handshake(int sock) {
     char handshake[4096], response[4096], sha1[29], trailer[17];
     char *scheme, *pre;
     headers_t *headers;
-    int len, ret;
+    int len, ret, i, offset;
     ws_ctx_t * ws_ctx;
 
     // Peek, but don't read the data
@@ -598,12 +610,20 @@ ws_ctx_t *do_handshake(int sock) {
         scheme = "ws";
         handler_msg("using plain (not SSL) socket\n");
     }
-    len = ws_recv(ws_ctx, handshake, 4096);
-    if (len == 0) {
-        handler_emsg("Client closed during handshake\n");
-        return NULL;
+    offset = 0;
+    for (i = 0; i < 10; i++) {
+        len = ws_recv(ws_ctx, handshake+offset, 4096);
+        if (len == 0) {
+            handler_emsg("Client closed during handshake\n");
+            return NULL;
+        }
+        offset += len;
+        handshake[offset] = 0;
+        if (strstr(handshake, "\r\n\r\n")) {
+            break;
+        }
+        usleep(10);
     }
-    handshake[len] = 0;
 
     //handler_msg("handshake: %s\n", handshake);
     if (!parse_handshake(ws_ctx, handshake)) {

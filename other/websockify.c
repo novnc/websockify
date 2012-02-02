@@ -54,10 +54,13 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
     fd_set rlist, wlist, elist;
     struct timeval tv;
     int i, maxfd, client = ws_ctx->sockfd;
-    unsigned int opcode, tstart, tend, cstart, cend, ret;
+    unsigned int opcode, left, ret;
+    unsigned int tout_start, tout_end, cout_start, cout_end;
+    unsigned int tin_start, tin_end;
     ssize_t len, bytes;
 
-    tstart = tend = cstart = cend = 0;
+    tout_start = tout_end = cout_start = cout_end;
+    tin_start = tin_end = 0;
     maxfd = client > target ? client+1 : target+1;
 
     while (1) {
@@ -71,14 +74,14 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         FD_SET(client, &elist);
         FD_SET(target, &elist);
 
-        if (tend == tstart) {
+        if (tout_end == tout_start) {
             // Nothing queued for target, so read from client
             FD_SET(client, &rlist);
         } else {
             // Data queued for target, so write to it
             FD_SET(target, &wlist);
         }
-        if (cend == cstart) {
+        if (cout_end == cout_start) {
             // Nothing queued for client, so read from target
             FD_SET(target, &rlist);
         } else {
@@ -107,17 +110,17 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         }
 
         if (FD_ISSET(target, &wlist)) {
-            len = tend-tstart;
-            bytes = send(target, ws_ctx->tbuf + tstart, len, 0);
+            len = tout_end-tout_start;
+            bytes = send(target, ws_ctx->tout_buf + tout_start, len, 0);
             if (pipe_error) { break; }
             if (bytes < 0) {
                 handler_emsg("target connection error: %s\n",
                              strerror(errno));
                 break;
             }
-            tstart += bytes;
-            if (tstart >= tend) {
-                tstart = tend = 0;
+            tout_start += bytes;
+            if (tout_start >= tout_end) {
+                tout_start = tout_end = 0;
                 traffic(">");
             } else {
                 traffic(">.");
@@ -125,17 +128,17 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         }
 
         if (FD_ISSET(client, &wlist)) {
-            len = cend-cstart;
-            bytes = ws_send(ws_ctx, ws_ctx->cbuf + cstart, len);
+            len = cout_end-cout_start;
+            bytes = ws_send(ws_ctx, ws_ctx->cout_buf + cout_start, len);
             if (pipe_error) { break; }
             if (len < 3) {
                 handler_emsg("len: %d, bytes: %d: %d\n",
                              (int) len, (int) bytes,
-                             (int) *(ws_ctx->cbuf + cstart));
+                             (int) *(ws_ctx->cout_buf + cout_start));
             }
-            cstart += bytes;
-            if (cstart >= cend) {
-                cstart = cend = 0;
+            cout_start += bytes;
+            if (cout_start >= cout_end) {
+                cout_start = cout_end = 0;
                 traffic("<");
             } else {
                 traffic("<.");
@@ -143,28 +146,28 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         }
 
         if (FD_ISSET(target, &rlist)) {
-            bytes = recv(target, ws_ctx->cbuf_tmp, DBUFSIZE , 0);
+            bytes = recv(target, ws_ctx->cin_buf, DBUFSIZE , 0);
             if (pipe_error) { break; }
             if (bytes <= 0) {
                 handler_emsg("target closed connection\n");
                 break;
             }
-            cstart = 0;
+            cout_start = 0;
             if (ws_ctx->hybi) {
-                cend = encode_hybi(ws_ctx->cbuf_tmp, bytes,
-                                   ws_ctx->cbuf, BUFSIZE, 1);
+                cout_end = encode_hybi(ws_ctx->cin_buf, bytes,
+                                   ws_ctx->cout_buf, BUFSIZE, 1);
             } else {
-                cend = encode_hixie(ws_ctx->cbuf_tmp, bytes,
-                                    ws_ctx->cbuf, BUFSIZE);
+                cout_end = encode_hixie(ws_ctx->cin_buf, bytes,
+                                    ws_ctx->cout_buf, BUFSIZE);
             }
             /*
             printf("encoded: ");
-            for (i=0; i< cend; i++) {
-                printf("%u,", (unsigned char) *(ws_ctx->cbuf+i));
+            for (i=0; i< cout_end; i++) {
+                printf("%u,", (unsigned char) *(ws_ctx->cout_buf+i));
             }
             printf("\n");
             */
-            if (cend < 0) {
+            if (cout_end < 0) {
                 handler_emsg("encoding error\n");
                 break;
             }
@@ -172,25 +175,30 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         }
 
         if (FD_ISSET(client, &rlist)) {
-            bytes = ws_recv(ws_ctx, ws_ctx->tbuf_tmp, BUFSIZE-1);
+            bytes = ws_recv(ws_ctx, ws_ctx->tin_buf + tin_end, BUFSIZE-1);
             if (pipe_error) { break; }
             if (bytes <= 0) {
                 handler_emsg("client closed connection\n");
                 break;
             }
+            tin_end += bytes;
             /*
             printf("before decode: ");
             for (i=0; i< bytes; i++) {
-                printf("%u,", (unsigned char) *(ws_ctx->tbuf_tmp+i));
+                printf("%u,", (unsigned char) *(ws_ctx->tin_buf+i));
             }
             printf("\n");
             */
             if (ws_ctx->hybi) {
-                len = decode_hybi(ws_ctx->tbuf_tmp, bytes,
-                                  ws_ctx->tbuf, BUFSIZE-1, &opcode);
+                len = decode_hybi(ws_ctx->tin_buf + tin_start,
+                                  tin_end-tin_start,
+                                  ws_ctx->tout_buf, BUFSIZE-1,
+                                  &opcode, &left);
             } else {
-                len = decode_hixie(ws_ctx->tbuf_tmp, bytes,
-                                   ws_ctx->tbuf, BUFSIZE-1, &opcode);
+                len = decode_hixie(ws_ctx->tin_buf + tin_start,
+                                   tin_end-tin_start,
+                                   ws_ctx->tout_buf, BUFSIZE-1,
+                                   &opcode, &left);
             }
 
             if (opcode == 8) {
@@ -201,7 +209,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             /*
             printf("decoded: ");
             for (i=0; i< len; i++) {
-                printf("%u,", (unsigned char) *(ws_ctx->tbuf+i));
+                printf("%u,", (unsigned char) *(ws_ctx->tout_buf+i));
             }
             printf("\n");
             */
@@ -209,9 +217,17 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
                 handler_emsg("decoding error\n");
                 break;
             }
+            if (left) {
+                tin_start = tin_end - left;
+                //printf("partial frame from client");
+            } else {
+                tin_start = 0;
+                tin_end = 0;
+            }
+
             traffic("}");
-            tstart = 0;
-            tend = len;
+            tout_start = 0;
+            tout_end = len;
         }
     }
 }
