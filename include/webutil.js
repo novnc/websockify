@@ -8,16 +8,16 @@
 
 "use strict";
 /*jslint bitwise: false, white: false */
-/*global window, document */
+/*global Util, window, document */
 
 // Globals defined here
-var WebUtil = {}, $;
+var WebUtil = {}, $D;
 
 /*
  * Simple DOM selector by ID
  */
 if (!window.$D) {
-    $D = function (id) {
+    window.$D = function (id) {
         if (document.getElementById) {
             return document.getElementById(id);
         } else if (document.all) {
@@ -42,8 +42,8 @@ WebUtil.init_logging = function() {
          /logging=([A-Za-z0-9\._\-]*)/) ||
          ['', Util._log_level])[1];
     
-    Util.init_logging()
-}
+    Util.init_logging();
+};
 WebUtil.init_logging();
 
 
@@ -59,7 +59,11 @@ WebUtil.dirObj = function (obj, depth, parent) {
             msg += WebUtil.dirObj(obj[i], depth-1, parent + "." + i);
         } else {
             //val = new String(obj[i]).replace("\n", " ");
-            val = obj[i].toString().replace("\n", " ");
+            if (typeof(obj[i]) === "undefined") {
+                val = "undefined";
+            } else {
+                val = obj[i].toString().replace("\n", " ");
+            }
             if (val.length > 30) {
                 val = val.substr(0,30) + "...";
             } 
