@@ -1,6 +1,4 @@
 from setuptools import setup, find_packages
-import glob
-import os
 
 version = '0.1-dev'
 name = 'websockify'
@@ -20,7 +18,7 @@ setup(name=name,
       author="Joel Martin",
       author_email="github@martintribe.org",
 
-      packages="",
+      packages=find_packages(),
       include_package_data=True,
       install_requires=['numpy'],
       zip_safe=False,
