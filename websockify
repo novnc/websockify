@@ -213,7 +213,7 @@ Traffic Legend:
                     self.send_close()
                     raise self.EClose(closed)
 
-if __name__ == '__main__':
+def websockify_init():
     usage = "\n    %prog [options]"
     usage += " [source_addr:]source_port target_addr:target_port"
     usage += "\n    %prog [options]"
@@ -280,3 +280,6 @@ if __name__ == '__main__':
     # Create and start the WebSockets proxy
     server = WebSocketProxy(**opts.__dict__)
     server.start_server()
+
+if __name__ == '__main__':
+    websockify_init()
