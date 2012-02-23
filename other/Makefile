@@ -1,4 +1,4 @@
-TARGETS=websockify kumina
+TARGETS=websockify
 CFLAGS += -fPIC
 
 all: $(TARGETS)
@@ -8,9 +8,6 @@ websockify: websockify.o websocket.o
 
 websocket.o: websocket.c websocket.h
 websockify.o: websockify.c websocket.h
-
-kumina: kumina.o
-	$(CC) $(LDFLAGS) $^ -lresolv -lssl -o $@
 
 clean:
 	rm -f websockify kumina *.o
