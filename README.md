@@ -83,10 +83,15 @@ These are not necessary for the basic operation.
 
 ### Implementations of websockify
 
-The primary implementation of websockify is in python. There are also
-alternative implementations in the `other/` subdirectory (and
-elsewhere). See the alternate implementation [Feature
-Matrix](https://github.com/kanaka/websockify/wiki/Implementations_Matrix).
+The primary implementation of websockify is in python. There are
+several alternate implementations in other languages (C, Node.js,
+Clojure, Ruby) in the `other/` subdirectory (with varying levels of
+functionality).
+
+In addition there are several other external projects that implement
+the websockify "protocol". See the alternate implementation [Feature
+Matrix](https://github.com/kanaka/websockify/wiki/Feature_Matrix) for
+more information.
 
 
 ### Wrap a Program
