@@ -1,227 +1,102 @@
 // A WebSocket to TCP socket proxy
-// Copyright 2010 Joel Martin
+// Copyright 2012 Joel Martin
 // Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
-var net = require('net'),
-    sys = require('sys'),
-    crypto = require('crypto'),
-    source_arg, source_host, source_port,
-    target_arg, target_host, target_port;
+// Known to work with node 0.6
+// Requires node modules: ws, base64, optimist and policyfile
+//     npm install ws base64 optimist policyfile
 
-// md5 calculation borrowed from Socket.IO (MIT license)
-function gen_md5(headers, k3) {
-    var k1 = headers['sec-websocket-key1'],
-        k2 = headers['sec-websocket-key2'],
-        md5 = crypto.createHash('md5');
+var argv = require('optimist').argv,
+    net = require('net'),
+    http = require('http'),
+    url = require('url'),
+    path = require('path'),
+    fs = require('fs'),
+    policyfile = require('policyfile'),
 
-    [k1, k2].forEach(function(k){
-    var n = parseInt(k.replace(/[^\d]/g, '')),
-        spaces = k.replace(/[^ ]/g, '').length;
+    base64 = require('base64/build/Release/base64'),
+    Buffer = require('buffer').Buffer,
+    WebSocketServer = require('ws').Server,
 
-    if (spaces === 0 || n % spaces !== 0){
-        return false;
-    }
+    httpServer, wsServer,
+    source_host, source_port, target_host, target_port,
+    web_path = null;
 
-    n /= spaces;
 
-    md5.update(String.fromCharCode(
-        n >> 24 & 0xFF,
-        n >> 16 & 0xFF,
-        n >> 8  & 0xFF,
-        n       & 0xFF));
+// Handle new WebSocket client
+new_client = function(client) {
+    console.log('WebSocket client connected');
+    //console.log('protocol: ' + client.protocol);
+
+    var target = net.createConnection(target_port,target_host);
+    target.on('begin', function() {
+        console.log('connected to target');
+    });
+    target.on('data', function(data) {
+        client.send(base64.encode(new Buffer(data)));                     
+    });
+    target.on('end', function() {
+        console.log('target disconnected');
     });
 
-    md5.update(k3.toString('binary'));
+    client.on('message', function(msg) {
+        //console.log('got some message');
+        target.write(base64.decode(msg),'binary');
+    });
+    client.on('close', function(code, reason) {
+        console.log('WebSocket client disconnected: ' + code + ' [' + reason + ']');
+    });
+    client.on('error', function(a) {
+        console.log('WebSocket client error: ' + a);
+    });
+};
 
-    return md5.digest('binary');
+
+// Send an HTTP error response
+http_error = function (response, code, msg) {
+    response.writeHead(code, {"Content-Type": "text/plain"});
+    response.write(msg + "\n");
+    response.end();
+    return;
 }
 
-function encode(buf) {
-    return String.fromCharCode(0) + 
-           buf.toString('base64', 0) +
-           String.fromCharCode(255);
-}
+// Process an HTTP static file request
+http_request = function (request, response) {
+//    console.log("pathname: " + url.parse(req.url).pathname);
+//    res.writeHead(200, {'Content-Type': 'text/plain'});
+//    res.end('okay');
 
-function decode(data) {
-    var i, len = 0, strs, retstrs = [],
-        buf = new Buffer(data.length),
-        str = data.toString('binary', 1, data.length-1);
-
-    if (str.indexOf('\xff') > -1) {
-        // We've gotten multiple frames at once
-        strs = str.split('\xff\x00')
-        for (i = 0; i < strs.length; i++) {
-            len = buf.write(strs[i], 0, 'base64');
-            retstrs.push(buf.toString('binary', 0, len));
-        }
-        return retstrs.join("");
-    } else {
-        len = buf.write(str, 0, 'base64');
-        return buf.toString('binary', 0, len);
-    }
-}
-
-
-var server = net.createServer(function (client) {
-    var handshake = "", headers = {}, header,
-        version, path, k1, k2, k3, target = null;
-
-    function cleanup() {
-        client.end();
-        if (target) {
-            target.end();
-            target = null;
-        }
+    if (! argv.web) {
+        return http_error(response, 403, "403 Permission Denied");
     }
 
-    function do_handshake(data) {
-        var i, idx, dlen = data.length, lines, location, rheaders,
-            sec_hdr;
-        //sys.log("received handshake data: " + data);
-        handshake += data.toString('utf8');
-        if ((data[dlen-12] != 13) ||
-            (data[dlen-11] != 10) ||
-            (data[dlen-10] != 13) ||
-            (data[dlen-9] != 10)) {
-            //sys.log("Got partial handshake");
-            return;
-        }
-        //sys.log("Got whole handshake");
-
-        if (handshake.indexOf('GET ') != 0) {
-            sys.error("Got invalid handshake");
-            client.end();
-            return;
+    var uri = url.parse(request.url).pathname
+        , filename = path.join(argv.web, uri);
+    
+    path.exists(filename, function(exists) {
+        if(!exists) {
+            return http_error(response, 404, "404 Not Found");
         }
 
-        lines = handshake.split('\r\n');
-        path = lines[0].split(' ')[1];
-        //sys.log("path: " + path);
+        if (fs.statSync(filename).isDirectory()) {
+            filename += '/index.html';
+        }
 
-        k3 = data.slice(dlen-8, dlen);
-        for (i = 1; i < lines.length; i++) {
-            //sys.log("lines[i]: " + lines[i]);
-            if (lines[i].length == 0) { break; }
-            idx = lines[i].indexOf(': ');
-            if (idx < 0) {
-                sys.error("Got invalid handshake header");
-                client.end();
-                return;
+        fs.readFile(filename, "binary", function(err, file) {
+            if(err) {
+                return http_error(response, 500, err);
             }
-            header = lines[i].slice(0, idx).toLowerCase();
-            headers[header] = lines[i].slice(idx+2);
-        }
-        //console.dir(headers);
-        //sys.log("k3: " + k3 + ", k3.length: " + k3.length);
 
-        if (headers.upgrade !== 'WebSocket') {
-            sys.error("Upgrade header is not 'WebSocket'");
-            client.end();
-            return;
-        }
-
-        location = (headers.origin.substr(0, 5) == 'https' ? 'wss' : 'ws')
-            + '://' + headers.host + path;
-        //sys.log("location: " + location);
-
-        if ('sec-websocket-key1' in headers) {
-            version = 76;
-            sec_hdr = "Sec-";
-        } else {
-            version = 75;
-            sec_hdr = "";
-        }
-        sys.log("using protocol version " + version);
-
-        rheaders = [
-            'HTTP/1.1 101 WebSocket Protocol Handshake',
-            'Upgrade: WebSocket',
-            'Connection: Upgrade',
-            sec_hdr + 'WebSocket-Origin: ' + headers.origin,
-            sec_hdr + 'WebSocket-Location: ' + location
-        ];
-        if ('sec-websocket-protocol' in headers) {
-            rheaders.push('Sec-WebSocket-Protocol: ' + headers['sec-websocket-protocol']);
-        }
-        rheaders.push('');
-        if (version === 76) {
-            rheaders.push(gen_md5(headers, k3));
-        }
-
-        // Switch listener to normal data path
-        client.on('data', client_data);
-        //client.setEncoding('utf8');
-        client.removeListener('data', do_handshake);
-        // Do not delay writes
-        client.setNoDelay(true);
-
-        // Send the handshake response
-        try {
-            //sys.log("response: " + rheaders.join('\r\n'));
-            client.write(rheaders.join('\r\n'), 'binary');
-        } catch(e) {
-            sys.error("Failed to send handshake response");
-            client.end();
-            return;
-        }
-
-        // Create a connection to the target
-        target = net.createConnection(target_port, target_host);
-        target.on('data', target_data);
-        target.on('end', function () {
-            sys.log("received target end");
-            cleanup();
+            response.writeHead(200);
+            response.write(file, "binary");
+            response.end();
         });
-        target.on('error', function (exc) {
-            sys.log("received target error: " + exc);
-            cleanup();
-        });
-    }
-
-    function client_data(data) {
-        var ret;
-        //sys.log("received client data: " + data);
-        //sys.log("             decoded: " + decode(data));
-        try {
-            ret = target.write(decode(data), 'binary');
-            if (! ret) {
-                sys.log("target write returned false");
-            }
-        } catch(e) {
-            sys.log("fatal error writing to target");
-            cleanup();
-        }
-    }
-
-    function target_data(data) {
-        //sys.log("received target data: " + data);
-        //sys.log("             encoded: " + encode(data));
-        try {
-            client.write(encode(data), 'binary');
-        } catch(e) {
-            sys.log("fatal error writing to client");
-            cleanup();
-        }
-    }
-
-    client.on('connect', function () {
-        sys.log("Got client connection");
     });
-    client.on('data', do_handshake);
-    client.on('end', function () {
-        sys.log("recieved client end");
-        cleanup();
-    });
-    client.on('error', function (exc) {
-        sys.log("recieved client error: " + exc);
-        cleanup();
-    });
-});
+};
 
-
-// parse source and target into parts
-source_arg = process.argv[2];
-target_arg = process.argv[3];
+// parse source and target arguments into parts
+source_arg = argv._[0].toString();
+target_arg = argv._[1].toString();
 try {
     var idx;
     idx = source_arg.indexOf(":");
@@ -248,6 +123,18 @@ try {
     process.exit(2);
 }
 
-sys.log("source: " + source_host + ":" + source_port);
-sys.log("target: " + target_host + ":" + target_port);
-server.listen(source_port, source_host);
+console.log("WebSocket settings: ");
+console.log("    - proxying from " + source_host + ":" + source_port +
+            " to " + target_host + ":" + target_port);
+if (argv.web) {
+    console.log("    - Web server active. Serving: " + argv.web);
+}
+
+httpServer = http.createServer(http_request);
+httpServer.listen(source_port, function() {
+    wsServer = new WebSocketServer({server: httpServer});
+    wsServer.on('connection', new_client);
+});
+
+// Attach Flash policyfile answer service
+policyfile.createServer().listen(-1, httpServer);
