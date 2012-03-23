@@ -10,5 +10,5 @@ websocket.o: websocket.c websocket.h
 websockify.o: websockify.c websocket.h
 
 clean:
-	rm -f websockify kumina *.o
+	rm -f websockify *.o
 

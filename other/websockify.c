@@ -267,6 +267,7 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
 
     do_proxy(ws_ctx, tsock);
 
+    shutdown(tsock, SHUT_RDWR);
     close(tsock);
 }
 
