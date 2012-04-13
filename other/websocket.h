@@ -61,6 +61,7 @@ typedef struct {
     char *key;
     int ssl_only;
     int daemon;
+    int run_once;
 } settings_t;
 
 

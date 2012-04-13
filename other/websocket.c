@@ -754,11 +754,23 @@ void start_server() {
         handler_msg("got client connection from %s\n",
                     inet_ntoa(cli_addr.sin_addr));
 
-        handler_msg("forking handler process\n");
-        pid = fork();
+        if (!settings.run_once) {
+            handler_msg("forking handler process\n");
+            pid = fork();
+        }
 
         if (pid == 0) {  // handler process
             ws_ctx = do_handshake(csock);
+            if (settings.run_once) {
+                if (ws_ctx == NULL) {
+                    // Not a real WebSocket connection
+                    continue;
+                } else {
+                    // Successful connection, stop listening for new
+                    // connections
+                    close(lsock);
+                }
+            }
             if (ws_ctx == NULL) {
                 handler_msg("No connection after handshake\n");
                 break;   // Child process exits
