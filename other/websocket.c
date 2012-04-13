@@ -740,6 +740,47 @@ void start_server() {
     printf("Waiting for connections on %s:%d\n",
             settings.listen_host, settings.listen_port);
 
+
+
+    if (settings.single_shot) {
+        clilen = sizeof(cli_addr);
+        pipe_error = 0;
+        pid = 0;
+        csock = accept(lsock,
+                       (struct sockaddr *) &cli_addr,
+                       &clilen);
+        if (csock < 0) {
+            error("ERROR on accept");
+            goto CLEANUP;
+        }
+        handler_msg("got client connection from %s\n",
+                    inet_ntoa(cli_addr.sin_addr));
+
+
+	ws_ctx = do_handshake(csock);
+	if (ws_ctx == NULL) {
+	    handler_msg("No connection after handshake\n");
+	    goto CLEANUP;
+	}
+
+	settings.handler(ws_ctx);
+	if (pipe_error) {
+	    handler_emsg("Closing due to SIGPIPE\n");
+	}
+
+    CLEANUP:
+        if (ws_ctx) {
+            ws_socket_free(ws_ctx);
+            free_ws_ctx(ws_ctx);
+        } else {
+            shutdown(csock, SHUT_RDWR);
+            close(csock);
+        }
+        handler_msg("handler exit\n");
+	exit(0);
+    }
+
+
     while (1) {
         clilen = sizeof(cli_addr);
         pipe_error = 0;
@@ -754,24 +795,25 @@ void start_server() {
         handler_msg("got client connection from %s\n",
                     inet_ntoa(cli_addr.sin_addr));
 
-        handler_msg("forking handler process\n");
-        pid = fork();
+	handler_msg("forking handler process\n");
 
-        if (pid == 0) {  // handler process
-            ws_ctx = do_handshake(csock);
-            if (ws_ctx == NULL) {
-                handler_msg("No connection after handshake\n");
-                break;   // Child process exits
-            }
+	pid = fork();
 
-            settings.handler(ws_ctx);
-            if (pipe_error) {
-                handler_emsg("Closing due to SIGPIPE\n");
-            }
-            break;   // Child process exits
-        } else {         // parent process
-            settings.handler_id += 1;
-        }
+	if (pid == 0) {  // handler process
+	    ws_ctx = do_handshake(csock);
+	    if (ws_ctx == NULL) {
+		handler_msg("No connection after handshake\n");
+		break;   // Child process exits
+	    }
+
+	    settings.handler(ws_ctx);
+	    if (pipe_error) {
+		handler_emsg("Closing due to SIGPIPE\n");
+	    }
+	    break;   // Child process exits
+	} else {         // parent process
+	    settings.handler_id += 1;
+	}
     }
     if (pid == 0) {
         if (ws_ctx) {
