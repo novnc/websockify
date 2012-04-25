@@ -190,7 +190,8 @@ Traffic Legend:
             if target in ins:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
-                if len(buf) == 0: raise self.EClose("Target closed")
+                if len(buf) == 0:
+                    raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
                 self.traffic("{")
@@ -210,8 +211,7 @@ Traffic Legend:
 
                 if closed:
                     # TODO: What about blocking on client socket?
-                    self.send_close()
-                    raise self.EClose(closed)
+                    raise self.CClose(closed['code'], closed['reason'])
 
 def websockify_init():
     usage = "\n    %prog [options]"
