@@ -48,7 +48,7 @@ read binary data off of the receive queue.
 The Websock API is documented on the [websock.js API wiki page](https://github.com/kanaka/websockify/wiki/websock.js)
 
 See the "Wrap a Program" section below for an example of using Websock
-and websockify as a browser telnet client (`wstelnet.html`).
+and websockify as a browser telnet client (`www/wstelnet.html`).
 
 
 ### Additional websockify features
@@ -107,10 +107,16 @@ port is moved to a new localhost/loopback free high port. websockify
 then proxies WebSockets traffic directed to the original port to the
 new (moved) port of the program.
 
+You can build rebind.so like so:
+
+    cd rebind
+    make
+    cd ..
+
 The program wrap mode is invoked by replacing the target with `--`
 followed by the program command line to wrap.
 
-    `./websockify 2023 -- PROGRAM ARGS`
+    `bin/websockify 2023 -- PROGRAM ARGS`
 
 The `--wrap-mode` option can be used to indicate what action to take
 when the wrapped program exits or daemonizes.
@@ -119,15 +125,15 @@ Here is an example of using websockify to wrap the vncserver command
 (which backgrounds itself) for use with
 [noVNC](https://github.com/kanaka/noVNC):
 
-    `./websockify 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
+    `bin/websockify 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
 Here is an example of wrapping telnetd (from krb5-telnetd).telnetd
 exits after the connection closes so the wrap mode is set to respawn
 the command:
 
-    `sudo ./websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
+    `sudo bin/websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
-The `wstelnet.html` page demonstrates a simple WebSockets based telnet
+The `www/wstelnet.html` page demonstrates a simple WebSockets based telnet
 client.
 
 
