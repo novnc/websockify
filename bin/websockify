@@ -37,6 +37,8 @@ def websockify_init():
             help="SSL certificate file")
     parser.add_option("--key", default=None,
             help="SSL key file (if separate from cert)")
+    parser.add_option("--rebind_path", default="./",
+            help="Directory containing rebind.so")
     parser.add_option("--ssl-only", action="store_true",
             help="disallow non-encrypted connections")
     parser.add_option("--web", default=None, metavar="DIR",

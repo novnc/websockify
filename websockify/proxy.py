@@ -43,16 +43,19 @@ Traffic Legend:
         self.target_port    = kwargs.pop('target_port')
         self.wrap_cmd       = kwargs.pop('wrap_cmd')
         self.wrap_mode      = kwargs.pop('wrap_mode')
+        self.rebind_path    = kwargs.pop('rebind_path')
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
         if self.wrap_cmd:
-            rebinder_path = ['./', os.path.dirname(sys.argv[0]), 'rebind/']
+            rebinder_path = [self.rebind_path,
+                             self.rebind_path + '/rebind.so',
+                             './rebind.so',
+                             os.path.dirname(sys.argv[0]) + 'rebind.so',
+                             'rebind/rebind.so']
             self.rebinder = None
 
-            for rdir in rebinder_path:
-                rpath = os.path.join(rdir, "rebind.so")
-                print rpath
+            for rpath in rebinder_path:
                 if os.path.exists(rpath):
                     self.rebinder = rpath
                     break
