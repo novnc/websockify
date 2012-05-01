@@ -7,7 +7,7 @@ import sys, os, socket, ssl, time, traceback
 from select import select
 
 sys.path.insert(0,os.path.dirname(__file__) + "/../")
-from websocket import WebSocketServer
+from websockify.websocket import WebSocketServer
 
 if __name__ == '__main__':
     print "val: hixie | hybi_base64 | hybi_binary"
