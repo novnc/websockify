@@ -48,7 +48,7 @@ read binary data off of the receive queue.
 The Websock API is documented on the [websock.js API wiki page](https://github.com/kanaka/websockify/wiki/websock.js)
 
 See the "Wrap a Program" section below for an example of using Websock
-and websockify as a browser telnet client (`wstelnet.html`).
+and websockify as a browser telnet client (`www/wstelnet.html`).
 
 
 ### Additional websockify features
@@ -107,6 +107,12 @@ port is moved to a new localhost/loopback free high port. websockify
 then proxies WebSockets traffic directed to the original port to the
 new (moved) port of the program.
 
+You can build rebind.so like so:
+
+    cd rebind
+    make
+    cd ..
+
 The program wrap mode is invoked by replacing the target with `--`
 followed by the program command line to wrap.
 
@@ -127,7 +133,7 @@ the command:
 
     `sudo bin/websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
-The `wstelnet.html` page demonstrates a simple WebSockets based telnet
+The `www/wstelnet.html` page demonstrates a simple WebSockets based telnet
 client.
 
 

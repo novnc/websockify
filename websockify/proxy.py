@@ -52,7 +52,8 @@ Traffic Legend:
                              self.rebind_path + '/rebind.so',
                              './rebind.so',
                              os.path.dirname(sys.argv[0]) + 'rebind.so',
-                             'rebind/rebind.so']
+                             'rebind/rebind.so',
+                             '../rebind/rebind.so']
             self.rebinder = None
 
             for rpath in rebinder_path:
