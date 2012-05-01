@@ -47,11 +47,12 @@ Traffic Legend:
         self.wrap_times    = [0, 0, 0]
 
         if self.wrap_cmd:
-            rebinder_path = ['./', os.path.dirname(sys.argv[0])]
+            rebinder_path = ['./', os.path.dirname(sys.argv[0]), 'rebind/']
             self.rebinder = None
 
             for rdir in rebinder_path:
                 rpath = os.path.join(rdir, "rebind.so")
+                print rpath
                 if os.path.exists(rpath):
                     self.rebinder = rpath
                     break
