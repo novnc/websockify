@@ -1,8 +1,8 @@
 Changes
 =======
 
-0.1 (not yet released)
+0.1.0
 -----------------
 
- * No change yet.
+ * Initial versioned release.
 
