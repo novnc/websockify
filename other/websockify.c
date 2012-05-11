@@ -112,6 +112,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         if (FD_ISSET(target, &wlist)) {
             len = tout_end-tout_start;
             bytes = send(target, ws_ctx->tout_buf + tout_start, len, 0);
+            //printf("wrote %d bytes of an intended %d bytes\n", bytes, len);
             if (pipe_error) { break; }
             if (bytes < 0) {
                 handler_emsg("target connection error: %s\n",
@@ -149,29 +150,42 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             bytes = recv(target, ws_ctx->cin_buf, DBUFSIZE , 0);
             if (pipe_error) { break; }
             if (bytes <= 0) {
+                unsigned char term_buf[48];
+                unsigned char term_rc[2] = {0x0,0};
+
                 handler_emsg("target closed connection\n");
+
+                bytes = encode_hybi(term_rc, 2, term_buf, sizeof(term_buf), 2);
+                term_buf[0] |= 8;
+                send(ws_ctx->sockfd, term_buf, bytes, 0);
+                shutdown(ws_ctx->sockfd, SHUT_WR);
+                close(target);
+                close(ws_ctx->sockfd);
                 break;
             }
-            cout_start = 0;
-            if (ws_ctx->hybi) {
-                cout_end = encode_hybi(ws_ctx->cin_buf, bytes,
-                                   ws_ctx->cout_buf, BUFSIZE, 1);
-            } else {
-                cout_end = encode_hixie(ws_ctx->cin_buf, bytes,
-                                    ws_ctx->cout_buf, BUFSIZE);
+
+            else {
+                cout_start = 0;
+                if (ws_ctx->hybi) {
+                    cout_end = encode_hybi(ws_ctx->cin_buf, bytes,
+                                       ws_ctx->cout_buf, BUFSIZE, ws_ctx->binary ? 2 : 1);
+                } else {
+                    cout_end = encode_hixie(ws_ctx->cin_buf, bytes,
+                                        ws_ctx->cout_buf, BUFSIZE);
+                }
+                /*
+                printf("encoded: ");
+                for (i=0; i< cout_end; i++) {
+                    printf("%u,", (unsigned char) *(ws_ctx->cout_buf+i));
+                }
+                printf("\n");
+                */
+                if (cout_end < 0) {
+                    handler_emsg("encoding error\n");
+                    break;
+                }
+                traffic("{");
             }
-            /*
-            printf("encoded: ");
-            for (i=0; i< cout_end; i++) {
-                printf("%u,", (unsigned char) *(ws_ctx->cout_buf+i));
-            }
-            printf("\n");
-            */
-            if (cout_end < 0) {
-                handler_emsg("encoding error\n");
-                break;
-            }
-            traffic("{");
         }
 
         if (FD_ISSET(client, &rlist)) {
@@ -181,6 +195,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
                 handler_emsg("client closed connection\n");
                 break;
             }
+
             tin_end += bytes;
             /*
             printf("before decode: ");
@@ -206,13 +221,6 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
                 break;
             }
 
-            /*
-            printf("decoded: ");
-            for (i=0; i< len; i++) {
-                printf("%u,", (unsigned char) *(ws_ctx->tout_buf+i));
-            }
-            printf("\n");
-            */
             if (len < 0) {
                 handler_emsg("decoding error\n");
                 break;

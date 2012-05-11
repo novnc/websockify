@@ -268,33 +268,43 @@ int decode_hixie(char *src, size_t srclength,
 int encode_hybi(u_char const *src, size_t srclength,
                 char *target, size_t targsize, unsigned int opcode)
 {
-    unsigned long long b64_sz, len_offset = 1, payload_offset = 2, len = 0;
+    unsigned long long pay_sz, len_offset = 1, payload_offset = 2, len = 0;
     
     if ((int)srclength <= 0)
     {
         return 0;
     }
 
-    b64_sz = ((srclength - 1) / 3) * 4 + 4;
+    if (opcode == 1)
+        pay_sz = ((srclength - 1) / 3) * 4 + 4;
+    if (opcode == 2)
+        pay_sz = srclength;
 
     target[0] = (char)(opcode & 0x0F | 0x80);
 
-    if (b64_sz <= 125) {
-        target[1] = (char) b64_sz;
+    if (pay_sz <= 125) {
+        target[1] = (char) pay_sz;
         payload_offset = 2;
-    } else if ((b64_sz > 125) && (b64_sz < 65536)) {
+    } else if ((pay_sz > 125) && (pay_sz < 65536)) {
         target[1] = (char) 126;
-        *(u_short*)&(target[2]) = htons(b64_sz);
+        *(u_short*)&(target[2]) = htons(pay_sz);
         payload_offset = 4;
     } else {
         handler_emsg("Sending frames larger than 65535 bytes not supported\n");
         return -1;
         //target[1] = (char) 127;
-        //*(u_long*)&(target[2]) = htonl(b64_sz);
+        //*(u_long*)&(target[2]) = htonl(pay_sz);
         //payload_offset = 10;
     }
 
-    len = b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+    if (opcode == 1) {
+        len = b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+    }
+
+    if (opcode == 2) {
+        len = srclength;
+        memcpy(target + payload_offset, src, len);
+    }
     
     if (len < 0) {
         return len;
@@ -316,7 +326,7 @@ int decode_hybi(unsigned char *src, size_t srclength,
     *left = srclength;
     frame = src;
 
-    //printf("Deocde new frame\n");
+    //printf("Decode new frame\n");
     while (1) {
         // Need at least two bytes of the header
         // Find beginning of next frame. First time hdr_length, masked and
@@ -379,9 +389,11 @@ int decode_hybi(unsigned char *src, size_t srclength,
             return -1;
         }
 
-        // Terminate with a null for base64 decode
-        save_char = payload[payload_length];
-        payload[payload_length] = '\0';
+        if (*opcode == 1) {
+            // Terminate with a null for base64 decode
+            save_char = payload[payload_length];
+            payload[payload_length] = '\0';
+        }
 
         // unmask the data
         mask = payload - 4;
@@ -389,15 +401,23 @@ int decode_hybi(unsigned char *src, size_t srclength,
             payload[i] ^= mask[i%4];
         }
 
-        // base64 decode the data
-        len = b64_pton((const char*)payload, target+target_offset, targsize);
+        if (*opcode == 1) {
+            // base64 decode the data
+            len = b64_pton((const char*)payload, target+target_offset, targsize);
 
-        // Restore the first character of the next frame
-        payload[payload_length] = save_char;
-        if (len < 0) {
-            handler_emsg("Base64 decode error code %d", len);
-            return len;
+            // Restore the first character of the next frame
+            payload[payload_length] = save_char;
+            if (len < 0) {
+                handler_emsg("Base64 decode error code %d", len);
+                return len;
+            }
         }
+
+        if (*opcode == 2) {
+            len = payload_length;
+            memcpy(target + target_offset, payload, len);
+        }
+
         target_offset += len;
 
         //printf("    len %d, raw %s\n", len, frame);
@@ -409,6 +429,7 @@ int decode_hybi(unsigned char *src, size_t srclength,
     }
     
     *left = remaining;
+    //printf("    returning %d, %d left\n", target_offset, *left);
     return target_offset;
 }
 
@@ -481,6 +502,10 @@ int parse_handshake(ws_ctx_t *ws_ctx, char *handshake) {
         end = strstr(start, "\r\n");
         strncpy(headers->protocols, start, end-start);
         headers->protocols[end-start] = '\0';
+        if (strstr(headers->protocols, "binary"))
+            ws_ctx->binary = 1;
+        else
+            ws_ctx->binary = 0;
     } else {
         // Hixie 75 or 76
         ws_ctx->hybi = 0;
