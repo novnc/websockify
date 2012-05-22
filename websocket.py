@@ -759,12 +759,7 @@ Sec-WebSocket-Accept: %s\r
         self.rec        = None
         self.start_time = int(time.time()*1000)
 
-        # handler process
-        
-        dst_string = self.unix_socket or "%s:%s" % (self.target_host, self.target_port)
-        dst_string = self.unix_socket or "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
-        
-        
+        # handler process        
         try:
             try:
                 self.client = self.do_handshake(startsock, address)
