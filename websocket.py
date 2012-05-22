@@ -75,6 +75,7 @@ class WebSocketServer(object):
 
     buffer_size = 65536
 
+
     server_handshake_hixie = """HTTP/1.1 101 Web Socket Protocol Handshake\r
 Upgrade: WebSocket\r
 Connection: Upgrade\r
@@ -103,7 +104,7 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
-            run_once=False, timeout=0):
+            run_once=False, timeout=0, unix=None):
 
         # settings
         self.verbose        = verbose
@@ -113,6 +114,8 @@ Sec-WebSocket-Accept: %s\r
         self.daemon         = daemon
         self.run_once       = run_once
         self.timeout        = timeout
+        
+        self.unix_socket    = unix
 
         self.launch_time    = time.time()
         self.ws_connection  = False
@@ -163,7 +166,7 @@ Sec-WebSocket-Accept: %s\r
     #
 
     @staticmethod
-    def socket(host, port=None, connect=False, prefer_ipv6=False):
+    def socket(host, port=None, connect=False, prefer_ipv6=False, unix_socket=None):
         """ Resolve a host (and optional port) to an IPv4 or IPv6
         address. Create a socket. Bind to it if listen is set,
         otherwise connect to it. Return the socket.
@@ -171,24 +174,30 @@ Sec-WebSocket-Accept: %s\r
         flags = 0
         if host == '':
             host = None
-        if connect and not port:
+        if connect and not (port or unix_socket):
             raise Exception("Connect mode requires a port")
         if not connect:
             flags = flags | socket.AI_PASSIVE
-        addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
-                socket.IPPROTO_TCP, flags)
-        if not addrs:
-            raise Exception("Could resolve host '%s'" % host)
-        addrs.sort(key=lambda x: x[0])
-        if prefer_ipv6:
-            addrs.reverse()
-        sock = socket.socket(addrs[0][0], addrs[0][1])
-        if connect:
-            sock.connect(addrs[0][4])
-        else:
-            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            sock.bind(addrs[0][4])
-            sock.listen(100)
+            
+        if not unix_socket:
+            addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP, flags)
+            if not addrs:
+                raise Exception("Could resolve host '%s'" % host)
+            addrs.sort(key=lambda x: x[0])
+            if prefer_ipv6:
+                addrs.reverse()
+            sock = socket.socket(addrs[0][0], addrs[0][1])
+            if connect:
+                sock.connect(addrs[0][4])
+            else:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(addrs[0][4])
+                sock.listen(100)
+        else:    
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(unix_socket)
+
         return sock
 
     @staticmethod
@@ -569,10 +578,10 @@ Sec-WebSocket-Accept: %s\r
         - Send a WebSockets handshake server response.
         - Return the socket for this WebSocket client.
         """
-
         stype = ""
-
         ready = select.select([sock], [], [], 3)[0]
+
+        
         if not ready:
             raise self.EClose("ignoring socket not ready")
         # Peek, but do not read the data so that we have a opportunity
@@ -751,6 +760,11 @@ Sec-WebSocket-Accept: %s\r
         self.start_time = int(time.time()*1000)
 
         # handler process
+        
+        dst_string = self.unix_socket or "%s:%s" % (self.target_host, self.target_port)
+        dst_string = self.unix_socket or "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
+        
+        
         try:
             try:
                 self.client = self.do_handshake(startsock, address)
@@ -848,7 +862,7 @@ Sec-WebSocket-Accept: %s\r
                             continue
                         else:
                             raise
-
+                    
                     if self.run_once:
                         # Run in same process if run_once
                         self.top_new_client(startsock, address)
