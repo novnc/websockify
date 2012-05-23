@@ -15,6 +15,14 @@ import socket, optparse, time, os, sys, subprocess
 from select import select
 from websocket import WebSocketServer
 
+for mod, sup in [
+    ('ssl', 'TLS/SSL/wss'),
+    ]:
+    try:
+        globals()[mod] = __import__(mod)
+    except ImportError:
+        globals()[mod] = None
+
 class WebSocketProxy(WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
@@ -43,6 +51,7 @@ Traffic Legend:
         self.target_port    = kwargs.pop('target_port')
         self.wrap_cmd       = kwargs.pop('wrap_cmd')
         self.wrap_mode      = kwargs.pop('wrap_mode')
+        self.ssl_target     = kwargs.pop('ssl_target')
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
@@ -143,6 +152,9 @@ Traffic Legend:
                  self.target_host, self.target_port))
         tsock = self.socket(self.target_host, self.target_port,
                 connect=True)
+        if ssl and self.ssl_target:
+            self.msg("wrapping target socket in SSL wrapper")
+            tsock = ssl.wrap_socket( tsock)
 
         if self.verbose and not self.daemon:
             print(self.traffic_legend)
@@ -236,6 +248,8 @@ def websockify_init():
             help="SSL key file (if separate from cert)")
     parser.add_option("--ssl-only", action="store_true",
             help="disallow non-encrypted connections")
+    parser.add_option("--ssl-target", action="store_true",
+            help="connect to target as SSL client")
     parser.add_option("--web", default=None, metavar="DIR",
             help="run webserver on same port. Serve files from DIR.")
     parser.add_option("--wrap-mode", default="exit", metavar="MODE",
@@ -254,6 +268,9 @@ def websockify_init():
         if len(args) > 2:
             parser.error("Too many arguments")
 
+    if not ssl and opts.ssl_target:
+        parser.error("SSL target requested and Python SSL module not loaded.");
+        
     if opts.ssl_only and not os.path.exists(opts.cert):
         parser.error("SSL only and %s not found" % opts.cert)
 
