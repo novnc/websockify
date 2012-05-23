@@ -163,7 +163,8 @@ Sec-WebSocket-Accept: %s\r
     #
 
     @staticmethod
-    def socket(host, port=None, connect=False, prefer_ipv6=False):
+    def socket(host, port=None, connect=False, prefer_ipv6=False,
+               use_ssl=False):
         """ Resolve a host (and optional port) to an IPv4 or IPv6
         address. Create a socket. Bind to it if listen is set,
         otherwise connect to it. Return the socket.
@@ -173,6 +174,10 @@ Sec-WebSocket-Accept: %s\r
             host = None
         if connect and not port:
             raise Exception("Connect mode requires a port")
+        if use_ssl and not ssl:
+            raise Exception("SSL socket requested but Python SSL module not loaded.");
+        if not connect and use_ssl:
+            raise Exception("SSL only supported in connect mode (for now)")
         if not connect:
             flags = flags | socket.AI_PASSIVE
         addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
@@ -185,6 +190,8 @@ Sec-WebSocket-Accept: %s\r
         sock = socket.socket(addrs[0][0], addrs[0][1])
         if connect:
             sock.connect(addrs[0][4])
+            if use_ssl:
+                sock = ssl.wrap_socket(sock)
         else:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             sock.bind(addrs[0][4])

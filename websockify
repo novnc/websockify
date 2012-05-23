@@ -13,17 +13,9 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import socket, optparse, time, os, sys, subprocess
 from select import select
-from websocket import WebSocketServer
+import websocket
 
-for mod, sup in [
-    ('ssl', 'TLS/SSL/wss'),
-    ]:
-    try:
-        globals()[mod] = __import__(mod)
-    except ImportError:
-        globals()[mod] = None
-
-class WebSocketProxy(WebSocketServer):
+class WebSocketProxy(websocket.WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
     socket server target. All traffic to/from the client is base64
@@ -80,7 +72,7 @@ Traffic Legend:
                 "REBIND_OLD_PORT": str(kwargs['listen_port']),
                 "REBIND_NEW_PORT": str(self.target_port)})
 
-        WebSocketServer.__init__(self, *args, **kwargs)
+        websocket.WebSocketServer.__init__(self, *args, **kwargs)
 
     def run_wrap_cmd(self):
         print("Starting '%s'" % " ".join(self.wrap_cmd))
@@ -96,15 +88,21 @@ Traffic Legend:
         """
         # Need to call wrapped command after daemonization so we can
         # know when the wrapped command exits
+        msg = "  - proxying from %s:%s" % (
+                self.listen_host, self.listen_port)
         if self.wrap_cmd:
-            print("  - proxying from %s:%s to '%s' (port %s)\n" % (
-                    self.listen_host, self.listen_port,
-                    " ".join(self.wrap_cmd), self.target_port))
-            self.run_wrap_cmd()
+            msg += " to '%s' - port %s" % (
+                    " ".join(self.wrap_cmd, self.target_port))
         else:
-            print("  - proxying from %s:%s to %s:%s\n" % (
-                    self.listen_host, self.listen_port,
-                    self.target_host, self.target_port))
+            msg += " to %s:%s" % (self.target_host, self.listen_port)
+
+        if self.ssl_target:
+            msg += " (using SSL)"
+
+        print(msg + "\n")
+
+        if self.wrap_cmd:
+            self.run_wrap_cmd()
 
     def poll(self):
         # If we are wrapping a command, check it's status
@@ -148,13 +146,15 @@ Traffic Legend:
         """
 
         # Connect to the target
-        self.msg("connecting to: %s:%s" % (
-                 self.target_host, self.target_port))
+         
+        msg = "connecting to: %s:%s" % (
+                self.target_host, self.target_port)
+        if self.ssl_target:
+            msg += " (using SSL)"
+        self.msg(msg)
+
         tsock = self.socket(self.target_host, self.target_port,
-                connect=True)
-        if ssl and self.ssl_target:
-            self.msg("wrapping target socket in SSL wrapper")
-            tsock = ssl.wrap_socket( tsock)
+                connect=True, use_ssl=self.ssl_target)
 
         if self.verbose and not self.daemon:
             print(self.traffic_legend)
@@ -247,9 +247,9 @@ def websockify_init():
     parser.add_option("--key", default=None,
             help="SSL key file (if separate from cert)")
     parser.add_option("--ssl-only", action="store_true",
-            help="disallow non-encrypted connections")
+            help="disallow non-encrypted client connections")
     parser.add_option("--ssl-target", action="store_true",
-            help="connect to target as SSL client")
+            help="connect to SSL target as SSL client")
     parser.add_option("--web", default=None, metavar="DIR",
             help="run webserver on same port. Serve files from DIR.")
     parser.add_option("--wrap-mode", default="exit", metavar="MODE",
@@ -268,7 +268,7 @@ def websockify_init():
         if len(args) > 2:
             parser.error("Too many arguments")
 
-    if not ssl and opts.ssl_target:
+    if not websocket.ssl and opts.ssl_target:
         parser.error("SSL target requested and Python SSL module not loaded.");
         
     if opts.ssl_only and not os.path.exists(opts.cert):
