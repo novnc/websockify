@@ -88,13 +88,15 @@ Traffic Legend:
         """
         # Need to call wrapped command after daemonization so we can
         # know when the wrapped command exits
-        msg = "  - proxying from %s:%s" % (
-                self.listen_host, self.listen_port)
         if self.wrap_cmd:
-            msg += " to '%s' - port %s" % (
-                    " ".join(self.wrap_cmd, self.target_port))
+            dst_string = self.unix_socket or "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
+            msg = "  - proxying from %s:%s to %s\n" % (
+                    self.listen_host, self.listen_port, dst_string)
+            self.run_wrap_cmd()
         else:
-            msg += " to %s:%s" % (self.target_host, self.listen_port)
+            dst_string = self.unix_socket or "%s:%s" % (self.target_host, self.target_port)
+            msg = "  - proxying from %s:%s to %s\n" % (
+                    self.listen_host, self.listen_port, dst_string)
 
         if self.ssl_target:
             msg += " (using SSL)"
@@ -144,11 +146,16 @@ Traffic Legend:
         """
         Called after a new WebSocket connection has been established.
         """
-
         # Connect to the target
+        if self.unix_socket:
+            msg = "connecting to unix socket : %s" % self.unix_socket
+        else:
+            msg = "connecting to: %s:%s" % (
+                                    self.target_host, self.target_port)
+        
+        tsock = self.socket(self.target_host, self.target_port,
+                            connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_socket)
          
-        msg = "connecting to: %s:%s" % (
-                self.target_host, self.target_port)
         if self.ssl_target:
             msg += " (using SSL)"
         self.msg(msg)
@@ -235,6 +242,8 @@ def websockify_init():
             help="verbose messages and per frame traffic")
     parser.add_option("--record",
             help="record sessions to FILE.[session_number]", metavar="FILE")
+    parser.add_option("--unix",
+            help="unix socket to proxy network from", metavar="FILE")
     parser.add_option("--daemon", "-D",
             dest="daemon", action="store_true",
             help="become a daemon (background process)")
@@ -259,7 +268,7 @@ def websockify_init():
     (opts, args) = parser.parse_args()
 
     # Sanity checks
-    if len(args) < 2:
+    if len(args) < 1:
         parser.error("Too few arguments")
     if sys.argv.count('--'):
         opts.wrap_cmd = args[1:]
@@ -287,12 +296,15 @@ def websockify_init():
         opts.target_host = None
         opts.target_port = None
     else:
-        if args[1].count(':') > 0:
-            opts.target_host, opts.target_port = args[1].rsplit(':', 1)
+        if hasattr(opts, 'unix'):
+            opts.target_host = opts.target_port = None
         else:
-            parser.error("Error parsing target")
-        try:    opts.target_port = int(opts.target_port)
-        except: parser.error("Error parsing target port")
+            if args[1].count(':') > 0:
+                opts.target_host, opts.target_port = args[1].rsplit(':', 1)
+            else:
+                parser.error("Error parsing target")
+            try:    opts.target_port = int(opts.target_port)
+            except: parser.error("Error parsing target port")
 
     # Create and start the WebSockets proxy
     server = WebSocketProxy(**opts.__dict__)
