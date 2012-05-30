@@ -4,3 +4,5 @@
 other/.lein-deps-sum
 other/classes
 other/lib
+.project
+.pydevproject
