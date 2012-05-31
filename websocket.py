@@ -104,7 +104,7 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
-            run_once=False, timeout=0, unix=None):
+            run_once=False, timeout=0):
 
         # settings
         self.verbose        = verbose
@@ -115,8 +115,6 @@ Sec-WebSocket-Accept: %s\r
         self.run_once       = run_once
         self.timeout        = timeout
         
-        self.unix_socket    = unix
-
         self.launch_time    = time.time()
         self.ws_connection  = False
         self.handler_id     = 1

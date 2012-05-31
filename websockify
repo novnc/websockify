@@ -43,6 +43,7 @@ Traffic Legend:
         self.target_port    = kwargs.pop('target_port')
         self.wrap_cmd       = kwargs.pop('wrap_cmd')
         self.wrap_mode      = kwargs.pop('wrap_mode')
+        self.unix_target    = kwargs.pop('unix_target')
         self.ssl_target     = kwargs.pop('ssl_target')
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
@@ -89,14 +90,14 @@ Traffic Legend:
         # Need to call wrapped command after daemonization so we can
         # know when the wrapped command exits
         if self.wrap_cmd:
-            dst_string = self.unix_socket or "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
-            msg = "  - proxying from %s:%s to %s\n" % (
-                    self.listen_host, self.listen_port, dst_string)
-            self.run_wrap_cmd()
+            dst_string = "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
+        elif self.unix_target:
+            dst_string = self.unix_target
         else:
-            dst_string = self.unix_socket or "%s:%s" % (self.target_host, self.target_port)
-            msg = "  - proxying from %s:%s to %s\n" % (
-                    self.listen_host, self.listen_port, dst_string)
+            dst_string = "%s:%s" % (self.target_host, self.target_port)
+
+        msg = "  - proxying from %s:%s to %s" % (
+                self.listen_host, self.listen_port, dst_string)
 
         if self.ssl_target:
             msg += " (using SSL)"
@@ -147,21 +148,20 @@ Traffic Legend:
         Called after a new WebSocket connection has been established.
         """
         # Connect to the target
-        if self.unix_socket:
-            msg = "connecting to unix socket : %s" % self.unix_socket
+        if self.wrap_cmd:
+            msg = "connecting to command: %s" % (" ".join(self.wrap_cmd), self.target_port)
+        elif self.unix_target:
+            msg = "connecting to unix socket: %s" % self.unix_target
         else:
             msg = "connecting to: %s:%s" % (
                                     self.target_host, self.target_port)
         
-        tsock = self.socket(self.target_host, self.target_port,
-                            connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_socket)
-         
         if self.ssl_target:
             msg += " (using SSL)"
         self.msg(msg)
 
         tsock = self.socket(self.target_host, self.target_port,
-                connect=True, use_ssl=self.ssl_target)
+                connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_target)
 
         if self.verbose and not self.daemon:
             print(self.traffic_legend)
@@ -242,8 +242,6 @@ def websockify_init():
             help="verbose messages and per frame traffic")
     parser.add_option("--record",
             help="record sessions to FILE.[session_number]", metavar="FILE")
-    parser.add_option("--unix",
-            help="unix socket to proxy network from", metavar="FILE")
     parser.add_option("--daemon", "-D",
             dest="daemon", action="store_true",
             help="become a daemon (background process)")
@@ -259,6 +257,8 @@ def websockify_init():
             help="disallow non-encrypted client connections")
     parser.add_option("--ssl-target", action="store_true",
             help="connect to SSL target as SSL client")
+    parser.add_option("--unix-target",
+            help="connect to unix socket target", metavar="FILE")
     parser.add_option("--web", default=None, metavar="DIR",
             help="run webserver on same port. Serve files from DIR.")
     parser.add_option("--wrap-mode", default="exit", metavar="MODE",
@@ -292,19 +292,16 @@ def websockify_init():
     try:    opts.listen_port = int(opts.listen_port)
     except: parser.error("Error parsing listen port")
 
-    if opts.wrap_cmd:
+    if opts.wrap_cmd or opts.unix_target:
         opts.target_host = None
         opts.target_port = None
     else:
-        if hasattr(opts, 'unix'):
-            opts.target_host = opts.target_port = None
+        if args[1].count(':') > 0:
+            opts.target_host, opts.target_port = args[1].rsplit(':', 1)
         else:
-            if args[1].count(':') > 0:
-                opts.target_host, opts.target_port = args[1].rsplit(':', 1)
-            else:
-                parser.error("Error parsing target")
-            try:    opts.target_port = int(opts.target_port)
-            except: parser.error("Error parsing target port")
+            parser.error("Error parsing target")
+        try:    opts.target_port = int(opts.target_port)
+        except: parser.error("Error parsing target port")
 
     # Create and start the WebSockets proxy
     server = WebSocketProxy(**opts.__dict__)
