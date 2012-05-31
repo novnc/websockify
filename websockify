@@ -60,6 +60,7 @@ Traffic Legend:
 
             if not self.rebinder:
                 raise Exception("rebind.so not found, perhaps you need to run make")
+            self.rebinder = os.path.abspath(self.rebinder)
 
             self.target_host = "127.0.0.1"  # Loopback
             # Find a free high port

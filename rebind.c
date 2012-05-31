@@ -72,7 +72,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 
     if (! do_move) {
         /* Just pass everything right through to the real bind */
-        ret = (int) func(sockfd, addr, addrlen);
+        ret = (long) func(sockfd, addr, addrlen);
         DEBUG("<< bind(%d, _, %d) ret %d\n", sockfd, addrlen, ret);
         return ret;
     }
@@ -87,7 +87,7 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
     /* Bind to other port on the loopback instead */
     addr_tmp.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
     addr_tmp.sin_port = htons(newport);
-    ret = (int) func(sockfd, &addr_tmp, addrlen_tmp);
+    ret = (long) func(sockfd, &addr_tmp, addrlen_tmp);
 
     DEBUG("<< bind(%d, _, %d) ret %d\n", sockfd, addrlen, ret);
     return ret;
