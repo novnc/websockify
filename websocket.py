@@ -16,11 +16,11 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import os, sys, time, errno, signal, socket, traceback, select
+import os, sys, time, errno, signal, socket, traceback, select, pdb, re
 import array, struct
 from cgi import parse_qsl
 from base64 import b64encode, b64decode
-
+from subprocess import call
 # Imports that vary by python version
 
 # python 3.0 differences
@@ -104,10 +104,11 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
-            run_once=False, timeout=0):
+            run_once=False, timeout=0, auth_hook=''):
 
         # settings
         self.verbose        = verbose
+        self.auth_hook      = auth_hook
         self.listen_host    = listen_host
         self.listen_port    = listen_port
         self.ssl_only       = ssl_only
@@ -590,11 +591,20 @@ Sec-WebSocket-Accept: %s\r
             raise self.EClose("ignoring socket not ready")
         # Peek, but do not read the data so that we have a opportunity
         # to SSL wrap the socket first
+
         handshake = sock.recv(1024, socket.MSG_PEEK)
-        #self.msg("Handshake [%s]" % handshake)
+
+        tmp = handshake.split("Sec-WebSocket-Protocol:")[1].split(',')[1].split("\r")[0].split('-----')
+        if self.auth_hook != '':
+          ret = call([self.auth_hook, tmp[0], tmp[1]])
+          if ret != 0:
+            raise self.EClose("auth denied")
+
+
 
         if handshake == "":
-            raise self.EClose("ignoring empty handshake")
+          raise self.EClose("ignoring empty handshake")
+
 
         elif handshake.startswith(s2b("<policy-file-request/>")):
             # Answer Flash policy request
