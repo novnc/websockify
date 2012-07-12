@@ -36,8 +36,8 @@ try:    from io import StringIO
 except: from cStringIO import StringIO
 try:    from http.server import SimpleHTTPRequestHandler
 except: from SimpleHTTPServer import SimpleHTTPRequestHandler
-try:    from urllib.parse import urlsplit
-except: from urlparse import urlsplit
+try:    from urllib.parse import urlsplit, parse_qs, urlparse
+except: from urlparse import urlsplit, parse_qs, urlparse
 
 # python 2.6 differences
 try:    from hashlib import md5, sha1
@@ -654,6 +654,10 @@ Sec-WebSocket-Accept: %s\r
         h = self.headers = wsh.headers
         path = self.path = wsh.path
 
+        # Checks if we receive a token, and look
+        # for a valid target for it then
+        self.set_target(path)
+
         prot = 'WebSocket-Protocol'
         protocols = h.get('Sec-'+prot, h.get(prot, '')).split(',')
 
@@ -804,6 +808,56 @@ Sec-WebSocket-Accept: %s\r
                 # Original socket closed by caller
                 self.client.close()
 
+    def set_target(self, path):
+        """
+        Parses the path, extracts a token, and looks for a valid
+        target for that token in the configuration files. Sets
+        target_host and port if successful
+        """
+        if self.target_list:
+            # The files in targets contain the lines
+            # in the form of host:port:token
+
+            # Extract the token parameter from url
+            args = parse_qs(urlparse(path)[4]) # 4 is the query from url
+
+            if not len(args['token']):
+                raise self.EClose("Token not present")
+
+            token = args['token'][0].rstrip('\n')
+
+            # If target list is a directory, then list all files in it
+            if os.path.isdir(self.target_list):
+                folder = self.target_list
+                targets = os.listdir(self.target_list)
+            # If its a file, just add it to the list
+            else:
+                folder = os.path.dirname(self.target_list)
+                targets = [os.path.basename(self.target_list)]
+
+            target_lines = []
+
+            try:
+                # extract lines from every config file
+                for filename in targets:
+                    f = open(folder + '/' + filename, 'r')
+                    target_lines.extend(f.readlines())
+            except:
+                raise self.EClose("Could not read token file(s)")
+
+            # search for the line matching the provided token
+            found = False
+            for target in target_lines:
+                host, port, file_token = target.rstrip('\n').split(':')
+                if file_token == token: # found, set target
+                    self.target_host = host
+                    self.target_port = port
+                    found = True
+                    break
+
+            if not found:
+                raise self.EClose("Token check failed")
+
     def new_client(self):
         """ Do something with a WebSockets client connection. """
         raise("WebSocketServer.new_client() must be overloaded")
@@ -941,4 +995,3 @@ class WSRequestHandler(SimpleHTTPRequestHandler):
     def log_message(self, f, *args):
         # Save instead of printing
         self.last_message = f % args
-
