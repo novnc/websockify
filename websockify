@@ -47,7 +47,7 @@ Traffic Legend:
         self.wrap_mode      = kwargs.pop('wrap_mode')
         self.unix_target    = kwargs.pop('unix_target')
         self.ssl_target     = kwargs.pop('ssl_target')
-        self.target_list    = kwargs.pop('target_list')
+        self.target_cfg     = kwargs.pop('target_cfg')
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
@@ -77,8 +77,8 @@ Traffic Legend:
                 "REBIND_OLD_PORT": str(kwargs['listen_port']),
                 "REBIND_NEW_PORT": str(self.target_port)})
 
-        if self.target_list:
-            self.target_list = os.path.abspath(self.target_list)
+        if self.target_cfg:
+            self.target_cfg = os.path.abspath(self.target_cfg)
 
         websocket.WebSocketServer.__init__(self, *args, **kwargs)
 
@@ -103,9 +103,9 @@ Traffic Legend:
         else:
             dst_string = "%s:%s" % (self.target_host, self.target_port)
 
-        if self.target_list:
+        if self.target_cfg:
             msg = "  - proxying from %s:%s to targets in %s" % (
-                self.listen_host, self.listen_port, self.target_list)
+                self.listen_host, self.listen_port, self.target_cfg)
         else:
             msg = "  - proxying from %s:%s to %s" % (
                 self.listen_host, self.listen_port, dst_string)
@@ -160,8 +160,8 @@ Traffic Legend:
         """
         # Checks if we receive a token, and look
         # for a valid target for it then
-        if self.target_list:
-            (self.target_host, self.target_port) = self.get_target(self.target_list, self.path)
+        if self.target_cfg:
+            (self.target_host, self.target_port) = self.get_target(self.target_cfg, self.path)
 
         # Connect to the target
         if self.wrap_cmd:
@@ -193,7 +193,7 @@ Traffic Legend:
                     self.target_host, self.target_port))
             raise
 
-    def get_target(self, target_list, path):
+    def get_target(self, target_cfg, path):
         """
         Parses the path, extracts a token, and looks for a valid
         target for that token in the configuration file(s). Sets
@@ -210,12 +210,13 @@ Traffic Legend:
 
         token = args['token'][0].rstrip('\n')
 
-        # target_list can be a single config file or directory of
+        # target_cfg can be a single config file or directory of
         # config files
-        if os.path.isdir(target_list):
-            cfg_files = os.listdir(target_list)
+        if os.path.isdir(target_cfg):
+            cfg_files = [os.path.join(target_cfg, f)
+                         for f in os.listdir(target_cfg)]
         else:
-            cfg_files = [target_list]
+            cfg_files = [target_cfg]
 
         targets = {}
         for f in cfg_files:
@@ -322,14 +323,15 @@ def websockify_init():
     parser.add_option("--prefer-ipv6", "-6",
             action="store_true", dest="source_is_ipv6",
             help="prefer IPv6 when resolving source_addr")
-    parser.add_option("--target-list", metavar="FILE",
-                      help="Configuration file containing valid targets "
-                      "in the form 'token: host:port' or, alternatively, a "
-                      "directory containing configuration files of this form")
+    parser.add_option("--target-config", metavar="FILE",
+            dest="target_cfg",
+            help="Configuration file containing valid targets "
+            "in the form 'token: host:port' or, alternatively, a "
+            "directory containing configuration files of this form")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
-    if len(args) < 2 and not opts.target_list:
+    if len(args) < 2 and not opts.target_cfg:
         parser.error("Too few arguments")
     if sys.argv.count('--'):
         opts.wrap_cmd = args[1:]
@@ -354,7 +356,7 @@ def websockify_init():
     try:    opts.listen_port = int(opts.listen_port)
     except: parser.error("Error parsing listen port")
 
-    if opts.wrap_cmd or opts.unix_target or opts.target_list:
+    if opts.wrap_cmd or opts.unix_target or opts.target_cfg:
         opts.target_host = None
         opts.target_port = None
     else:
