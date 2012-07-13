@@ -563,6 +563,72 @@ Sec-WebSocket-Accept: %s\r
 
         # No orderly close for 75
 
+    def do_websocket_handshake(self, headers, path):
+        h = self.headers = headers
+        self.path = path
+
+        prot = 'WebSocket-Protocol'
+        protocols = h.get('Sec-'+prot, h.get(prot, '')).split(',')
+
+        ver = h.get('Sec-WebSocket-Version')
+        if ver:
+            # HyBi/IETF version of the protocol
+
+            # HyBi-07 report version 7
+            # HyBi-08 - HyBi-12 report version 8
+            # HyBi-13 reports version 13
+            if ver in ['7', '8', '13']:
+                self.version = "hybi-%02d" % int(ver)
+            else:
+                raise self.EClose('Unsupported protocol version %s' % ver)
+
+            key = h['Sec-WebSocket-Key']
+
+            # Choose binary if client supports it
+            if 'binary' in protocols:
+                self.base64 = False
+            elif 'base64' in protocols:
+                self.base64 = True
+            else:
+                raise self.EClose("Client must support 'binary' or 'base64' protocol")
+
+            # Generate the hash value for the accept header
+            accept = b64encode(sha1(s2b(key + self.GUID)).digest())
+
+            response = self.server_handshake_hybi % b2s(accept)
+            if self.base64:
+                response += "Sec-WebSocket-Protocol: base64\r\n"
+            else:
+                response += "Sec-WebSocket-Protocol: binary\r\n"
+            response += "\r\n"
+
+        else:
+            # Hixie version of the protocol (75 or 76)
+
+            if h.get('key3'):
+                trailer = self.gen_md5(h)
+                pre = "Sec-"
+                self.version = "hixie-76"
+            else:
+                trailer = ""
+                pre = ""
+                self.version = "hixie-75"
+
+            # We only support base64 in Hixie era
+            self.base64 = True
+
+            response = self.server_handshake_hixie % (pre,
+                    h['Origin'], pre, scheme, h['Host'], path)
+
+            if 'base64' in protocols:
+                response += "%sWebSocket-Protocol: base64\r\n" % pre
+            else:
+                self.msg("Warning: client does not report 'base64' protocol support")
+            response += "\r\n" + trailer
+
+        return response
+
+
     def do_handshake(self, sock, address):
         """
         do_handshake does the following:
@@ -648,67 +714,7 @@ Sec-WebSocket-Accept: %s\r
         else:
             raise self.EClose("")
 
-        h = self.headers = wsh.headers
-        path = self.path = wsh.path
-
-        prot = 'WebSocket-Protocol'
-        protocols = h.get('Sec-'+prot, h.get(prot, '')).split(',')
-
-        ver = h.get('Sec-WebSocket-Version')
-        if ver:
-            # HyBi/IETF version of the protocol
-
-            # HyBi-07 report version 7
-            # HyBi-08 - HyBi-12 report version 8
-            # HyBi-13 reports version 13
-            if ver in ['7', '8', '13']:
-                self.version = "hybi-%02d" % int(ver)
-            else:
-                raise self.EClose('Unsupported protocol version %s' % ver)
-
-            key = h['Sec-WebSocket-Key']
-
-            # Choose binary if client supports it
-            if 'binary' in protocols:
-                self.base64 = False
-            elif 'base64' in protocols:
-                self.base64 = True
-            else:
-                raise self.EClose("Client must support 'binary' or 'base64' protocol")
-
-            # Generate the hash value for the accept header
-            accept = b64encode(sha1(s2b(key + self.GUID)).digest())
-
-            response = self.server_handshake_hybi % b2s(accept)
-            if self.base64:
-                response += "Sec-WebSocket-Protocol: base64\r\n"
-            else:
-                response += "Sec-WebSocket-Protocol: binary\r\n"
-            response += "\r\n"
-
-        else:
-            # Hixie version of the protocol (75 or 76)
-
-            if h.get('key3'):
-                trailer = self.gen_md5(h)
-                pre = "Sec-"
-                self.version = "hixie-76"
-            else:
-                trailer = ""
-                pre = ""
-                self.version = "hixie-75"
-
-            # We only support base64 in Hixie era
-            self.base64 = True
-
-            response = self.server_handshake_hixie % (pre,
-                    h['Origin'], pre, scheme, h['Host'], path)
-
-            if 'base64' in protocols:
-                response += "%sWebSocket-Protocol: base64\r\n" % pre
-            else:
-                self.msg("Warning: client does not report 'base64' protocol support")
-            response += "\r\n" + trailer
+        response = self.do_websocket_handshake(wsh.headers, wsh.path)
 
         self.msg("%s: %s WebSocket connection" % (address[0], stype))
         self.msg("%s: Version %s, base64: '%s'" % (address[0],
