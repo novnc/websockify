@@ -14,6 +14,8 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 import socket, optparse, time, os, sys, subprocess
 from select import select
 import websocket
+try:    from urllib.parse import parse_qs, urlparse
+except: from urlparse import parse_qs, urlparse
 
 class WebSocketProxy(websocket.WebSocketServer):
     """
@@ -74,6 +76,9 @@ Traffic Legend:
                 "LD_PRELOAD": self.rebinder,
                 "REBIND_OLD_PORT": str(kwargs['listen_port']),
                 "REBIND_NEW_PORT": str(self.target_port)})
+
+        if self.target_list:
+            self.target_list = os.path.abspath(self.target_list)
 
         websocket.WebSocketServer.__init__(self, *args, **kwargs)
 
@@ -153,6 +158,11 @@ Traffic Legend:
         """
         Called after a new WebSocket connection has been established.
         """
+        # Checks if we receive a token, and look
+        # for a valid target for it then
+        if self.target_list:
+            (self.target_host, self.target_port) = self.get_target(self.target_list, self.path)
+
         # Connect to the target
         if self.wrap_cmd:
             msg = "connecting to command: %s" % (" ".join(self.wrap_cmd), self.target_port)
@@ -182,6 +192,55 @@ Traffic Legend:
                 self.vmsg("%s:%s: Target closed" %(
                     self.target_host, self.target_port))
             raise
+
+    def get_target(self, target_list, path):
+        """
+        Parses the path, extracts a token, and looks for a valid
+        target for that token in the configuration file(s). Sets
+        target_host and target_port if successful
+        """
+        # The files in targets contain the lines
+        # in the form of host:port:token
+
+        # Extract the token parameter from url
+        args = parse_qs(urlparse(path)[4]) # 4 is the query from url
+
+        if not len(args['token']):
+            raise self.EClose("Token not present")
+
+        token = args['token'][0].rstrip('\n')
+
+        # If target list is a directory, then list all files in it
+        if os.path.isdir(target_list):
+            folder = target_list
+            targets = os.listdir(target_list)
+        # If its a file, just add it to the list
+        else:
+            folder = os.path.dirname(target_list)
+            targets = [os.path.basename(target_list)]
+
+        target_lines = []
+
+        try:
+            # extract lines from every config file
+            for filename in targets:
+                f = open(folder + '/' + filename, 'r')
+                target_lines.extend(f.readlines())
+        except:
+            raise self.EClose("Could not read token file(s)")
+
+        # search for the line matching the provided token
+        found = False
+        for target in target_lines:
+            host, port, file_token = target.rstrip('\n').split(':')
+            if file_token == token: # found, set target
+                found = True
+                break
+
+        if not found:
+            raise self.EClose("Token check failed")
+
+        return host, port
 
     def do_proxy(self, target):
         """
@@ -275,7 +334,9 @@ def websockify_init():
             action="store_true", dest="source_is_ipv6",
             help="prefer IPv6 when resolving source_addr")
     parser.add_option("--target-list", metavar="FILE",
-                      help="Configuration file containing valid targets in the form host:port:token or, alternatively, a directory containing configuration files of this form")
+                      help="Configuration file containing valid targets "
+                      "in the form host:port:token or, alternatively, a "
+                      "directory containing configuration files of this form")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
