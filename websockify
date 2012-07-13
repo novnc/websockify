@@ -200,7 +200,7 @@ Traffic Legend:
         target_host and target_port if successful
         """
         # The files in targets contain the lines
-        # in the form of host:port:token
+        # in the form of token: host:port
 
         # Extract the token parameter from url
         args = parse_qs(urlparse(path)[4]) # 4 is the query from url
@@ -210,37 +210,26 @@ Traffic Legend:
 
         token = args['token'][0].rstrip('\n')
 
-        # If target list is a directory, then list all files in it
+        # target_list can be a single config file or directory of
+        # config files
         if os.path.isdir(target_list):
-            folder = target_list
-            targets = os.listdir(target_list)
-        # If its a file, just add it to the list
+            cfg_files = os.listdir(target_list)
         else:
-            folder = os.path.dirname(target_list)
-            targets = [os.path.basename(target_list)]
+            cfg_files = [target_list]
 
-        target_lines = []
+        targets = {}
+        for f in cfg_files:
+            for line in [l.strip() for l in file(f).readlines()]:
+                if line and not line.startswith('#'):
+                    ttoken, target = line.split(': ')
+                    targets[ttoken] = target.strip()
 
-        try:
-            # extract lines from every config file
-            for filename in targets:
-                f = open(folder + '/' + filename, 'r')
-                target_lines.extend(f.readlines())
-        except:
-            raise self.EClose("Could not read token file(s)")
+        self.vmsg("Target config: %s" % repr(targets))
 
-        # search for the line matching the provided token
-        found = False
-        for target in target_lines:
-            host, port, file_token = target.rstrip('\n').split(':')
-            if file_token == token: # found, set target
-                found = True
-                break
-
-        if not found:
-            raise self.EClose("Token check failed")
-
-        return host, port
+        if targets.has_key(token):
+            return targets[token].split(':')
+        else:
+            raise self.EClose("Token '%s' not found" % token)
 
     def do_proxy(self, target):
         """
@@ -335,7 +324,7 @@ def websockify_init():
             help="prefer IPv6 when resolving source_addr")
     parser.add_option("--target-list", metavar="FILE",
                       help="Configuration file containing valid targets "
-                      "in the form host:port:token or, alternatively, a "
+                      "in the form 'token: host:port' or, alternatively, a "
                       "directory containing configuration files of this form")
     (opts, args) = parser.parse_args()
 
