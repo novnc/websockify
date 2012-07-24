@@ -1,6 +1,6 @@
 #!/usr/bin/env ruby
 
-# A WebSocket to TCP socket proxy with support for "wss://" encryption.
+# A WebSocket to TCP socket proxy
 # Copyright 2011 Joel Martin
 # Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
