@@ -17,7 +17,6 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, time, errno, signal, socket, traceback, select
-import warnings, logging
 import array, struct
 from cgi import parse_qsl
 from base64 import b64encode, b64decode
@@ -126,28 +125,6 @@ Sec-WebSocket-Accept: %s\r
 
         if self.web:
             os.chdir(self.web)
-
-        # Handle logging
-        if loglevel.isdigit == False:
-			raise Exception("Invalid loglevel specified, must be 0-5")
-
-        log_levels = { 
-            '0': None,
-            '1': logging.CRITICAL,
-            '2': logging.ERROR,
-            '3': logging.WARNING,
-            '4': logging.INFO,
-            '5': logging.DEBUG,
-        }
-        if int(loglevel) > 5: loglevel = 5
-			
-        logformat = '%(asctime)s %(levelname)s, %(message)s'
-        if logfile == None:
-            logging.basicConfig(format=logformat)
-        else:
-            logging.basicConfig(format=logformat, filename=logfile)
-        self.log = logging.getLogger('websocket')
-        self.log.setLevel(log_levels[loglevel])
 
         # Sanity checks
         if not ssl and self.ssl_only:
@@ -422,16 +399,6 @@ Sec-WebSocket-Accept: %s\r
         if self.verbose and not self.daemon:
             sys.stdout.write(token)
             sys.stdout.flush()
-
-    def msg(self, msg):
-        """ Output message with handler_id prefix. """
-        if not self.daemon:
-            self.log.debug("% 3d: %s" % (self.handler_id, msg))
-
-    def vmsg(self, msg):
-        """ Same as msg() but only if verbose. """
-        if self.verbose:
-            self.msg(msg)
 
     #
     # Main WebSocketServer methods
@@ -713,14 +680,14 @@ Sec-WebSocket-Accept: %s\r
             if 'base64' in protocols:
                 response += "%sWebSocket-Protocol: base64\r\n" % pre
             else:
-                self.msg("Warning: client does not report 'base64' protocol support")
+                self.log.warning("Client does not report 'base64' protocol support")
             response += "\r\n" + trailer
 
-        self.msg("%s: %s WebSocket connection" % (address[0], stype))
-        self.msg("%s: Version %s, base64: '%s'" % (address[0],
+        self.log.info("%s: %s WebSocket connection" % (address[0], stype))
+        self.log.debug("%s: Version %s, base64: '%s'" % (address[0],
             self.version, self.base64))
         if self.path != '/':
-            self.msg("%s: Path: '%s'" % (address[0], self.path))
+            self.log.debug("%s: Path: '%s'" % (address[0], self.path))
 
 
         # Send server WebSockets handshake response
@@ -736,7 +703,7 @@ Sec-WebSocket-Accept: %s\r
     #
     def started(self):
         """ Called after WebSockets startup """
-        self.vmsg("WebSockets server started")
+        self.log.info("WebSockets server started")
 
     def poll(self):
         """ Run periodically while waiting for connections. """
@@ -745,17 +712,17 @@ Sec-WebSocket-Accept: %s\r
 
     def fallback_SIGCHLD(self, sig, stack):
         # Reap zombies when using os.fork() (python 2.4)
-        self.vmsg("Got SIGCHLD, reaping zombies")
+        self.log.debug("Got SIGCHLD, reaping zombies")
         try:
             result = os.waitpid(-1, os.WNOHANG)
             while result[0]:
-                self.vmsg("Reaped child process %s" % result[0])
+                self.log.debug("Reaped child process %s" % result[0])
                 result = os.waitpid(-1, os.WNOHANG)
         except (OSError):
             pass
 
     def do_SIGINT(self, sig, stack):
-        self.msg("Got SIGINT, exiting")
+        self.log.fatal("Got SIGINT, exiting")
         sys.exit(0)
 
     def top_new_client(self, startsock, address):
@@ -776,7 +743,7 @@ Sec-WebSocket-Accept: %s\r
                     # Record raw frame data as JavaScript array
                     fname = "%s.%s" % (self.record,
                                         self.handler_id)
-                    self.msg("opening record file: %s" % fname)
+                    self.log.debug("opening record file: %s" % fname)
                     self.rec = open(fname, 'w+')
                     self.rec.write("var VNC_frame_data = [\n")
 
@@ -786,12 +753,11 @@ Sec-WebSocket-Accept: %s\r
                 _, exc, _ = sys.exc_info()
                 # Connection was not a WebSockets connection
                 if exc.args[0]:
-                    self.msg("%s: %s" % (address[0], exc.args[0]))
+                    self.log.debug("%s: %s" % (address[0], exc.args[0]))
             except Exception:
                 _, exc, _ = sys.exc_info()
-                self.msg("handler exception: %s" % str(exc))
-                if self.verbose:
-                    self.msg(traceback.format_exc())
+                self.log.error("handler exception: %s" % str(exc))
+                self.log.debug(traceback.format_exc())
         finally:
             if self.rec:
                 self.rec.write("'EOF']\n")
@@ -833,7 +799,7 @@ Sec-WebSocket-Accept: %s\r
 
                     time_elapsed = time.time() - self.launch_time
                     if self.timeout and time_elapsed > self.timeout:
-                        self.msg('listener exit due to --timeout %s'
+                        self.log.info('listener exit due to --timeout %s'
                                 % self.timeout)
                         break
 
@@ -855,7 +821,7 @@ Sec-WebSocket-Accept: %s\r
                         else:
                             err = exc[0]
                         if err == errno.EINTR:
-                            self.vmsg("Ignoring interrupted syscall")
+                            self.log.debug("Ignoring interrupted syscall")
                             continue
                         else:
                             raise
@@ -864,11 +830,11 @@ Sec-WebSocket-Accept: %s\r
                         # Run in same process if run_once
                         self.top_new_client(startsock, address)
                         if self.ws_connection :
-                            self.msg('%s: exiting due to --run-once'
+                            self.log.info('%s: exiting due to --run-once'
                                     % address[0])
                             break
                     elif multiprocessing:
-                        self.vmsg('%s: new handler Process' % address[0])
+                        self.log.debug('%s: new handler Process' % address[0])
                         p = multiprocessing.Process(
                                 target=self.top_new_client,
                                 args=(startsock, address))
@@ -876,7 +842,7 @@ Sec-WebSocket-Accept: %s\r
                         # child will not return
                     else:
                         # python 2.4
-                        self.vmsg('%s: forking handler' % address[0])
+                        self.log.debug('%s: forking handler' % address[0])
                         pid = os.fork()
                         if pid == 0:
                             # child handler process
@@ -896,9 +862,8 @@ Sec-WebSocket-Accept: %s\r
                     break
                 except Exception:
                     _, exc, _ = sys.exc_info()
-                    self.msg("handler exception: %s" % str(exc))
-                    if self.verbose:
-                        self.msg(traceback.format_exc())
+                    self.log.info("handler exception: %s" % str(exc))
+                    self.log.debug(traceback.format_exc())
 
             finally:
                 if startsock:

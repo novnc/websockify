@@ -14,6 +14,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 import socket, optparse, time, os, sys, subprocess
 from select import select
 from websocket import WebSocketServer
+import warnings, logging
 
 class WebSocketProxy(WebSocketServer):
     """
@@ -37,6 +38,7 @@ Traffic Legend:
     <. - Client send partial
 """
 
+    #noinspection PyUnresolvedReferences
     def __init__(self, *args, **kwargs):
         # Save off proxy specific options
         self.target_host    = kwargs.pop('target_host')
@@ -45,7 +47,11 @@ Traffic Legend:
         self.wrap_mode      = kwargs.pop('wrap_mode')
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
+        self.loglevel       = kwargs.pop('loglevel')
+        self.logfile        = kwargs.pop('logfile')
 
+
+        self.open_log()
         if self.wrap_cmd:
             rebinder_path = ['./', os.path.dirname(sys.argv[0])]
             self.rebinder = None
@@ -102,11 +108,11 @@ Traffic Legend:
 
         if self.wrap_cmd and self.cmd:
             ret = self.cmd.poll()
-            if ret != None:
-                self.vmsg("Wrapped command exited (or daemon). Returned %s" % ret)
+            if ret is not None:
+                self.log.debug("Wrapped command exited (or daemon). Returned %s" % ret)
                 self.cmd = None
 
-        if self.wrap_cmd and self.cmd == None:
+        if self.wrap_cmd and self.cmd is None:
             # Response to wrapped command being gone
             if self.wrap_mode == "ignore":
                 pass
@@ -139,7 +145,7 @@ Traffic Legend:
         """
 
         # Connect to the target
-        self.msg("connecting to: %s:%s" % (
+        self.log.debug("connecting to: %s:%s" % (
                  self.target_host, self.target_port))
         tsock = self.socket(self.target_host, self.target_port,
                 connect=True)
@@ -154,9 +160,33 @@ Traffic Legend:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
-                self.vmsg("%s:%s: Target closed" %(
+                self.log.debug("%s:%s: Target closed" %(
                     self.target_host, self.target_port))
             raise
+
+    def open_log(self):
+        # Handle logging
+        if not self.loglevel.isdigit:
+            raise Exception("Invalid loglevel specified, must be 0-5")
+
+        loglevels = {
+            '0': None,
+            '1': logging.CRITICAL,
+            '2': logging.ERROR,
+            '3': logging.WARNING,
+            '4': logging.INFO,
+            '5': logging.DEBUG,
+            }
+        if int(self.loglevel) > 5: self.loglevel = 5
+
+        logformat = '%(asctime)s %(levelname)s, %(message)s'
+        if self.logfile is None:
+            logging.basicConfig(format=logformat)
+        else:
+            logging.basicConfig(format=logformat, filename=self.logfile)
+        self.log = logging.getLogger('websocket')
+        self.log.setLevel(loglevels[self.loglevel])
+
 
     def do_proxy(self, target):
         """
@@ -190,7 +220,7 @@ Traffic Legend:
             if target in ins:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
-                if len(buf) == 0: raise self.EClose("Target closed")
+                if not len(buf): raise self.EClose("Target closed")
 
                 cqueue.append(buf)
                 self.traffic("{")
