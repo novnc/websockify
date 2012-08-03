@@ -17,6 +17,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, time, errno, signal, socket, traceback, select
+import warnings, logging
 import array, struct
 from cgi import parse_qsl
 from base64 import b64encode, b64decode
@@ -125,6 +126,28 @@ Sec-WebSocket-Accept: %s\r
 
         if self.web:
             os.chdir(self.web)
+
+        # Handle logging
+        if loglevel.isdigit == False:
+			raise Exception("Invalid loglevel specified, must be 0-5")
+
+        log_levels = { 
+            '0': None,
+            '1': logging.CRITICAL,
+            '2': logging.ERROR,
+            '3': logging.WARNING,
+            '4': logging.INFO,
+            '5': logging.DEBUG,
+        }
+        if int(loglevel) > 5: loglevel = 5
+			
+        logformat = '%(asctime)s %(levelname)s, %(message)s'
+        if logfile == None:
+            logging.basicConfig(format=logformat)
+        else:
+            logging.basicConfig(format=logformat, filename=logfile)
+        self.log = logging.getLogger('websocket')
+        self.log.setLevel(log_levels[loglevel])
 
         # Sanity checks
         if not ssl and self.ssl_only:
