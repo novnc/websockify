@@ -1,6 +1,6 @@
 /*
  * Websock: high-performance binary WebSockets
- * Copyright (C) 2011 Joel Martin
+ * Copyright (C) 2012 Joel Martin
  * Licensed under LGPL-3 (see LICENSE.txt)
  *
  * Websock is similar to the standard WebSocket object but Websock
@@ -14,8 +14,16 @@
  * read binary data off of the receive queue.
  */
 
+/*jslint browser: true, bitwise: false, plusplus: false */
+/*global Util, Base64 */
+
 
 // Load Flash WebSocket emulator if needed
+
+// To force WebSocket emulator even when native WebSocket available
+//window.WEB_SOCKET_FORCE_FLASH = true;
+// To enable WebSocket emulator debug:
+//window.WEB_SOCKET_DEBUG=1;
 
 if (window.WebSocket && !window.WEB_SOCKET_FORCE_FLASH) {
     Websock_native = true;
@@ -24,9 +32,6 @@ if (window.WebSocket && !window.WEB_SOCKET_FORCE_FLASH) {
     window.WebSocket = window.MozWebSocket;
 } else {
     /* no builtin WebSocket so load web_socket.js */
-
-    // To enable debug:
-    // window.WEB_SOCKET_DEBUG=1;
 
     Websock_native = false;
     (function () {
@@ -38,11 +43,11 @@ if (window.WebSocket && !window.WEB_SOCKET_FORCE_FLASH) {
         var start = "<script src='" + get_INCLUDE_URI(),
             end = "'><\/script>", extra = "";
 
-        WEB_SOCKET_SWF_LOCATION = get_INCLUDE_URI() +
+        window.WEB_SOCKET_SWF_LOCATION = get_INCLUDE_URI() +
                     "web-socket-js/WebSocketMain.swf";
         if (Util.Engine.trident) {
             Util.Debug("Forcing uncached load of WebSocketMain.swf");
-            WEB_SOCKET_SWF_LOCATION += "?" + Math.random();
+            window.WEB_SOCKET_SWF_LOCATION += "?" + Math.random();
         }
         extra += start + "web-socket-js/swfobject.js" + end;
         extra += start + "web-socket-js/web_socket.js" + end;
