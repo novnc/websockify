@@ -618,7 +618,7 @@ Sec-WebSocket-Accept: %s\r
             self.base64 = True
 
             response = self.server_handshake_hixie % (pre,
-                    h['Origin'], pre, scheme, h['Host'], path)
+                    h['Origin'], pre, self.scheme, h['Host'], path)
 
             if 'base64' in protocols:
                 response += "%sWebSocket-Protocol: base64\r\n" % pre
@@ -690,7 +690,7 @@ Sec-WebSocket-Accept: %s\r
                 else:
                     raise
 
-            scheme = "wss"
+            self.scheme = "wss"
             stype = "SSL/TLS (wss://)"
 
         elif self.ssl_only:
@@ -698,7 +698,7 @@ Sec-WebSocket-Accept: %s\r
 
         else:
             retsock = sock
-            scheme = "ws"
+            self.scheme = "ws"
             stype = "Plain non-SSL (ws://)"
 
         wsh = WSRequestHandler(retsock, address, not self.web)
