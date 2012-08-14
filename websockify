@@ -189,7 +189,7 @@ Traffic Legend:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
-                self.vmsg("%s:%s: Target closed" %(
+                self.vmsg("%s:%s: Closed target" %(
                     self.target_host, self.target_port))
             raise
 
@@ -265,6 +265,8 @@ Traffic Legend:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
                 if len(buf) == 0:
+                    self.vmsg("%s:%s: Target closed connection" %(
+                        self.target_host, self.target_port))
                     raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
@@ -285,6 +287,8 @@ Traffic Legend:
 
                 if closed:
                     # TODO: What about blocking on client socket?
+                    self.vmsg("%s:%s: Client closed connection" %(
+                        self.target_host, self.target_port))
                     raise self.CClose(closed['code'], closed['reason'])
 
 def websockify_init():
