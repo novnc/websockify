@@ -61,7 +61,6 @@ function Websock() {
 
 var api = {},         // Public API
     websocket = null, // WebSocket object
-    protocols,        // Protocols to request in priority order
     mode = 'base64',
     rQ = [],          // Receive queue
     rQi = 0,          // Receive queue index
@@ -268,40 +267,62 @@ function on(evt, handler) {
     eventHandlers[evt] = handler;
 }
 
-function init() {
+function init(protocols) {
     rQ         = [];
     rQi        = 0;
     sQ         = [];
-    websocket  = null,
-    protocols  = "base64";
+    websocket  = null;
 
     var bt = false,
-        wsbt = false;
+        wsbt = false,
+        try_binary = false;
 
+    // Check for full typed array support
     if (('Uint8Array' in window) &&
         ('set' in Uint8Array.prototype)) {
         bt = true;
     }
+
+    // Check for full binary type support in WebSockets
     // TODO: this sucks, the property should exist on the prototype
     // but it does not.
     try {
         if (bt && ('binaryType' in (new WebSocket("ws://localhost:17523")))) {
+            Util.Info("Detected binaryType support in WebSockets");
             wsbt = true;
         }
     } catch (exc) {
         // Just ignore failed test localhost connections
     }
-    if (bt && wsbt) {
-        Util.Info("Detected binaryType support in WebSockets");
-        protocols = ['binary', 'base64'];
-    } else {
-        Util.Info("No binaryType support in WebSockets, using base64 encoding");
-        protocols = 'base64';
+
+    // Default protocols if not specified
+    if (typeof(protocols) === "undefined") {
+        if (wsbt) {
+            protocols = ['binary', 'base64'];
+        } else {
+            protocols = 'base64';
+        }
     }
+
+    // If no binary support, make sure it was not requested
+    if (!wsbt) {
+        if (protocols === 'binary') {
+            throw("WebSocket binary sub-protocol requested but not supported");
+        }
+        if (typeof(protocols) === "object") {
+            for (var i = 0; i < protocols.length; i++) {
+                if (protocols[i] === 'binary') {
+                    throw("WebSocket binary sub-protocol requested but not supported");
+                }
+            }
+        }
+    }
+
+    return protocols;
 }
 
-function open(uri) {
-    init();
+function open(uri, protocols) {
+    protocols = init(protocols);
 
     if (test_mode) {
         websocket = {};
