@@ -129,9 +129,7 @@ function rQshiftStr(len) {
     if (typeof(len) === 'undefined') { len = rQlen(); }
     var arr = rQ.slice(rQi, rQi + len);
     rQi += len;
-    return arr.map(function (num) {
-            return String.fromCharCode(num); } ).join('');
-
+    return String.fromCharCode.apply(null, arr);
 }
 function rQshiftBytes(len) {
     if (typeof(len) === 'undefined') { len = rQlen(); }
