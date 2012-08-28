@@ -788,6 +788,13 @@ void start_server() {
             break;   // Child process exits
         } else {         // parent process
             settings.handler_id += 1;
+
+            if (settings.one_at_a_time) {
+                //Block on child process exiting
+                handler_msg("Waiting for child to finish\n");
+                wait(pid);
+                handler_msg("Child finished\n");
+            }
         }
     }
     if (pid == 0) {
