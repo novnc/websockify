@@ -79,6 +79,6 @@ ssize_t ws_send(ws_ctx_t *ctx, const void *buf, size_t len);
         fprintf(stream, __VA_ARGS__); \
     }
 
-#define handler_msg(...) gen_handler_msg(stdout, __VA_ARGS__);
+#define handler_msg(...) gen_handler_msg(stderr, __VA_ARGS__);
 #define handler_emsg(...) gen_handler_msg(stderr, __VA_ARGS__);
 
