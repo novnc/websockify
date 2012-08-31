@@ -308,6 +308,9 @@ def websockify_init():
             help="handle a single WebSocket connection and exit")
     parser.add_option("--timeout", type=int, default=0,
             help="after TIMEOUT seconds exit when not connected")
+    parser.add_option("--idle-timeout", type=int, default=0,
+            help="server exits after TIMEOUT seconds if there are no "
+                 "active connections")
     parser.add_option("--cert", default="self.pem",
             help="SSL certificate file")
     parser.add_option("--key", default=None,
