@@ -832,6 +832,7 @@ Sec-WebSocket-Accept: %s\r
             # os.fork() (python 2.4) child reaper
             signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
 
+        last_active_time = self.launch_time
         while True:
             try:
                 try:
@@ -849,11 +850,18 @@ Sec-WebSocket-Accept: %s\r
                                 % self.timeout)
                         break
 
-                    if self.idle_timeout and time_elapsed > self.idle_timeout \
-                       and child_count == 0:
-                        self.msg('listener exit due to --idle-timeout %s'
-                                % self.idle_timeout)
-                        break
+                    if self.idle_timeout:
+                        idle_time = 0
+                        if child_count == 0:
+                            idle_time = time.time() - last_active_time
+                        else:
+                            idle_time = 0
+                            last_active_time = time.time()
+
+                        if idle_time > self.idle_timeout and child_count == 0:
+                            self.msg('listener exit due to --idle-timeout %s'
+                                        % self.idle_timeout)
+                            break
 
                     try:
                         self.poll()
