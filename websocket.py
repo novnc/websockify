@@ -101,7 +101,7 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
-            run_once=False, timeout=0):
+            run_once=False, timeout=0, idle_timeout=0):
 
         # settings
         self.verbose        = verbose
@@ -112,6 +112,7 @@ Sec-WebSocket-Accept: %s\r
         self.daemon         = daemon
         self.run_once       = run_once
         self.timeout        = timeout
+        self.idle_timeout   = idle_timeout
         
         self.launch_time    = time.time()
         self.ws_connection  = False
@@ -831,18 +832,36 @@ Sec-WebSocket-Accept: %s\r
             # os.fork() (python 2.4) child reaper
             signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
 
+        last_active_time = self.launch_time
         while True:
             try:
                 try:
                     self.client = None
                     startsock = None
                     pid = err = 0
+                    child_count = 0
+
+                    if multiprocessing and self.idle_timeout:
+                        child_count = len(multiprocessing.active_children())
 
                     time_elapsed = time.time() - self.launch_time
                     if self.timeout and time_elapsed > self.timeout:
                         self.msg('listener exit due to --timeout %s'
                                 % self.timeout)
                         break
+
+                    if self.idle_timeout:
+                        idle_time = 0
+                        if child_count == 0:
+                            idle_time = time.time() - last_active_time
+                        else:
+                            idle_time = 0
+                            last_active_time = time.time()
+
+                        if idle_time > self.idle_timeout and child_count == 0:
+                            self.msg('listener exit due to --idle-timeout %s'
+                                        % self.idle_timeout)
+                            break
 
                     try:
                         self.poll()
