@@ -177,7 +177,7 @@ Traffic Legend:
             '4': logging.INFO,
             '5': logging.DEBUG,
             }
-        if int(self.loglevel) > 5: self.loglevel = 5
+        if int(self.loglevel) > 5: self.loglevel = '5'
 
         logformat = '%(asctime)s %(levelname)s, %(message)s'
         if self.logfile is None:

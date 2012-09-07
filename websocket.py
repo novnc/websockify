@@ -139,10 +139,10 @@ Sec-WebSocket-Accept: %s\r
             '4': logging.INFO,
             '5': logging.DEBUG,
         }
-        if int(loglevel) > 5: loglevel = 5
+        if int(loglevel) > 5: loglevel = '5'
 			
         logformat = '%(asctime)s %(levelname)s, %(message)s'
-        if logfile == None:
+        if logfile is None:
             logging.basicConfig(format=logformat)
         else:
             logging.basicConfig(format=logformat, filename=logfile)
@@ -497,7 +497,7 @@ Sec-WebSocket-Accept: %s\r
                 frame = self.decode_hybi(buf, base64=self.base64)
                 #print("Received buf: %s, frame: %s" % (repr(buf), frame))
 
-                if frame['payload'] == None:
+                if frame['payload'] is None:
                     # Incomplete/partial frame
                     self.traffic("}.")
                     if frame['left'] > 0:
