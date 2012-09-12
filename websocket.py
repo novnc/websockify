@@ -16,9 +16,11 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import os, sys, time, errno, signal, socket, traceback, select
+import os, sys, time, errno, signal, socket, traceback, select, re
 import array, struct
 from base64 import b64encode, b64decode
+
+from subprocess import call
 
 # Imports that vary by python version
 
@@ -101,10 +103,11 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
-            run_once=False, timeout=0, idle_timeout=0):
+            run_once=False, timeout=0, idle_timeout=0, auth_hook=''):
 
         # settings
         self.verbose        = verbose
+        self.auth_hook      = auth_hook
         self.listen_host    = listen_host
         self.listen_port    = listen_port
         self.prefer_ipv6    = source_is_ipv6
@@ -141,6 +144,12 @@ Sec-WebSocket-Accept: %s\r
         print("WebSocket server settings:")
         print("  - Listen on %s:%s" % (
                 self.listen_host, self.listen_port))
+        if self.auth_hook=="":
+            tmp = "(none)"
+        else:
+            tmp = self.auth_hook
+        
+        print("  - Authentication is :'%s'" % tmp)
         print("  - Flash security policy server")
         if self.web:
             print("  - Web server. Web root: %s" % self.web)
@@ -657,6 +666,43 @@ Sec-WebSocket-Accept: %s\r
         # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
         #self.msg("Handshake [%s]" % handshake)
+        
+        tmp = handshake.split("Sec-WebSocket-Protocol:")[1].split(',')[1].split("\r")[0].split('-----')
+        
+        # Allow up to 8 name/value pairs to be passed.
+        # Token names and values (excluding our attached name prefix) are limited to 64 chars
+        # These are passed from the client and so are UNTRUSTED.
+        # See example "auth.py" file. If used with noVNC...
+        # e.g. websock.js  websocket = new WebSocket(uri, ['base64', 'TOKEN' + '-----' + WebUtil.getQueryVar('token','')]);
+        if self.auth_hook != '':
+            ll = len(tmp)
+            if ll > 8:
+                ll=8
+            
+            # Client IP could be spoofed but is basically trusted
+            os.environ['WEBSOCKIFY_CLIENT_IP'] = address[0]
+            os.environ['WEBSOCKIFY_CLIENT_PORT'] = str(address[1])
+            os.environ['WEBSOCKIFY_VNCHOST_IP'] = self.target_host
+            os.environ['WEBSOCKIFY_VNCHOST_PORT'] = str(self.target_port)
+            
+            # Only first 64chars are passed
+            charlimit = 64
+            i=0
+            while i < ll:
+                t1 = tmp[i].strip()   #leading whitespace stripped
+                if len(t1) > charlimit:
+                    t1 = t1[:charlimit]
+                t2 = tmp[i+1].strip()
+                if len(t2) > charlimit:
+                    t2 = t2[:charlimit]
+                os.environ['WEBSOCKIFY_UNSAFE_' + t1] = t2
+                i += 2
+            
+            ret = call(self.auth_hook, shell=True)
+            if ret != 0:
+                raise self.EClose("Authentication failed")
+            else:
+                self.msg("%s: Authenticated" % (address[0]))
 
         if handshake == "":
             raise self.EClose("ignoring empty handshake")

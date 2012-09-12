@@ -335,6 +335,10 @@ def websockify_init():
             help="Configuration file containing valid targets "
             "in the form 'token: host:port' or, alternatively, a "
             "directory containing configuration files of this form")
+    parser.add_option("--auth-hook", default="",
+            help="Executable used to authenticate client connection attempts."
+            "Ret code 0=authenticated. Shell args passed through WEBSOCKIFY_UNSAFE_* env vars."
+            "'WEBSOCKIFY_CLIENT_IP','WEBSOCKIFY_VNCHOST_IP','WEBSOCKIFY_VNCHOST_PORT' always available.")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
