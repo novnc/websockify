@@ -6,3 +6,5 @@ other/classes
 other/lib
 .project
 .pydevproject
+target.cfg
+target.cfg.d
