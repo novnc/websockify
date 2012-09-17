@@ -61,7 +61,7 @@ function Websock() {
 
 var api = {},         // Public API
     websocket = null, // WebSocket object
-    mode = 'base64',
+    mode = 'base64',  // Current WebSocket mode: 'binary', 'base64'
     rQ = [],          // Receive queue
     rQi = 0,          // Receive queue index
     rQmax = 10000,    // Max receive queue size before compacting
@@ -168,10 +168,11 @@ function rQwait(msg, num, goback) {
 //
 
 function encode_message() {
-    /* base64 encode */
     if (mode === 'binary') {
+        // Put in a binary arraybuffer
         return (new Uint8Array(sQ)).buffer;
     } else {
+        // base64 encode
         return Base64.encode(sQ);
     }
 }
@@ -310,10 +311,18 @@ function init(protocols) {
             throw("WebSocket binary sub-protocol requested but not supported");
         }
         if (typeof(protocols) === "object") {
+            var new_protocols = [];
             for (var i = 0; i < protocols.length; i++) {
                 if (protocols[i] === 'binary') {
-                    throw("WebSocket binary sub-protocol requested but not supported");
+                    Util.Error("Skipping unsupported WebSocket binary sub-protocol");
+                } else {
+                    new_protocols.push(protocols[i]);
                 }
+            }
+            if (new_protocols.length > 0) {
+                protocols = new_protocols;
+            } else {
+                throw("Only WebSocket binary sub-protocol was requested and not supported.");
             }
         }
     }
