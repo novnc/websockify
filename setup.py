@@ -18,13 +18,13 @@ setup(name=name,
       author="Joel Martin",
       author_email="github@martintribe.org",
 
-      packages=find_packages(),
+      packages=['websockify'],
       include_package_data=True,
       install_requires=['numpy'],
       zip_safe=False,
       entry_points={
         'console_scripts': [
-          'websockify = websockify:websockify_init',
+            'websockify = websockify.websocketproxy:websockify_init',
         ]
       },
     )
