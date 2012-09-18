@@ -338,7 +338,7 @@ def websockify_init():
     (opts, args) = parser.parse_args()
 
     # Sanity checks
-    if len(args) < 2 and not opts.target_cfg:
+    if len(args) < 2 and not (opts.target_cfg or opts.unix_target):
         parser.error("Too few arguments")
     if sys.argv.count('--'):
         opts.wrap_cmd = args[1:]
