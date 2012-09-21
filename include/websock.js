@@ -413,6 +413,7 @@ function constructor() {
     api.send         = send;
     api.send_string  = send_string;
 
+    api.getWebSocket = function() { return websocket; }
     api.on           = on;
     api.init         = init;
     api.open         = open;
