@@ -73,7 +73,7 @@ http_request = function (request, response) {
     var uri = url.parse(request.url).pathname
         , filename = path.join(argv.web, uri);
     
-    path.exists(filename, function(exists) {
+    fs.exists(filename, function(exists) {
         if(!exists) {
             return http_error(response, 404, "404 Not Found");
         }
@@ -95,9 +95,10 @@ http_request = function (request, response) {
 };
 
 // parse source and target arguments into parts
-source_arg = argv._[0].toString();
-target_arg = argv._[1].toString();
 try {
+    source_arg = argv._[0].toString();
+    target_arg = argv._[1].toString();
+
     var idx;
     idx = source_arg.indexOf(":");
     if (idx >= 0) {
@@ -119,7 +120,7 @@ try {
         throw("illegal port");
     }
 } catch(e) {
-    console.error("wsproxy.py [source_addr:]source_port target_addr:target_port");
+    console.error("wsproxy.py [--web web_dir] [source_addr:]source_port target_addr:target_port");
     process.exit(2);
 }
 
