@@ -165,7 +165,7 @@ Traffic Legend:
 
         # Connect to the target
         if self.wrap_cmd:
-            msg = "connecting to command: %s" % (" ".join(self.wrap_cmd), self.target_port)
+            msg = "connecting to command: '%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
         elif self.unix_target:
             msg = "connecting to unix socket: %s" % self.unix_target
         else:
