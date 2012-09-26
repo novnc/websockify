@@ -1,1 +1,2 @@
-import websocket, websocketproxy
+from websocket import *
+from websocketproxy import *
