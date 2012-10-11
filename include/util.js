@@ -57,6 +57,21 @@ if (!Array.prototype.map)
   };
 }
 
+// 
+// requestAnimationFrame shim with setTimeout fallback
+//
+
+window.requestAnimFrame = (function(){
+    return  window.requestAnimationFrame       || 
+            window.webkitRequestAnimationFrame || 
+            window.mozRequestAnimationFrame    || 
+            window.oRequestAnimationFrame      || 
+            window.msRequestAnimationFrame     || 
+            function(callback){
+                window.setTimeout(callback, 1000 / 60);
+            };
+})();
+
 /* 
  * ------------------------------------------------------
  * Namespaced in Util
@@ -131,6 +146,8 @@ Util.conf_default = function(cfg, api, defaults, v, mode, type, defval, desc) {
             }
         } else if (type in {'integer':1, 'int':1}) {
             val = parseInt(val, 10);
+        } else if (type === 'str') {
+            val = String(val);
         } else if (type === 'func') {
             if (!val) {
                 val = function () {};
