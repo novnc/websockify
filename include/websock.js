@@ -35,23 +35,14 @@ if (window.WebSocket && !window.WEB_SOCKET_FORCE_FLASH) {
 
     Websock_native = false;
     (function () {
-        function get_INCLUDE_URI() {
-            return (typeof INCLUDE_URI !== "undefined") ?
-                INCLUDE_URI : "include/";
-        }
-
-        var start = "<script src='" + get_INCLUDE_URI(),
-            end = "'><\/script>", extra = "";
-
-        window.WEB_SOCKET_SWF_LOCATION = get_INCLUDE_URI() +
+        window.WEB_SOCKET_SWF_LOCATION = Util.get_include_uri() +
                     "web-socket-js/WebSocketMain.swf";
         if (Util.Engine.trident) {
             Util.Debug("Forcing uncached load of WebSocketMain.swf");
             window.WEB_SOCKET_SWF_LOCATION += "?" + Math.random();
         }
-        extra += start + "web-socket-js/swfobject.js" + end;
-        extra += start + "web-socket-js/web_socket.js" + end;
-        document.write(extra);
+        Util.load_scripts(["web-socket-js/swfobject.js",
+                           "web-socket-js/web_socket.js"]);
     }());
 }
 
@@ -380,8 +371,9 @@ function close() {
 
 // Override internal functions for testing
 // Takes a send function, returns reference to recv function
-function testMode(override_send) {
+function testMode(override_send, data_mode) {
     test_mode = true;
+    mode = data_mode;
     api.send = override_send;
     api.close = function () {};
     return recv_message;
