@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 // A WebSocket to TCP socket proxy
 // Copyright 2012 Joel Martin
 // Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
@@ -148,7 +150,7 @@ try {
         throw("illegal port");
     }
 } catch(e) {
-    console.error("wsproxy.py [--web web_dir] [source_addr:]source_port target_addr:target_port");
+    console.error("websockify.js [--web web_dir] [source_addr:]source_port target_addr:target_port");
     process.exit(2);
 }
 
