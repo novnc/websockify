@@ -249,6 +249,24 @@ Traffic Legend:
             ins, outs, excepts = select(rlist, wlist, [], 1)
             if excepts: raise Exception("Socket exception")
 
+            if self.client in outs:
+                # Send queued target data to the client
+                c_pend = self.send_frames(cqueue)
+
+                cqueue = []
+
+            if self.client in ins:
+                # Receive client data, decode it, and queue for target
+                bufs, closed = self.recv_frames()
+                tqueue.extend(bufs)
+
+                if closed:
+                    # TODO: What about blocking on client socket?
+                    self.vmsg("%s:%s: Client closed connection" %(
+                        self.target_host, self.target_port))
+                    raise self.CClose(closed['code'], closed['reason'])
+
+
             if target in outs:
                 # Send queued client data to the target
                 dat = tqueue.pop(0)
@@ -272,24 +290,6 @@ Traffic Legend:
                 cqueue.append(buf)
                 self.traffic("{")
 
-
-            if self.client in outs:
-                # Send queued target data to the client
-                c_pend = self.send_frames(cqueue)
-
-                cqueue = []
-
-
-            if self.client in ins:
-                # Receive client data, decode it, and queue for target
-                bufs, closed = self.recv_frames()
-                tqueue.extend(bufs)
-
-                if closed:
-                    # TODO: What about blocking on client socket?
-                    self.vmsg("%s:%s: Client closed connection" %(
-                        self.target_host, self.target_port))
-                    raise self.CClose(closed['code'], closed['reason'])
 
 
 def _subprocess_setup():
