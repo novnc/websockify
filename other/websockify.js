@@ -20,6 +20,7 @@
 var argv = require('optimist').argv,
     net = require('net'),
     http = require('http'),
+    https = require('https'),
     url = require('url'),
     path = require('path'),
     fs = require('fs'),
@@ -29,7 +30,7 @@ var argv = require('optimist').argv,
     Buffer = require('buffer').Buffer,
     WebSocketServer = require('ws').Server,
 
-    httpServer, wsServer,
+    webServer, wsServer,
     source_host, source_port, target_host, target_port,
     web_path = null;
 
@@ -124,6 +125,20 @@ http_request = function (request, response) {
     });
 };
 
+// Select 'binary' or 'base64' subprotocol, preferring 'binary'
+selectProtocol = function(protocols, callback) {
+    var plist = protocols ? protocols.split(',') : "";
+    var plist = protocols.split(',');
+    if (plist.indexOf('binary') >= 0) {
+        callback(true, 'binary');
+    } else if (plist.indexOf('base64') >= 0) {
+        callback(true, 'base64');
+    } else {
+        console.log("Client must support 'binary' or 'base64' protocol");
+        callback(false);
+    }
+}
+
 // parse source and target arguments into parts
 try {
     source_arg = argv._[0].toString();
@@ -150,7 +165,7 @@ try {
         throw("illegal port");
     }
 } catch(e) {
-    console.error("websockify.js [--web web_dir] [source_addr:]source_port target_addr:target_port");
+    console.error("websockify.js [--web web_dir] [--cert cert.pem [--key key.pem]] [source_addr:]source_port target_addr:target_port");
     process.exit(2);
 }
 
@@ -161,25 +176,21 @@ if (argv.web) {
     console.log("    - Web server active. Serving: " + argv.web);
 }
 
-function selectProtocol(protocols, callback) {
-    var plist = protocols ? protocols.split(',') : "";
-    var plist = protocols.split(',');
-    if (plist.indexOf('binary') >= 0) {
-        callback(true, 'binary');
-    } else if (plist.indexOf('base64') >= 0) {
-        callback(true, 'base64');
-    } else {
-        console.log("Client must support 'binary' or 'base64' protocol");
-        callback(false);
-    }
+if (argv.cert) {
+    argv.key = argv.key || argv.cert;
+    var cert = fs.readFileSync(argv.cert),
+        key = fs.readFileSync(argv.key);
+    console.log("    - Running in encrypted HTTPS (wss://) mode using: " + argv.cert + ", " + argv.key);
+    webServer = https.createServer({cert: cert, key: key}, http_request);
+} else {
+    console.log("    - Running in unencrypted HTTP (ws://) mode");
+    webServer = http.createServer(http_request);
 }
-
-httpServer = http.createServer(http_request);
-httpServer.listen(source_port, function() {
-    wsServer = new WebSocketServer({server: httpServer,
+webServer.listen(source_port, function() {
+    wsServer = new WebSocketServer({server: webServer,
                                     handleProtocols: selectProtocol});
     wsServer.on('connection', new_client);
 });
 
 // Attach Flash policyfile answer service
-policyfile.createServer().listen(-1, httpServer);
+policyfile.createServer().listen(-1, webServer);
