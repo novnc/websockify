@@ -14,8 +14,11 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 import signal, socket, optparse, time, os, sys, subprocess
 from select import select
 import websocket
-try:    from urllib.parse import parse_qs, urlparse
-except: from urlparse import parse_qs, urlparse
+try:
+    from urllib.parse import parse_qs, urlparse
+except:
+    from cgi import parse_qs
+    from urlparse import urlparse
 
 class WebSocketProxy(websocket.WebSocketServer):
     """
