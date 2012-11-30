@@ -19,8 +19,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 import os, sys, time, errno, signal, socket, traceback, select, re
 import array, struct
 from base64 import b64encode, b64decode
-
-from subprocess import call
+from subprocess import Popen
 
 # Imports that vary by python version
 
@@ -149,7 +148,7 @@ Sec-WebSocket-Accept: %s\r
         else:
             tmp = self.auth_hook
         
-        print("  - Authentication is :'%s'" % tmp)
+        print("  - Authentication cmd: '%s'" % tmp)
         print("  - Flash security policy server")
         if self.web:
             print("  - Web server. Web root: %s" % self.web)
@@ -666,43 +665,6 @@ Sec-WebSocket-Accept: %s\r
         # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
         #self.msg("Handshake [%s]" % handshake)
-        
-        tmp = handshake.split("Sec-WebSocket-Protocol:")[1].split(',')[1].split("\r")[0].split('-----')
-        
-        # Allow up to 8 name/value pairs to be passed.
-        # Token names and values (excluding our attached name prefix) are limited to 64 chars
-        # These are passed from the client and so are UNTRUSTED.
-        # See example "auth.py" file. If used with noVNC...
-        # e.g. websock.js  websocket = new WebSocket(uri, ['base64', 'TOKEN' + '-----' + WebUtil.getQueryVar('token','')]);
-        if self.auth_hook != '':
-            ll = len(tmp)
-            if ll > 8:
-                ll=8
-            
-            # Client IP could be spoofed but is basically trusted
-            os.environ['WEBSOCKIFY_CLIENT_IP'] = address[0]
-            os.environ['WEBSOCKIFY_CLIENT_PORT'] = str(address[1])
-            os.environ['WEBSOCKIFY_VNCHOST_IP'] = self.target_host
-            os.environ['WEBSOCKIFY_VNCHOST_PORT'] = str(self.target_port)
-            
-            # Only first 64chars are passed
-            charlimit = 64
-            i=0
-            while i < ll:
-                t1 = tmp[i].strip()   #leading whitespace stripped
-                if len(t1) > charlimit:
-                    t1 = t1[:charlimit]
-                t2 = tmp[i+1].strip()
-                if len(t2) > charlimit:
-                    t2 = t2[:charlimit]
-                os.environ['WEBSOCKIFY_UNSAFE_' + t1] = t2
-                i += 2
-            
-            ret = call(self.auth_hook, shell=True)
-            if ret != 0:
-                raise self.EClose("Authentication failed")
-            else:
-                self.msg("%s: Authenticated" % (address[0]))
 
         if handshake == "":
             raise self.EClose("ignoring empty handshake")
@@ -747,7 +709,7 @@ Sec-WebSocket-Accept: %s\r
             retsock = sock
             self.scheme = "ws"
             stype = "Plain non-SSL (ws://)"
-
+        
         wsh = WSRequestHandler(retsock, address, not self.web)
         if wsh.last_code == 101:
             # Continue on to handle WebSocket upgrade
@@ -761,6 +723,13 @@ Sec-WebSocket-Accept: %s\r
         else:
             raise self.EClose("")
 
+        if self.auth_hook_setup(handshake,address):
+            self.msg("%s: Authenticated on cmd" % (address[0]))
+        elif len(self.auth_hook) != 0:
+            raise self.EClose("Authentication cmd failed")
+        
+        self.auth_hook_internal() #need to 'raise self.EClose("Authentication auth_hook failed")' on fail inside
+
         response = self.do_websocket_handshake(wsh.headers, wsh.path)
 
         self.msg("%s: %s WebSocket connection" % (address[0], stype))
@@ -769,15 +738,97 @@ Sec-WebSocket-Accept: %s\r
         if self.path != '/':
             self.msg("%s: Path: '%s'" % (address[0], self.path))
 
-
         # Send server WebSockets handshake response
         #self.msg("sending response [%s]" % response)
         retsock.send(s2b(response))
 
         # Return the WebSockets socket which may be SSL wrapped
         return retsock
-
-
+    
+    #
+    # Authenticate connection with one/both of:
+    # 1) external program/script passed as cmdline option --auth-hook, return 0 if authenticated
+    # 2) auth_hook function (default stub always returns true)
+    # Parameters are passed as shell variables.
+    #
+    # Allow up to 8 name/value pairs to be passed.
+    # Token names and values (excluding our attached name prefix) are limited to 64 chars
+    # These are passed from the client and so are UNTRUSTED.
+    # See example "auth.py" file. If used with noVNC...
+    # e.g. websock.js  websocket = new WebSocket(uri, ['base64', 'TOKEN' + '-----' + WebUtil.getQueryVar('TOKEN','')]);
+    def auth_hook_setup(self,handshake,address):
+        # Client IP could be spoofed but is basically trusted
+        self.auth_env = {}
+        # settings
+        self.auth_env['WEBSOCKIFY_HOST_VERBOSE'] = str(self.verbose)
+        self.auth_env['WEBSOCKIFY_HOST_LISTEN'] = self.listen_host
+        self.auth_env['WEBSOCKIFY_HOST_PORT'] = str(self.listen_port)
+        self.auth_env['WEBSOCKIFY_HOST_PREFER_IPV6'] = str(self.prefer_ipv6)
+        self.auth_env['WEBSOCKIFY_HOST_SSL_ONLY'] = str(self.ssl_only)
+        self.auth_env['WEBSOCKIFY_HOST_DAEMON'] = str(self.daemon)
+        self.auth_env['WEBSOCKIFY_HOST_RUN_ONCE'] = str(self.run_once)
+        self.auth_env['WEBSOCKIFY_HOST_TIMEOUT'] = str(self.timeout)
+        self.auth_env['WEBSOCKIFY_HOST_IDLE_TIMEOUT'] = str(self.idle_timeout)
+        self.auth_env['WEBSOCKIFY_HOST_LAUNCH_TIME'] = str(self.launch_time)
+        self.auth_env['WEBSOCKIFY_HOST_WS_CONNECTION'] = str(self.ws_connection)
+        self.auth_env['WEBSOCKIFY_HOST_HANDLER_ID'] = str(self.handler_id)
+        self.auth_env['WEBSOCKIFY_HOST_SSL_CERT'] = self.cert
+        self.auth_env['WEBSOCKIFY_HOST_SSL_KEY'] = self.key
+        self.auth_env['WEBSOCKIFY_HOST_WEB'] = self.web
+        self.auth_env['WEBSOCKIFY_HOST_RECORD'] = str(self.record)
+        self.auth_env['WEBSOCKIFY_HOST_SSL_ONLY'] = str(self.ssl_only)
+        self.auth_env['WEBSOCKIFY_HOST_SCHEME'] = self.scheme
+        tmp = "None"
+        try:
+            tmp = os.environ['WEBSOCKIFY_CLIENT_TOKEN'] #pass any expected token
+        except:
+            pass
+        self.auth_env['WEBSOCKIFY_CLIENT_TOKEN'] = tmp
+        self.auth_env['WEBSOCKIFY_CLIENT_IP'] = address[0]
+        self.auth_env['WEBSOCKIFY_CLIENT_PORT'] = str(address[1])
+        self.auth_env['WEBSOCKIFY_VNCHOST_IP'] = self.target_host
+        self.auth_env['WEBSOCKIFY_VNCHOST_PORT'] = str(self.target_port)
+        
+        numpassed=0
+        tmp = handshake.split("Sec-WebSocket-Protocol:")
+        if len(tmp)>1:
+            tmp = tmp[1].split(',')
+            if len(tmp)>1:
+                tmp = tmp[1].split("\r")[0].split('-----')
+                numpassed = len(tmp)
+        
+        if numpassed > 8:
+            numpassed=8
+        
+        # Only first 64chars are passed
+        charlimit = 64
+        i=0
+        while i < numpassed:
+            t1 = tmp[i].strip()   #leading whitespace stripped
+            if len(t1) > charlimit:
+                t1 = t1[:charlimit]
+            t2 = tmp[i+1].strip()
+            if len(t2) > charlimit:
+                t2 = t2[:charlimit]
+            self.auth_env['WEBSOCKIFY_UNSAFE_' + re.sub(r'[^A-Za-z0-9_]', '', t1)] = t2
+            i += 2
+            
+        if self.auth_hook != "":
+            #if(platform.system().find('Windows')>-1) #windows might require pampering
+            child = Popen(self.auth_hook, env=self.auth_env, shell=False)
+            child.communicate() #necessary
+            return (child.returncode == 0) # 0 = True
+            
+        return False
+        
+	#
+	# Stub for sub classes to add their own auth checking
+	# Can use values defined in self.auth_env
+	# On auth fail call: "raise self.EClose("Authentication failed via auth_hook for some reason")"
+	#
+    def auth_hook_internal(self): 
+        pass
+    
     #
     # Events that can/should be overridden in sub-classes
     #
