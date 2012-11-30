@@ -102,11 +102,12 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
-            run_once=False, timeout=0, idle_timeout=0, auth_hook=''):
+            run_once=False, timeout=0, idle_timeout=0, auth_hook='', auth_token=''):
 
         # settings
         self.verbose        = verbose
         self.auth_hook      = auth_hook
+        self.auth_token     = auth_token
         self.listen_host    = listen_host
         self.listen_port    = listen_port
         self.prefer_ipv6    = source_is_ipv6
@@ -778,12 +779,7 @@ Sec-WebSocket-Accept: %s\r
         self.auth_env['WEBSOCKIFY_HOST_RECORD'] = str(self.record)
         self.auth_env['WEBSOCKIFY_HOST_SSL_ONLY'] = str(self.ssl_only)
         self.auth_env['WEBSOCKIFY_HOST_SCHEME'] = self.scheme
-        tmp = "None"
-        try:
-            tmp = os.environ['WEBSOCKIFY_CLIENT_TOKEN'] #pass any expected token
-        except:
-            pass
-        self.auth_env['WEBSOCKIFY_CLIENT_TOKEN'] = tmp
+        self.auth_env['WEBSOCKIFY_CLIENT_TOKEN'] = self.auth_token
         self.auth_env['WEBSOCKIFY_CLIENT_IP'] = address[0]
         self.auth_env['WEBSOCKIFY_CLIENT_PORT'] = str(address[1])
         self.auth_env['WEBSOCKIFY_VNCHOST_IP'] = self.target_host

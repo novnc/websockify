@@ -339,6 +339,9 @@ def websockify_init():
             help="Executable to authenticate client connections. "
             "Ret code 0=authenticated. Client args = WEBSOCKIFY_UNSAFE_* env vars. "
             "'WEBSOCKIFY_CLIENT_*','WEBSOCKIFY_VNCHOST_*','WEBSOCKIFY_HOST_*'")
+    parser.add_option("--auth-token", default="", metavar="a8H6g0sl",
+            help="Expected authentication token client needs to provide "
+            "This is passed to --auth-hook program and internal handler.")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
