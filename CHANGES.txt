@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.3.0 - Jan 15, 2013
+--------------------
+
+ * refactor into modules: websocket, websocketproxy
+ * switch to web-socket-js that uses IETF 6455
+ * change to MPL 2.0 license for include/*.js
+ * fix session recording
+
 0.2.1 - Oct 15, 2012
 --------------------
 
