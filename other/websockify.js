@@ -5,8 +5,8 @@
 // Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
 // Known to work with node 0.8.9
-// Requires node modules: ws, base64, optimist and policyfile
-//     npm install ws base64 optimist policyfile
+// Requires node modules: ws, optimist and policyfile
+//     npm install ws optimist policyfile
 //
 // NOTE: 
 // This version requires a patched version of einaros/ws that supports
@@ -26,7 +26,6 @@ var argv = require('optimist').argv,
     fs = require('fs'),
     policyfile = require('policyfile'),
 
-    base64 = require('base64/build/Release/base64'),
     Buffer = require('buffer').Buffer,
     WebSocketServer = require('ws').Server,
 
@@ -51,7 +50,7 @@ new_client = function(client) {
         //log("sending message: " + data);
         try {
             if (client.protocol === 'base64') {
-                client.send(base64.encode(new Buffer(data)));
+                client.send(new Buffer(data).toString('base64'));
             } else {
                 client.send(data,{binary: true});
             }
@@ -67,7 +66,7 @@ new_client = function(client) {
     client.on('message', function(msg) {
         //log('got message: ' + msg);
         if (client.protocol === 'base64') {
-            target.write(base64.decode(msg),'binary');
+            target.write(new Buffer(msg, 'base64'));
         } else {
             target.write(msg,'binary');
         }
