@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.4.1 - Mar 12, 2013
+--------------------
+
+ * ***NOTE*** : 0.5.0 will drop Hixie protocol support
+ * add include/ directory and remove some dev files from source
+   distribution.
+
 0.4.0 - Mar 12, 2013
 --------------------
 
