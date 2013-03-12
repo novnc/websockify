@@ -1,6 +1,12 @@
 Changes
 =======
 
+0.4.0 - Mar 12, 2013
+--------------------
+
+ * ***NOTE*** : 0.5.0 will drop Hixie protocol support
+ * use Buffer base64 support in Node.js implementation
+
 0.3.0 - Jan 15, 2013
 --------------------
 
