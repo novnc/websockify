@@ -30,18 +30,6 @@ class WebSocketProxy(websocket.WebSocketServer):
 
     buffer_size = 65536
 
-    traffic_legend = """
-Traffic Legend:
-    }  - Client receive
-    }. - Client receive partial
-    {  - Target receive
-
-    >  - Target send
-    >. - Target send partial
-    <  - Client send
-    <. - Client send partial
-"""
-
     def __init__(self, *args, **kwargs):
         # Save off proxy specific options
         self.target_host    = kwargs.pop('target_host', None)
@@ -157,6 +145,18 @@ Traffic Legend:
     # will be run in a separate forked process for each connection.
     #
 
+    traffic_legend = """
+Traffic Legend:
+    }  - Client receive
+    }. - Client receive partial
+    {  - Target receive
+
+    >  - Target send
+    >. - Target send partial
+    <  - Client send
+    <. - Client send partial
+"""
+
     def new_client(self):
         """
         Called after a new WebSocket connection has been established.
@@ -179,7 +179,8 @@ Traffic Legend:
             msg += " (using SSL)"
         self.msg(msg)
 
-        tsock = self.socket(self.target_host, self.target_port,
+        tsock = websocket.WebSocketServer.socket(self.target_host, 
+                                                 self.target_port,
                 connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_target)
 
         if self.verbose and not self.daemon:
