@@ -11,7 +11,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, select, optparse
-sys.path.insert(0,os.path.dirname(__file__) + "/../")
+sys.path.insert(0,os.path.dirname(__file__) + "/../websockify")
 from websocket import WebSocketServer
 
 class WebSocketEcho(WebSocketServer):
