@@ -424,7 +424,7 @@ Sec-WebSocket-Accept: %s\r
         while self.send_parts:
             # Send pending frames
             buf = self.send_parts.pop(0)
-            sent = self.client.send(buf)
+            sent = self.request.send(buf)
 
             if sent == len(buf):
                 self.traffic("<")
@@ -446,7 +446,7 @@ Sec-WebSocket-Accept: %s\r
         bufs = []
         tdelta = int(time.time()*1000) - self.start_time
 
-        buf = self.client.recv(self.buffer_size)
+        buf = self.request.recv(self.buffer_size)
         if len(buf) == 0:
             closed = {'code': 1000, 'reason': "Client closed abruptly"}
             return bufs, closed
@@ -501,7 +501,7 @@ Sec-WebSocket-Accept: %s\r
 
         msg = pack(">H%ds" % len(reason), code, reason)
         buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
-        self.client.send(buf)
+        self.request.send(buf)
 
     def do_websocket_handshake(self, headers, path):
         h = self.headers = headers
@@ -689,7 +689,7 @@ Sec-WebSocket-Accept: %s\r
         # handler process        
         try:
             try:
-                self.client = self.do_handshake(startsock, address)
+                self.request = self.do_handshake(startsock, address)
 
                 if self.record:
                     # Record raw frame data as JavaScript array
@@ -708,7 +708,7 @@ Sec-WebSocket-Accept: %s\r
             except self.CClose:
                 # Close the client
                 _, exc, _ = sys.exc_info()
-                if self.client:
+                if self.request:
                     self.send_close(exc.args[0], exc.args[1])
             except self.EClose:
                 _, exc, _ = sys.exc_info()
@@ -725,10 +725,10 @@ Sec-WebSocket-Accept: %s\r
                 self.rec.write("'EOF'];\n")
                 self.rec.close()
 
-            if self.client and self.client != startsock:
+            if self.request and self.request != startsock:
                 # Close the SSL wrapped socket
                 # Original socket closed by caller
-                self.client.close()
+                self.request.close()
 
     def new_client(self):
         """ Do something with a WebSockets client connection. """
@@ -758,7 +758,7 @@ Sec-WebSocket-Accept: %s\r
         while True:
             try:
                 try:
-                    self.client = None
+                    self.request = None
                     startsock = None
                     pid = err = 0
                     child_count = 0
