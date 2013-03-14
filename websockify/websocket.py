@@ -72,164 +72,17 @@ class WebSocketServer(object):
 
     buffer_size = 65536
 
+    GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
+
     server_handshake_hybi = """HTTP/1.1 101 Switching Protocols\r
 Upgrade: websocket\r
 Connection: Upgrade\r
 Sec-WebSocket-Accept: %s\r
 """
 
-    GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
-
-    policy_response = """<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\n"""
-
-    # An exception before the WebSocket connection was established
-    class EClose(Exception):
-        pass
-
     # An exception while the WebSocket client was connected
     class CClose(Exception):
         pass
-
-    def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
-            verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web='',
-            run_once=False, timeout=0, idle_timeout=0):
-
-        # settings
-        self.verbose        = verbose
-        self.listen_host    = listen_host
-        self.listen_port    = listen_port
-        self.prefer_ipv6    = source_is_ipv6
-        self.ssl_only       = ssl_only
-        self.daemon         = daemon
-        self.run_once       = run_once
-        self.timeout        = timeout
-        self.idle_timeout   = idle_timeout
-        
-        self.launch_time    = time.time()
-        self.ws_connection  = False
-        self.handler_id     = 1
-
-        # Make paths settings absolute
-        self.cert = os.path.abspath(cert)
-        self.key = self.web = self.record = ''
-        if key:
-            self.key = os.path.abspath(key)
-        if web:
-            self.web = os.path.abspath(web)
-        if record:
-            self.record = os.path.abspath(record)
-
-        if self.web:
-            os.chdir(self.web)
-
-        # Sanity checks
-        if not ssl and self.ssl_only:
-            raise Exception("No 'ssl' module and SSL-only specified")
-        if self.daemon and not resource:
-            raise Exception("Module 'resource' required to daemonize")
-
-        # Show configuration
-        print("WebSocket server settings:")
-        print("  - Listen on %s:%s" % (
-                self.listen_host, self.listen_port))
-        print("  - Flash security policy server")
-        if self.web:
-            print("  - Web server. Web root: %s" % self.web)
-        if ssl:
-            if os.path.exists(self.cert):
-                print("  - SSL/TLS support")
-                if self.ssl_only:
-                    print("  - Deny non-SSL/TLS connections")
-            else:
-                print("  - No SSL/TLS support (no cert file)")
-        else:
-            print("  - No SSL/TLS support (no 'ssl' module)")
-        if self.daemon:
-            print("  - Backgrounding (daemon)")
-        if self.record:
-            print("  - Recording to '%s.*'" % self.record)
-
-    #
-    # WebSocketServer static methods
-    #
-
-    @staticmethod
-    def socket(host, port=None, connect=False, prefer_ipv6=False, unix_socket=None, use_ssl=False):
-        """ Resolve a host (and optional port) to an IPv4 or IPv6
-        address. Create a socket. Bind to it if listen is set,
-        otherwise connect to it. Return the socket.
-        """
-        flags = 0
-        if host == '':
-            host = None
-        if connect and not (port or unix_socket):
-            raise Exception("Connect mode requires a port")
-        if use_ssl and not ssl:
-            raise Exception("SSL socket requested but Python SSL module not loaded.");
-        if not connect and use_ssl:
-            raise Exception("SSL only supported in connect mode (for now)")
-        if not connect:
-            flags = flags | socket.AI_PASSIVE
-            
-        if not unix_socket:
-            addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
-                    socket.IPPROTO_TCP, flags)
-            if not addrs:
-                raise Exception("Could not resolve host '%s'" % host)
-            addrs.sort(key=lambda x: x[0])
-            if prefer_ipv6:
-                addrs.reverse()
-            sock = socket.socket(addrs[0][0], addrs[0][1])
-            if connect:
-                sock.connect(addrs[0][4])
-                if use_ssl:
-                    sock = ssl.wrap_socket(sock)
-            else:
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.bind(addrs[0][4])
-                sock.listen(100)
-        else:    
-            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-            sock.connect(unix_socket)
-
-        return sock
-
-    @staticmethod
-    def daemonize(keepfd=None, chdir='/'):
-        os.umask(0)
-        if chdir:
-            os.chdir(chdir)
-        else:
-            os.chdir('/')
-        os.setgid(os.getgid())  # relinquish elevations
-        os.setuid(os.getuid())  # relinquish elevations
-
-        # Double fork to daemonize
-        if os.fork() > 0: os._exit(0)  # Parent exits
-        os.setsid()                    # Obtain new process group
-        if os.fork() > 0: os._exit(0)  # Parent exits
-
-        # Signal handling
-        def terminate(a,b): os._exit(0)
-        signal.signal(signal.SIGTERM, terminate)
-        signal.signal(signal.SIGINT, signal.SIG_IGN)
-
-        # Close open files
-        maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-        if maxfd == resource.RLIM_INFINITY: maxfd = 256
-        for fd in reversed(range(maxfd)):
-            try:
-                if fd != keepfd:
-                    os.close(fd)
-            except OSError:
-                _, exc, _ = sys.exc_info()
-                if exc.errno != errno.EBADF: raise
-
-        # Redirect I/O to /dev/null
-        os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdin.fileno())
-        os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdout.fileno())
-        os.dup2(os.open(os.devnull, os.O_RDWR), sys.stderr.fileno())
 
     @staticmethod
     def unmask(buf, hlen, plen):
@@ -373,30 +226,10 @@ Sec-WebSocket-Accept: %s\r
 
         return f
 
-
-    #
-    # WebSocketServer logging/output functions
-    #
-
-    def traffic(self, token="."):
-        """ Show traffic flow in verbose mode. """
-        if self.verbose and not self.daemon:
-            sys.stdout.write(token)
-            sys.stdout.flush()
-
-    def msg(self, msg):
-        """ Output message with handler_id prefix. """
-        if not self.daemon:
-            print("% 3d: %s" % (self.handler_id, msg))
-
-    def vmsg(self, msg):
-        """ Same as msg() but only if verbose. """
-        if self.verbose:
-            self.msg(msg)
-
     #
     # Main WebSocketServer methods
     #
+
     def send_frames(self, bufs=None):
         """ Encode and send WebSocket frames. Any frames already
         queued will be sent first. If buf is not set then only queued
@@ -547,6 +380,156 @@ Sec-WebSocket-Accept: %s\r
 
         return response
 
+    def new_client(self):
+        """ Do something with a WebSockets client connection. """
+        raise("WebSocketServer.new_client() must be overloaded")
+
+    policy_response = """<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\n"""
+
+    # An exception before the WebSocket connection was established
+    class EClose(Exception):
+        pass
+
+    def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
+            verbose=False, cert='', key='', ssl_only=None,
+            daemon=False, record='', web='',
+            run_once=False, timeout=0, idle_timeout=0):
+
+        # settings
+        self.verbose        = verbose
+        self.listen_host    = listen_host
+        self.listen_port    = listen_port
+        self.prefer_ipv6    = source_is_ipv6
+        self.ssl_only       = ssl_only
+        self.daemon         = daemon
+        self.run_once       = run_once
+        self.timeout        = timeout
+        self.idle_timeout   = idle_timeout
+        
+        self.launch_time    = time.time()
+        self.ws_connection  = False
+        self.handler_id     = 1
+
+        # Make paths settings absolute
+        self.cert = os.path.abspath(cert)
+        self.key = self.web = self.record = ''
+        if key:
+            self.key = os.path.abspath(key)
+        if web:
+            self.web = os.path.abspath(web)
+        if record:
+            self.record = os.path.abspath(record)
+
+        if self.web:
+            os.chdir(self.web)
+
+        # Sanity checks
+        if not ssl and self.ssl_only:
+            raise Exception("No 'ssl' module and SSL-only specified")
+        if self.daemon and not resource:
+            raise Exception("Module 'resource' required to daemonize")
+
+        # Show configuration
+        print("WebSocket server settings:")
+        print("  - Listen on %s:%s" % (
+                self.listen_host, self.listen_port))
+        print("  - Flash security policy server")
+        if self.web:
+            print("  - Web server. Web root: %s" % self.web)
+        if ssl:
+            if os.path.exists(self.cert):
+                print("  - SSL/TLS support")
+                if self.ssl_only:
+                    print("  - Deny non-SSL/TLS connections")
+            else:
+                print("  - No SSL/TLS support (no cert file)")
+        else:
+            print("  - No SSL/TLS support (no 'ssl' module)")
+        if self.daemon:
+            print("  - Backgrounding (daemon)")
+        if self.record:
+            print("  - Recording to '%s.*'" % self.record)
+
+    #
+    # WebSocketServer static methods
+    #
+
+    @staticmethod
+    def socket(host, port=None, connect=False, prefer_ipv6=False, unix_socket=None, use_ssl=False):
+        """ Resolve a host (and optional port) to an IPv4 or IPv6
+        address. Create a socket. Bind to it if listen is set,
+        otherwise connect to it. Return the socket.
+        """
+        flags = 0
+        if host == '':
+            host = None
+        if connect and not (port or unix_socket):
+            raise Exception("Connect mode requires a port")
+        if use_ssl and not ssl:
+            raise Exception("SSL socket requested but Python SSL module not loaded.");
+        if not connect and use_ssl:
+            raise Exception("SSL only supported in connect mode (for now)")
+        if not connect:
+            flags = flags | socket.AI_PASSIVE
+            
+        if not unix_socket:
+            addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
+                    socket.IPPROTO_TCP, flags)
+            if not addrs:
+                raise Exception("Could not resolve host '%s'" % host)
+            addrs.sort(key=lambda x: x[0])
+            if prefer_ipv6:
+                addrs.reverse()
+            sock = socket.socket(addrs[0][0], addrs[0][1])
+            if connect:
+                sock.connect(addrs[0][4])
+                if use_ssl:
+                    sock = ssl.wrap_socket(sock)
+            else:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind(addrs[0][4])
+                sock.listen(100)
+        else:    
+            sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            sock.connect(unix_socket)
+
+        return sock
+
+    @staticmethod
+    def daemonize(keepfd=None, chdir='/'):
+        os.umask(0)
+        if chdir:
+            os.chdir(chdir)
+        else:
+            os.chdir('/')
+        os.setgid(os.getgid())  # relinquish elevations
+        os.setuid(os.getuid())  # relinquish elevations
+
+        # Double fork to daemonize
+        if os.fork() > 0: os._exit(0)  # Parent exits
+        os.setsid()                    # Obtain new process group
+        if os.fork() > 0: os._exit(0)  # Parent exits
+
+        # Signal handling
+        def terminate(a,b): os._exit(0)
+        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+
+        # Close open files
+        maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
+        if maxfd == resource.RLIM_INFINITY: maxfd = 256
+        for fd in reversed(range(maxfd)):
+            try:
+                if fd != keepfd:
+                    os.close(fd)
+            except OSError:
+                _, exc, _ = sys.exc_info()
+                if exc.errno != errno.EBADF: raise
+
+        # Redirect I/O to /dev/null
+        os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdin.fileno())
+        os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdout.fileno())
+        os.dup2(os.open(os.devnull, os.O_RDWR), sys.stderr.fileno())
 
     def do_handshake(self, sock, address):
         """
@@ -651,6 +634,27 @@ Sec-WebSocket-Accept: %s\r
 
 
     #
+    # WebSocketServer logging/output functions
+    #
+
+    def traffic(self, token="."):
+        """ Show traffic flow in verbose mode. """
+        if self.verbose and not self.daemon:
+            sys.stdout.write(token)
+            sys.stdout.flush()
+
+    def msg(self, msg):
+        """ Output message with handler_id prefix. """
+        if not self.daemon:
+            print("% 3d: %s" % (self.handler_id, msg))
+
+    def vmsg(self, msg):
+        """ Same as msg() but only if verbose. """
+        if self.verbose:
+            self.msg(msg)
+
+
+    #
     # Events that can/should be overridden in sub-classes
     #
     def started(self):
@@ -729,10 +733,6 @@ Sec-WebSocket-Accept: %s\r
                 # Close the SSL wrapped socket
                 # Original socket closed by caller
                 self.request.close()
-
-    def new_client(self):
-        """ Do something with a WebSockets client connection. """
-        raise("WebSocketServer.new_client() must be overloaded")
 
     def start_server(self):
         """
