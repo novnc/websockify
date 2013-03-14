@@ -12,6 +12,8 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import signal, socket, optparse, time, os, sys, subprocess
+import SocketServer, BaseHTTPServer
+from SimpleHTTPServer import SimpleHTTPRequestHandler
 from select import select
 import websocket
 try:
@@ -20,7 +22,7 @@ except:
     from cgi import parse_qs
     from urlparse import urlparse
 
-class WebSocketProxy(websocket.WebSocketServer):
+class CustomProxyServer(websocket.WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
     socket server target. All traffic to/from the client is base64
@@ -140,6 +142,8 @@ class WebSocketProxy(websocket.WebSocketServer):
     # process.
     #
 
+class ProxyRequestHandler(websocket.WebSocketRequestHandler):
+
     #
     # Routines below this point are connection handler routines and
     # will be run in a separate forked process for each connection.
@@ -150,38 +154,38 @@ Traffic Legend:
     }  - Client receive
     }. - Client receive partial
     {  - Target receive
-
+ 
     >  - Target send
     >. - Target send partial
     <  - Client send
     <. - Client send partial
 """
 
-    def new_client(self):
+    def new_websocket_client(self):
         """
         Called after a new WebSocket connection has been established.
         """
         # Checks if we receive a token, and look
         # for a valid target for it then
-        if self.target_cfg:
-            (self.target_host, self.target_port) = self.get_target(self.target_cfg, self.path)
+        if self.server.target_cfg:
+            (self.server.target_host, self.server.target_port) = self.get_target(self.server.target_cfg, self.path)
 
         # Connect to the target
-        if self.wrap_cmd:
-            msg = "connecting to command: '%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
-        elif self.unix_target:
-            msg = "connecting to unix socket: %s" % self.unix_target
+        if self.server.wrap_cmd:
+            msg = "connecting to command: '%s' (port %s)" % (" ".join(self.server.wrap_cmd), self.server.target_port)
+        elif self.server.unix_target:
+            msg = "connecting to unix socket: %s" % self.server.unix_target
         else:
             msg = "connecting to: %s:%s" % (
-                                    self.target_host, self.target_port)
+                                    self.server.target_host, self.server.target_port)
 
-        if self.ssl_target:
+        if self.server.ssl_target:
             msg += " (using SSL)"
-        self.msg(msg)
+        self.log_message(msg)
 
-        tsock = websocket.WebSocketServer.socket(self.target_host, 
-                                                 self.target_port,
-                connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_target)
+        tsock = websocket.WebSocketServer.socket(self.server.target_host,
+                                                 self.server.target_port,
+                connect=True, use_ssl=self.server.ssl_target, unix_socket=self.server.unix_target)
 
         if self.verbose and not self.daemon:
             print(self.traffic_legend)
@@ -193,8 +197,9 @@ Traffic Legend:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
-                self.vmsg("%s:%s: Closed target" %(
-                    self.target_host, self.target_port))
+                if self.verbose: 
+                    self.log_message("%s:%s: Closed target" %(
+                            self.server.target_host, self.server.target_port))
             raise
 
     def get_target(self, target_cfg, path):
@@ -266,8 +271,9 @@ Traffic Legend:
 
                 if closed:
                     # TODO: What about blocking on client socket?
-                    self.vmsg("%s:%s: Client closed connection" %(
-                        self.target_host, self.target_port))
+                    if self.verbose: 
+                        self.log_message("%s:%s: Client closed connection" %(
+                                self.server.target_host, self.server.target_port))
                     raise self.CClose(closed['code'], closed['reason'])
 
 
@@ -287,8 +293,9 @@ Traffic Legend:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
                 if len(buf) == 0:
-                    self.vmsg("%s:%s: Target closed connection" %(
-                        self.target_host, self.target_port))
+                    if self.verbose:
+                        self.log_message("%s:%s: Target closed connection" %(
+                                self.server.target_host, self.server.target_port))
                     raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
@@ -346,6 +353,8 @@ def websockify_init():
             help="Configuration file containing valid targets "
             "in the form 'token: host:port' or, alternatively, a "
             "directory containing configuration files of this form")
+    parser.add_option("--libserver", action="store_true",
+            help="use Python library SocketServer engine")
     (opts, args) = parser.parse_args()
 
     # Sanity checks
@@ -387,8 +396,65 @@ def websockify_init():
         except: parser.error("Error parsing target port")
 
     # Create and start the WebSockets proxy
-    server = WebSocketProxy(**opts.__dict__)
-    server.start_server()
+    libserver = opts.libserver
+    del opts.libserver
+    if libserver:
+        # Use standard Python SocketServer framework
+        httpd = LibProxyServer(ProxyRequestHandler, **opts.__dict__)
+        httpd.serve_forever()
+    else:
+        # Use internal service framework
+        server = CustomProxyServer(ProxyRequestHandler, **opts.__dict__)
+        server.start_server()
+
+
+class LibProxyServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
+    """
+    Just like CustomProxyServer, but uses standard Python SocketServer
+    framework.
+    """
+
+    def __init__(self, RequestHandlerClass, **kwargs):
+        # Save off proxy specific options
+        self.target_host    = kwargs.pop('target_host', None)
+        self.target_port    = kwargs.pop('target_port', None)
+        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
+        self.wrap_mode      = kwargs.pop('wrap_mode', None)
+        self.unix_target    = kwargs.pop('unix_target', None)
+        self.ssl_target     = kwargs.pop('ssl_target', None)
+        self.target_cfg     = kwargs.pop('target_cfg', None)
+        self.daemon = False
+        self.target_cfg = None
+
+        # Server configuration
+        listen_host    = kwargs.pop('listen_host', '')
+        listen_port    = kwargs.pop('listen_port', None)
+        web            = kwargs.pop('web', '')
+
+        # Configuration affecting base request handler
+        self.only_upgrade   = not web
+        self.verbose   = kwargs.pop('verbose', False)
+        record = kwargs.pop('record', '')
+        if record:
+            self.record = os.path.abspath(record)
+        self.run_once  = kwargs.pop('run_once', False)
+        self.handler_id = 0
+
+        for arg in kwargs.keys():
+            print("warning: option %s ignored when using --libserver" % arg)
+
+        if web:
+            os.chdir(web)
+            
+        BaseHTTPServer.HTTPServer.__init__(self, (listen_host, listen_port), 
+                                           RequestHandlerClass)
+
+
+    def process_request(self, request, client_address):
+        """Override process_request to implement a counter"""
+        self.handler_id += 1
+        SocketServer.ForkingMixIn.process_request(self, request, client_address)
+
 
 if __name__ == '__main__':
     websockify_init()
