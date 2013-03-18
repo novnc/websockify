@@ -470,7 +470,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                 
     def new_websocket_client(self):
         """ Do something with a WebSockets client connection. """
-        raise("WebSocketRequestHandler.new_websocket_client() must be overloaded")
+        raise Exception("WebSocketRequestHandler.new_websocket_client() must be overloaded")
 
     def do_HEAD(self):
         if self.only_upgrade:
