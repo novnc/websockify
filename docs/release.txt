@@ -4,8 +4,6 @@
     git tag v${WVER}
     git push origin master
     git push origin v${WVER}
-    git archive --format=tar --prefix=websockify-${WVER}/ v${WVER} > websockify-${WVER}.tar
-    gzip websockify-${WVER}.tar
 - Register with pypi.python.org (once):
     python setup.py register
 - Upload the source distribution to pypi
