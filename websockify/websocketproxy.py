@@ -22,7 +22,7 @@ except:
     from cgi import parse_qs
     from urlparse import urlparse
 
-class CustomProxyServer(websocket.WebSocketServer):
+class WebSocketProxy(websocket.WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
     socket server target. All traffic to/from the client is base64
@@ -400,17 +400,16 @@ def websockify_init():
     del opts.libserver
     if libserver:
         # Use standard Python SocketServer framework
-        httpd = LibProxyServer(ProxyRequestHandler, **opts.__dict__)
-        httpd.serve_forever()
+        server = LibProxyServer(ProxyRequestHandler, **opts.__dict__)
     else:
         # Use internal service framework
-        server = CustomProxyServer(ProxyRequestHandler, **opts.__dict__)
-        server.start_server()
+        server = WebSocketProxy(ProxyRequestHandler, **opts.__dict__)
+    server.start_server()
 
 
 class LibProxyServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
     """
-    Just like CustomProxyServer, but uses standard Python SocketServer
+    Just like WebSocketProxy, but uses standard Python SocketServer
     framework.
     """
 
