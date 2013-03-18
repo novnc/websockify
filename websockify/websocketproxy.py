@@ -401,10 +401,11 @@ def websockify_init():
     if libserver:
         # Use standard Python SocketServer framework
         server = LibProxyServer(ProxyRequestHandler, **opts.__dict__)
+        server.serve_forever()
     else:
         # Use internal service framework
         server = WebSocketProxy(ProxyRequestHandler, **opts.__dict__)
-    server.start_server()
+        server.start_server()
 
 
 class LibProxyServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
