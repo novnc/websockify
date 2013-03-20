@@ -34,7 +34,7 @@ class WebSocketLoad(WebSocketServer):
         self.recv_cnt = 0
 
         try:
-            self.responder(self.client)
+            self.responder(self.request)
         except:
             print "accumulated errors:", self.errors
             self.errors = 0
