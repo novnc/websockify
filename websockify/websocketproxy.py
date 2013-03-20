@@ -13,7 +13,6 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import signal, socket, optparse, time, os, sys, subprocess
 import SocketServer, BaseHTTPServer
-from SimpleHTTPServer import SimpleHTTPRequestHandler
 from select import select
 import websocket
 try:
