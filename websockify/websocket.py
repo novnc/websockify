@@ -66,6 +66,20 @@ if multiprocessing and sys.platform == 'win32':
 
 # HTTP handler with WebSocket upgrade support
 class WebSocketRequestHandler(SimpleHTTPRequestHandler):
+    """
+    WebSocket Request Handler Class, derived from SimpleHTTPRequestHandler.
+    Must be sub-classed with new_websocket_client method definition.
+    The request handler can be configured by setting optional
+    attributes on the server object:
+
+    * only_upgrade: If true, SimpleHTTPRequestHandler will not be enabled,
+      only websocket is allowed. 
+    * verbose: If true, verbose logging is activated. 
+    * daemon: Running as daemon, do not write to console etc
+    * record: Record raw frame data as JavaScript array into specified filename
+    * run_once: Handle a single request
+    * handler_id: A sequence number for this connection, appended to record filename
+    """
     buffer_size = 65536
 
     GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -500,7 +514,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 class WebSocketServer(object):
     """
     WebSockets server class.
-    Must be sub-classed with new_client method definition.
+    As an alternative, the standard library SocketServer can be used
     """
 
     policy_response = """<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\n"""
