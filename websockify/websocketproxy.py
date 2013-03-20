@@ -185,7 +185,7 @@ class WebSocketProxy(websocket.WebSocketServer):
 
     buffer_size = 65536
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, RequestHandlerClass=ProxyRequestHandler, *args, **kwargs):
         # Save off proxy specific options
         self.target_host    = kwargs.pop('target_host', None)
         self.target_port    = kwargs.pop('target_port', None)
@@ -226,7 +226,7 @@ class WebSocketProxy(websocket.WebSocketServer):
         if self.target_cfg:
             self.target_cfg = os.path.abspath(self.target_cfg)
 
-        websocket.WebSocketServer.__init__(self, *args, **kwargs)
+        websocket.WebSocketServer.__init__(self, RequestHandlerClass, *args, **kwargs)
 
     def run_wrap_cmd(self):
         print("Starting '%s'" % " ".join(self.wrap_cmd))
@@ -388,11 +388,11 @@ def websockify_init():
     del opts.libserver
     if libserver:
         # Use standard Python SocketServer framework
-        server = LibProxyServer(ProxyRequestHandler, **opts.__dict__)
+        server = LibProxyServer(**opts.__dict__)
         server.serve_forever()
     else:
         # Use internal service framework
-        server = WebSocketProxy(ProxyRequestHandler, **opts.__dict__)
+        server = WebSocketProxy(**opts.__dict__)
         server.start_server()
 
 
@@ -402,7 +402,7 @@ class LibProxyServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
     framework.
     """
 
-    def __init__(self, RequestHandlerClass, **kwargs):
+    def __init__(self, RequestHandlerClass=ProxyRequestHandler, **kwargs):
         # Save off proxy specific options
         self.target_host    = kwargs.pop('target_host', None)
         self.target_port    = kwargs.pop('target_port', None)
