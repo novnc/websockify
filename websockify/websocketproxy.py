@@ -12,7 +12,10 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import signal, socket, optparse, time, os, sys, subprocess
-import SocketServer, BaseHTTPServer
+try:    from socketserver import ForkingMixIn
+except: from SocketServer import ForkingMixIn
+try:    from http.server import HTTPServer
+except: from BaseHTTPServer import HTTPServer
 from select import select
 import websocket
 try:
@@ -396,7 +399,7 @@ def websockify_init():
         server.start_server()
 
 
-class LibProxyServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
+class LibProxyServer(ForkingMixIn, HTTPServer):
     """
     Just like WebSocketProxy, but uses standard Python SocketServer
     framework.
@@ -434,14 +437,14 @@ class LibProxyServer(SocketServer.ForkingMixIn, BaseHTTPServer.HTTPServer):
         if web:
             os.chdir(web)
             
-        BaseHTTPServer.HTTPServer.__init__(self, (listen_host, listen_port), 
-                                           RequestHandlerClass)
+        HTTPServer.__init__(self, (listen_host, listen_port), 
+                            RequestHandlerClass)
 
 
     def process_request(self, request, client_address):
         """Override process_request to implement a counter"""
         self.handler_id += 1
-        SocketServer.ForkingMixIn.process_request(self, request, client_address)
+        ForkingMixIn.process_request(self, request, client_address)
 
 
 if __name__ == '__main__':
