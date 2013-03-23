@@ -621,15 +621,23 @@ Sec-WebSocket-Accept: %s\r
             stype = "Plain non-SSL (ws://)"
 
         wsh = WSRequestHandler(retsock, address, not self.web)
-        if wsh.last_code == 101:
+ 
+        try:
+            last_code = wsh.last_code
+            last_message = wsh.last_message
+        except AttributeError:
+            last_code = 0
+            last_message = None
+ 
+        if last_code == 101:
             # Continue on to handle WebSocket upgrade
             pass
-        elif wsh.last_code == 405:
+        elif last_code == 405:
             raise self.EClose("Normal web request received but disallowed")
-        elif wsh.last_code < 200 or wsh.last_code >= 300:
-            raise self.EClose(wsh.last_message)
-        elif self.verbose:
-            raise self.EClose(wsh.last_message)
+        elif last_code < 200 or last_code >= 300 and last_message:
+            raise self.EClose(last_message)
+        elif self.verbose and last_message:
+            raise self.EClose(last_message)
         else:
             raise self.EClose("")
 
