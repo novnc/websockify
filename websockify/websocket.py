@@ -50,15 +50,15 @@ except:
         return struct.unpack(fmt, slice)
 
 # Degraded functionality if these imports are missing
-for mod, sup in [('numpy', 'HyBi protocol'), ('ssl', 'TLS/SSL/wss'),
-        ('multiprocessing', 'Multi-Processing'),
-        ('resource', 'daemonizing')]:
+for mod, msg in [('numpy', 'HyBi protocol will be slower'),
+                 ('ssl', 'TLS/SSL/wss is disabled'),
+                 ('multiprocessing', 'Multi-Processing is disabled'),
+                 ('resource', 'daemonizing is disabled')]:
     try:
         globals()[mod] = __import__(mod)
     except ImportError:
         globals()[mod] = None
-        print("WARNING: no '%s' module, %s is slower or disabled" % (
-            mod, sup))
+        print("WARNING: no '%s' module, %s" % (mod, msg))
 if multiprocessing and sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
