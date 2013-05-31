@@ -214,8 +214,7 @@ Sec-WebSocket-Accept: %s\r
         if os.fork() > 0: os._exit(0)  # Parent exits
 
         # Signal handling
-        def terminate(a,b): os._exit(0)
-        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         # Close open files
@@ -681,6 +680,10 @@ Sec-WebSocket-Accept: %s\r
         self.msg("Got SIGINT, exiting")
         sys.exit(0)
 
+    def do_SIGTERM(self, sig, stack):
+        self.msg("Got SIGTERM, exiting")
+        sys.exit(0)
+
     def top_new_client(self, startsock, address):
         """ Do something with a WebSockets client connection. """
         # Initialize per client settings
@@ -752,8 +755,9 @@ Sec-WebSocket-Accept: %s\r
 
         self.started()  # Some things need to happen after daemonizing
 
-        # Allow override of SIGINT
+        # Allow override of signals
         signal.signal(signal.SIGINT, self.do_SIGINT)
+        signal.signal(signal.SIGTERM, self.do_SIGTERM)
         signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
 
         last_active_time = self.launch_time
