@@ -92,7 +92,7 @@ Sec-WebSocket-Accept: %s\r
 
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web='',
+            daemon=False, record='', web='', file_only=False, no_parent=False,
             run_once=False, timeout=0, idle_timeout=0):
 
         # settings
@@ -109,6 +109,9 @@ Sec-WebSocket-Accept: %s\r
         self.launch_time    = time.time()
         self.ws_connection  = False
         self.handler_id     = 1
+
+        self.file_only      = file_only
+        self.no_parent      = no_parent
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
@@ -620,7 +623,8 @@ Sec-WebSocket-Accept: %s\r
             self.scheme = "ws"
             stype = "Plain non-SSL (ws://)"
 
-        wsh = WSRequestHandler(retsock, address, not self.web)
+        wsh = WSRequestHandler(retsock, address, not self.web, 
+                               self.file_only, self.no_parent)
         if wsh.last_code == 101:
             # Continue on to handle WebSocket upgrade
             pass
@@ -859,11 +863,16 @@ Sec-WebSocket-Accept: %s\r
 
 # HTTP handler with WebSocket upgrade support
 class WSRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, req, addr, only_upgrade=False):
+    def __init__(self, req, addr, only_upgrade=False, file_only=False,
+                 no_parent=False):
         self.only_upgrade = only_upgrade # only allow upgrades
+        self.webroot = os.path.realpath(".")
+        self.file_only = file_only
+        self.no_parent = no_parent
         SimpleHTTPRequestHandler.__init__(self, req, addr, object())
 
     def do_GET(self):
+        abspath = os.path.realpath("." + (self.path.split('?')[0]))
         if (self.headers.get('upgrade') and
                 self.headers.get('upgrade').lower() == 'websocket'):
 
@@ -874,6 +883,10 @@ class WSRequestHandler(SimpleHTTPRequestHandler):
             # Normal web request responses are disabled
             self.last_code = 405
             self.last_message = "405 Method Not Allowed"
+        elif self.file_only and not os.path.isfile(abspath):
+            self.send_response(404,  "No such file")
+        elif self.no_parent and not abspath.startswith(self.webroot):
+            self.send_response(403,  "Hidden resources")
         else:
             SimpleHTTPRequestHandler.do_GET(self)
 
