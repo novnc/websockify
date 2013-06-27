@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.5.1 - Jun 27, 2013
+--------------------
+
+ * use upstream einaros/ws (>=0.4.27) with websockify.js
+ * file_only and no_parent security options for WSRequestHandler
+ * Update build of web-socket-js (c0855c6cae)
+ * add include/web-socket-js-project submodule to gimite/web-socket-js
+   for DSFG compliance.
+ * drop Hixie protocol support
+
 0.4.1 - Mar 12, 2013
 --------------------
 
