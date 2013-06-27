@@ -7,14 +7,6 @@
 // Known to work with node 0.8.9
 // Requires node modules: ws, optimist and policyfile
 //     npm install ws optimist policyfile
-//
-// NOTE: 
-// This version requires a patched version of einaros/ws that supports
-// subprotocol negotiation. You can use the patched version like this:
-// 
-//     cd websockify/other
-//     git clone https://github.com/kanaka/ws
-//     npm link ./ws
 
 
 var argv = require('optimist').argv,
@@ -37,6 +29,7 @@ var argv = require('optimist').argv,
 // Handle new WebSocket client
 new_client = function(client) {
     var clientAddr = client._socket.remoteAddress, log;
+    console.log(client.upgradeReq.url);
     log = function (msg) {
         console.log(' ' + clientAddr + ': '+ msg);
     };
@@ -61,6 +54,12 @@ new_client = function(client) {
     });
     target.on('end', function() {
         log('target disconnected');
+        client.close();
+    });
+    target.on('error', function() {
+        log('target connection error');
+        target.end();
+        client.close();
     });
 
     client.on('message', function(msg) {
@@ -126,11 +125,9 @@ http_request = function (request, response) {
 
 // Select 'binary' or 'base64' subprotocol, preferring 'binary'
 selectProtocol = function(protocols, callback) {
-    var plist = protocols ? protocols.split(',') : "";
-    var plist = protocols.split(',');
-    if (plist.indexOf('binary') >= 0) {
+    if (protocols.indexOf('binary') >= 0) {
         callback(true, 'binary');
-    } else if (plist.indexOf('base64') >= 0) {
+    } else if (protocols.indexOf('base64') >= 0) {
         callback(true, 'base64');
     } else {
         console.log("Client must support 'binary' or 'base64' protocol");
