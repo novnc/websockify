@@ -15,6 +15,16 @@ require 'digest/md5'
 require 'digest/sha1'
 require 'base64'
 
+unless OpenSSL::SSL::SSLSocket.instance_methods.index("read_nonblock")
+  module OpenSSL
+    module SSL
+      class SSLSocket
+        alias :read_nonblock :readpartial
+      end
+    end
+  end
+end
+
 class EClose < Exception
 end
 
