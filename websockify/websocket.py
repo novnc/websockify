@@ -16,7 +16,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import os, sys, time, errno, signal, socket, traceback, select
+import os, sys, time, errno, signal, socket, select, logging
 import array, struct
 from base64 import b64encode, b64decode
 
@@ -58,7 +58,7 @@ for mod, msg in [('numpy', 'HyBi protocol will be slower'),
         globals()[mod] = __import__(mod)
     except ImportError:
         globals()[mod] = None
-        print("WARNING: no '%s' module, %s" % (mod, msg))
+        self.msg("WARNING: no '%s' module, %s", mod, msg)
 if multiprocessing and sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
@@ -70,6 +70,7 @@ class WebSocketServer(object):
     Must be sub-classed with new_client method definition.
     """
 
+    log_prefix = "websocket"
     buffer_size = 65536
 
     server_handshake_hybi = """HTTP/1.1 101 Switching Protocols\r
@@ -96,7 +97,7 @@ Sec-WebSocket-Accept: %s\r
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='', file_only=False, no_parent=False,
-            run_once=False, timeout=0, idle_timeout=0):
+            run_once=False, timeout=0, idle_timeout=0, traffic=False):
 
         # settings
         self.verbose        = verbose
@@ -108,13 +109,17 @@ Sec-WebSocket-Accept: %s\r
         self.run_once       = run_once
         self.timeout        = timeout
         self.idle_timeout   = idle_timeout
+        self.traffic        = traffic
         
         self.launch_time    = time.time()
         self.ws_connection  = False
+        self.i_am_client    = False
         self.handler_id     = 1
 
         self.file_only      = file_only
         self.no_parent      = no_parent
+
+        self.logger         = self.get_logger()
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
@@ -136,29 +141,35 @@ Sec-WebSocket-Accept: %s\r
             raise Exception("Module 'resource' required to daemonize")
 
         # Show configuration
-        print("WebSocket server settings:")
-        print("  - Listen on %s:%s" % (
-                self.listen_host, self.listen_port))
-        print("  - Flash security policy server")
+        self.msg("WebSocket server settings:")
+        self.msg("  - Listen on %s:%s",
+                self.listen_host, self.listen_port)
+        self.msg("  - Flash security policy server")
         if self.web:
-            print("  - Web server. Web root: %s" % self.web)
+            self.msg("  - Web server. Web root: %s", self.web)
         if ssl:
             if os.path.exists(self.cert):
-                print("  - SSL/TLS support")
+                self.msg("  - SSL/TLS support")
                 if self.ssl_only:
-                    print("  - Deny non-SSL/TLS connections")
+                    self.msg("  - Deny non-SSL/TLS connections")
             else:
-                print("  - No SSL/TLS support (no cert file)")
+                self.msg("  - No SSL/TLS support (no cert file)")
         else:
-            print("  - No SSL/TLS support (no 'ssl' module)")
+            self.msg("  - No SSL/TLS support (no 'ssl' module)")
         if self.daemon:
-            print("  - Backgrounding (daemon)")
+            self.msg("  - Backgrounding (daemon)")
         if self.record:
-            print("  - Recording to '%s.*'" % self.record)
+            self.msg("  - Recording to '%s.*'", self.record)
 
     #
     # WebSocketServer static methods
     #
+
+    @staticmethod
+    def get_logger():
+        return logging.getLogger("%s.%s" % (
+            WebSocketServer.log_prefix,
+            WebSocketServer.__class__.__name__))
 
     @staticmethod
     def socket(host, port=None, connect=False, prefer_ipv6=False, unix_socket=None, use_ssl=False):
@@ -251,7 +262,7 @@ Sec-WebSocket-Accept: %s\r
                 b = numpy.bitwise_xor(data, mask).tostring()
 
             if plen % 4:
-                #print("Partial unmask")
+                #self.msg("Partial unmask")
                 mask = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
                         offset=hlen, count=(plen % 4))
                 data = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
@@ -292,7 +303,7 @@ Sec-WebSocket-Accept: %s\r
         elif payload_len >= 65536:
             header = pack('>BBQ', b1, 127, payload_len)
 
-        #print("Encoded: %s" % repr(header + buf))
+        #self.msg("Encoded: %s", repr(header + buf))
 
         return header + buf, len(header), 0
 
@@ -320,6 +331,8 @@ Sec-WebSocket-Accept: %s\r
              'left'         : 0,
              'close_code'   : 1000,
              'close_reason' : ''}
+
+        logger = WebSocketServer.get_logger()
 
         blen = len(buf)
         f['left'] = blen
@@ -359,15 +372,16 @@ Sec-WebSocket-Accept: %s\r
             f['payload'] = WebSocketServer.unmask(buf, f['hlen'],
                                                   f['length'])
         else:
-            print("Unmasked frame: %s" % repr(buf))
+            self.vmsg("Unmasked frame: %s" % repr(buf))
             f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
 
         if base64 and f['opcode'] in [1, 2]:
             try:
                 f['payload'] = b64decode(f['payload'])
             except:
-                print("Exception while b64decoding buffer: %s" %
+                self.warn("Exception while b64decoding buffer: %s",
                         repr(buf))
+                self.vmsg('Exception', exc_info=True)
                 raise
 
         if f['opcode'] == 0x08:
@@ -383,21 +397,32 @@ Sec-WebSocket-Accept: %s\r
     # WebSocketServer logging/output functions
     #
 
-    def traffic(self, token="."):
-        """ Show traffic flow in verbose mode. """
-        if self.verbose and not self.daemon:
+    def print_traffic(self, token="."):
+        """ Show traffic flow mode. """
+        if self.traffic:
             sys.stdout.write(token)
             sys.stdout.flush()
 
-    def msg(self, msg):
-        """ Output message with handler_id prefix. """
-        if not self.daemon:
-            print("% 3d: %s" % (self.handler_id, msg))
 
-    def vmsg(self, msg):
-        """ Same as msg() but only if verbose. """
-        if self.verbose:
-            self.msg(msg)
+    def log(self, lvl, msg, *args, **kwargs):
+        """ Wrapper around python logging """
+        prefix = ""
+        if self.i_am_client:
+            prefix = "% 3d: " % self.handler_id
+        self.logger.log(lvl, "%s%s" % (prefix, msg),
+            *args, **kwargs)
+
+    def msg(self, *args, **kwargs):
+        """ Output message with handler_id prefix. """
+        self.log(logging.INFO, *args, **kwargs)
+
+    def vmsg(self, *args, **kwargs):
+        """ Same as msg() but as debug. """
+        self.log(logging.DEBUG, *args, **kwargs)
+
+    def warn(self, *args, **kwargs):
+        """ Same as msg() but as warning. """
+        self.log(logging.WARN, *args, **kwargs)
 
     #
     # Main WebSocketServer methods
@@ -432,9 +457,9 @@ Sec-WebSocket-Accept: %s\r
             sent = self.client.send(buf)
 
             if sent == len(buf):
-                self.traffic("<")
+                self.print_traffic("<")
             else:
-                self.traffic("<.")
+                self.print_traffic("<.")
                 self.send_parts.insert(0, buf[sent:])
                 break
 
@@ -463,11 +488,11 @@ Sec-WebSocket-Accept: %s\r
 
         while buf:
             frame = self.decode_hybi(buf, base64=self.base64)
-            #print("Received buf: %s, frame: %s" % (repr(buf), frame))
+            #self.msg("Received buf: %s, frame: %s", repr(buf), frame)
 
             if frame['payload'] == None:
                 # Incomplete/partial frame
-                self.traffic("}.")
+                self.print_traffic("}.")
                 if frame['left'] > 0:
                     self.recv_part = buf[-frame['left']:]
                 break
@@ -477,7 +502,7 @@ Sec-WebSocket-Accept: %s\r
                               'reason': frame['close_reason']}
                     break
 
-            self.traffic("}")
+            self.print_traffic("}")
 
             if self.rec:
                 start = frame['hlen']
@@ -693,6 +718,7 @@ Sec-WebSocket-Accept: %s\r
     def top_new_client(self, startsock, address):
         """ Do something with a WebSockets client connection. """
         # Initialize per client settings
+        self.i_am_client = True
         self.send_parts = []
         self.recv_part  = None
         self.base64     = False
@@ -733,8 +759,7 @@ Sec-WebSocket-Accept: %s\r
             except Exception:
                 _, exc, _ = sys.exc_info()
                 self.msg("handler exception: %s" % str(exc))
-                if self.verbose:
-                    self.msg(traceback.format_exc())
+                self.vmsg("exception", exc_info=True)
         finally:
             if self.rec:
                 self.rec.write("'EOF'];\n")
@@ -857,22 +882,19 @@ Sec-WebSocket-Accept: %s\r
                         self.handler_id += 1
 
                     except (self.Terminate, SystemExit, KeyboardInterrupt):
-                        _, exc, _ = sys.exc_info()
-                        print("In exit")
+                        self.msg("In exit")
                         break
                     except Exception:
-                        _, exc, _ = sys.exc_info()
-                        self.msg("handler exception: %s" % str(exc))
-                        if self.verbose:
-                            self.msg(traceback.format_exc())
+                        self.msg("handler exception: %s", str(exc))
+                        self.vmsg("exception", exc_info=True)
 
                 finally:
                     if startsock:
                         startsock.close()
         finally:
             # Close listen port
-            self.vmsg("Closing socket listening at %s:%s"
-                    % (self.listen_host, self.listen_port))
+            self.vmsg("Closing socket listening at %s:%s",
+                      self.listen_host, self.listen_port)
             lsock.close()
 
             # Restore signals
