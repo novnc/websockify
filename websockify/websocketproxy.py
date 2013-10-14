@@ -20,6 +20,12 @@ except:
     from cgi import parse_qs
     from urlparse import urlparse
 
+from websockify import log
+
+
+LOG = log.get_logger()
+
+
 class WebSocketProxy(websocket.WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
@@ -86,7 +92,7 @@ Traffic Legend:
         websocket.WebSocketServer.__init__(self, *args, **kwargs)
 
     def run_wrap_cmd(self):
-        print("Starting '%s'" % " ".join(self.wrap_cmd))
+        LOG.info("Starting '%s'" % " ".join(self.wrap_cmd))
         self.wrap_times.append(time.time())
         self.wrap_times.pop(0)
         self.cmd = subprocess.Popen(
@@ -116,7 +122,7 @@ Traffic Legend:
         if self.ssl_target:
             msg += " (using SSL)"
 
-        print(msg + "\n")
+        LOG.info(msg + "\n")
 
         if self.wrap_cmd:
             self.run_wrap_cmd()
@@ -142,7 +148,7 @@ Traffic Legend:
                 if (now - avg) < 10:
                     # 3 times in the last 10 seconds
                     if self.spawn_message:
-                        print("Command respawning too fast")
+                        LOG.warning("Command respawning too fast")
                         self.spawn_message = False
                 else:
                     self.run_wrap_cmd()
@@ -183,7 +189,7 @@ Traffic Legend:
                 connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_target)
 
         if self.verbose and not self.daemon:
-            print(self.traffic_legend)
+            LOG.info(self.traffic_legend)
 
         # Start proxying
         try:

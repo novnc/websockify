@@ -20,6 +20,10 @@ import os, sys, time, errno, signal, socket, traceback, select
 import array, struct
 from base64 import b64encode, b64decode
 
+from websockify import log
+
+LOG = log.get_logger()
+
 # Imports that vary by python version
 
 # python 3.0 differences
@@ -58,7 +62,7 @@ for mod, msg in [('numpy', 'HyBi protocol will be slower'),
         globals()[mod] = __import__(mod)
     except ImportError:
         globals()[mod] = None
-        print("WARNING: no '%s' module, %s" % (mod, msg))
+        LOG.warning("no '%s' module, %s" % (mod, msg))
 if multiprocessing and sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
@@ -133,25 +137,25 @@ Sec-WebSocket-Accept: %s\r
             raise Exception("Module 'resource' required to daemonize")
 
         # Show configuration
-        print("WebSocket server settings:")
-        print("  - Listen on %s:%s" % (
+        LOG.info("WebSocket server settings:")
+        LOG.info("  - Listen on %s:%s" % (
                 self.listen_host, self.listen_port))
-        print("  - Flash security policy server")
+        LOG.info("  - Flash security policy server")
         if self.web:
-            print("  - Web server. Web root: %s" % self.web)
+            LOG.info("  - Web server. Web root: %s" % self.web)
         if ssl:
             if os.path.exists(self.cert):
-                print("  - SSL/TLS support")
+                LOG.info("  - SSL/TLS support")
                 if self.ssl_only:
-                    print("  - Deny non-SSL/TLS connections")
+                    LOG.info("  - Deny non-SSL/TLS connections")
             else:
-                print("  - No SSL/TLS support (no cert file)")
+                LOG.info("  - No SSL/TLS support (no cert file)")
         else:
-            print("  - No SSL/TLS support (no 'ssl' module)")
+            LOG.info("  - No SSL/TLS support (no 'ssl' module)")
         if self.daemon:
-            print("  - Backgrounding (daemon)")
+            LOG.info("  - Backgrounding (daemon)")
         if self.record:
-            print("  - Recording to '%s.*'" % self.record)
+            LOG.info("  - Recording to '%s.*'" % self.record)
 
     #
     # WebSocketServer static methods
@@ -357,14 +361,14 @@ Sec-WebSocket-Accept: %s\r
             f['payload'] = WebSocketServer.unmask(buf, f['hlen'],
                                                   f['length'])
         else:
-            print("Unmasked frame: %s" % repr(buf))
+            LOG.info("Unmasked frame: %s" % repr(buf))
             f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
 
         if base64 and f['opcode'] in [1, 2]:
             try:
                 f['payload'] = b64decode(f['payload'])
             except:
-                print("Exception while b64decoding buffer: %s" %
+                LOG.error("Exception while b64decoding buffer: %s" %
                         repr(buf))
                 raise
 
@@ -390,7 +394,7 @@ Sec-WebSocket-Accept: %s\r
     def msg(self, msg):
         """ Output message with handler_id prefix. """
         if not self.daemon:
-            print("% 3d: %s" % (self.handler_id, msg))
+            LOG.info("% 3d: %s" % (self.handler_id, msg))
 
     def vmsg(self, msg):
         """ Same as msg() but only if verbose. """
@@ -571,7 +575,6 @@ Sec-WebSocket-Accept: %s\r
         stype = ""
         ready = select.select([sock], [], [], 3)[0]
 
-        
         if not ready:
             raise self.EClose("ignoring socket not ready")
         # Peek, but do not read the data so that we have a opportunity
@@ -838,17 +841,17 @@ Sec-WebSocket-Accept: %s\r
 
                 except KeyboardInterrupt:
                     _, exc, _ = sys.exc_info()
-                    print("In KeyboardInterrupt")
+                    LOG.warning("In KeyboardInterrupt")
                     pass
                 except SystemExit:
                     _, exc, _ = sys.exc_info()
-                    print("In SystemExit")
+                    LOG.warning("In SystemExit")
                     break
                 except Exception:
                     _, exc, _ = sys.exc_info()
-                    self.msg("handler exception: %s" % str(exc))
+                    LOG.error("handler exception: %s" % str(exc))
                     if self.verbose:
-                        self.msg(traceback.format_exc())
+                        LOG.error(traceback.format_exc())
 
             finally:
                 if startsock:
