@@ -11,7 +11,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess
+import signal, socket, optparse, time, os, sys, subprocess, logging
 from select import select
 import websocket
 try:
@@ -86,7 +86,7 @@ Traffic Legend:
         websocket.WebSocketServer.__init__(self, *args, **kwargs)
 
     def run_wrap_cmd(self):
-        print("Starting '%s'" % " ".join(self.wrap_cmd))
+        self.msg("Starting '%s'", " ".join(self.wrap_cmd))
         self.wrap_times.append(time.time())
         self.wrap_times.pop(0)
         self.cmd = subprocess.Popen(
@@ -116,7 +116,7 @@ Traffic Legend:
         if self.ssl_target:
             msg += " (using SSL)"
 
-        print(msg + "\n")
+        self.msg("%s", msg)
 
         if self.wrap_cmd:
             self.run_wrap_cmd()
@@ -142,7 +142,7 @@ Traffic Legend:
                 if (now - avg) < 10:
                     # 3 times in the last 10 seconds
                     if self.spawn_message:
-                        print("Command respawning too fast")
+                        self.warn("Command respawning too fast")
                         self.spawn_message = False
                 else:
                     self.run_wrap_cmd()
@@ -182,8 +182,7 @@ Traffic Legend:
         tsock = self.socket(self.target_host, self.target_port,
                 connect=True, use_ssl=self.ssl_target, unix_socket=self.unix_target)
 
-        if self.verbose and not self.daemon:
-            print(self.traffic_legend)
+        self.print_traffic(self.traffic_legend)
 
         # Start proxying
         try:
@@ -275,11 +274,11 @@ Traffic Legend:
                 dat = tqueue.pop(0)
                 sent = target.send(dat)
                 if sent == len(dat):
-                    self.traffic(">")
+                    self.print_traffic(">")
                 else:
                     # requeue the remaining data
                     tqueue.insert(0, dat[sent:])
-                    self.traffic(".>")
+                    self.print_traffic(".>")
 
 
             if target in ins:
@@ -291,7 +290,7 @@ Traffic Legend:
                     raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
-                self.traffic("{")
+                self.print_traffic("{")
 
 
 
@@ -301,14 +300,28 @@ def _subprocess_setup():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
+def logger_init():
+    logger = logging.getLogger(WebSocketProxy.log_prefix)
+    logger.propagate = False
+    logger.setLevel(logging.INFO)
+    h = logging.StreamHandler()
+    h.setLevel(logging.DEBUG)
+    h.setFormatter(logging.Formatter("%(message)s"))
+    logger.addHandler(h)
+
+
 def websockify_init():
+    logger_init()
+
     usage = "\n    %prog [options]"
     usage += " [source_addr:]source_port [target_addr:target_port]"
     usage += "\n    %prog [options]"
     usage += " [source_addr:]source_port -- WRAP_COMMAND_LINE"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("--verbose", "-v", action="store_true",
-            help="verbose messages and per frame traffic")
+            help="verbose messages")
+    parser.add_option("--traffic", action="store_true",
+            help="per frame traffic")
     parser.add_option("--record",
             help="record sessions to FILE.[session_number]", metavar="FILE")
     parser.add_option("--daemon", "-D",
@@ -346,6 +359,9 @@ def websockify_init():
             "in the form 'token: host:port' or, alternatively, a "
             "directory containing configuration files of this form")
     (opts, args) = parser.parse_args()
+
+    if opts.verbose:
+        logging.getLogger(WebSocketProxy.log_prefix).setLevel(logging.DEBUG)
 
     # Sanity checks
     if len(args) < 2 and not (opts.target_cfg or opts.unix_target):
