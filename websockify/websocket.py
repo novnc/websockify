@@ -718,7 +718,7 @@ Sec-WebSocket-Accept: %s\r
 
                 self.ws_connection = True
                 self.new_client()
-            except self.CClose, WebSocketServer.Terminate:
+            except self.CClose:
                 # Close the client
                 _, exc, _ = sys.exc_info()
                 if self.client:
