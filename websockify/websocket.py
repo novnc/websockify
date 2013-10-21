@@ -696,6 +696,9 @@ Sec-WebSocket-Accept: %s\r
     def terminate(self):
         raise self.Terminate()
 
+    def multiprocessing_SIGCHLD(self, sig, stack):
+        self.vmsg('Reaing zombies, active child count is %s', len(multiprocessing.active_children()))
+
     def fallback_SIGCHLD(self, sig, stack):
         # Reap zombies when using os.fork() (python 2.4)
         self.vmsg("Got SIGCHLD, reaping zombies")
@@ -796,7 +799,13 @@ Sec-WebSocket-Accept: %s\r
         }
         signal.signal(signal.SIGINT, self.do_SIGINT)
         signal.signal(signal.SIGTERM, self.do_SIGTERM)
-        signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
+        if not multiprocessing:
+            # os.fork() (python 2.4) child reaper
+            signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
+        else:
+            # make sure that _cleanup is called when children die
+            # by calling active_children on SIGCHLD
+            signal.signal(signal.SIGCHLD, self.multiprocessing_SIGCHLD)
 
         last_active_time = self.launch_time
         try:
