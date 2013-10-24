@@ -58,7 +58,7 @@ for mod, msg in [('numpy', 'HyBi protocol will be slower'),
         globals()[mod] = __import__(mod)
     except ImportError:
         globals()[mod] = None
-        self.msg("WARNING: no '%s' module, %s", mod, msg)
+        print("WARNING: no '%s' module, %s" % (mod, msg))
 if multiprocessing and sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
