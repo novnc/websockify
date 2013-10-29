@@ -7,8 +7,8 @@ given a sequence number. Any errors are reported and counted.
 '''
 
 import sys, os, select, random, time, optparse
-sys.path.insert(0,os.path.dirname(__file__) + "/../websockify")
-from websocket import WebSocketServer
+sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
+from websockify.websocket import WebSocketServer
 
 class WebSocketLoad(WebSocketServer):
 
