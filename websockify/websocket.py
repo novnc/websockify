@@ -96,8 +96,11 @@ Sec-WebSocket-Accept: %s\r
 
     def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web='', file_only=False, no_parent=False,
-            run_once=False, timeout=0, idle_timeout=0, traffic=False):
+            daemon=False, record='', web='',
+            file_only=False, no_parent=False,
+            run_once=False, timeout=0, idle_timeout=0, traffic=False,
+            tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
+            tcp_keepintvl=None):
 
         # settings
         self.verbose        = verbose
@@ -120,6 +123,10 @@ Sec-WebSocket-Accept: %s\r
         self.no_parent      = no_parent
 
         self.logger         = self.get_logger()
+        self.tcp_keepalive  = tcp_keepalive
+        self.tcp_keepcnt    = tcp_keepcnt
+        self.tcp_keepidle   = tcp_keepidle
+        self.tcp_keepintvl  = tcp_keepintvl
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
@@ -172,7 +179,9 @@ Sec-WebSocket-Accept: %s\r
             WebSocketServer.__class__.__name__))
 
     @staticmethod
-    def socket(host, port=None, connect=False, prefer_ipv6=False, unix_socket=None, use_ssl=False):
+    def socket(host, port=None, connect=False, prefer_ipv6=False,
+               unix_socket=None, use_ssl=False, tcp_keepalive=True,
+               tcp_keepcnt=None, tcp_keepidle=None, tcp_keepintvl=None):
         """ Resolve a host (and optional port) to an IPv4 or IPv6
         address. Create a socket. Bind to it if listen is set,
         otherwise connect to it. Return the socket.
@@ -198,6 +207,19 @@ Sec-WebSocket-Accept: %s\r
             if prefer_ipv6:
                 addrs.reverse()
             sock = socket.socket(addrs[0][0], addrs[0][1])
+
+            if  tcp_keepalive:
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                if tcp_keepcnt:
+                    sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
+                                    tcp_keepcnt)
+                if tcp_keepidle:
+                    sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE,
+                                    tcp_keepidle)
+                if tcp_keepintvl:
+                    sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL,
+                                    tcp_keepintvl)
+
             if connect:
                 sock.connect(addrs[0][4])
                 if use_ssl:
@@ -784,7 +806,12 @@ Sec-WebSocket-Accept: %s\r
         is a WebSockets client then call new_client() method (which must
         be overridden) for each new client connection.
         """
-        lsock = self.socket(self.listen_host, self.listen_port, False, self.prefer_ipv6)
+        lsock = self.socket(self.listen_host, self.listen_port, False,
+                            self.prefer_ipv6,
+                            tcp_keepalive=self.tcp_keepalive,
+                            tcp_keepcnt=self.tcp_keepcnt,
+                            tcp_keepidle=self.tcp_keepidle,
+                            tcp_keepintvl=self.tcp_keepintvl)
 
         if self.daemon:
             self.daemonize(keepfd=lsock.fileno(), chdir=self.web)
