@@ -17,7 +17,9 @@
 """ Unit tests for websocket """
 import errno
 import os
+import logging
 import select
+import shutil
 import socket
 import ssl
 import stubout
@@ -39,23 +41,43 @@ class MockConnection(object):
 
 class WebSocketTestCase(unittest.TestCase):
 
+    def _init_logger(self, tmpdir):
+        name = 'websocket-unittest'
+        logger = logging.getLogger(name)
+        logger.setLevel(logging.DEBUG)
+        logger.propagate = True
+        filename = "%s.log" % (name)
+        handler = logging.FileHandler(filename)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logger.addHandler(handler)
+
     def setUp(self):
         """Called automatically before each test."""
         super(WebSocketTestCase, self).setUp()
         self.stubs = stubout.StubOutForTesting()
-        self.server = websocket.WebSocketServer(listen_host='localhost',
-                                                listen_port=80,
-                                                key='./',
-                                                web='./',
-                                                record='./',
-                                                daemon=True,
-                                                ssl_only=False)
+        # Temporary dir for test data
+        self.tmpdir = tempfile.mkdtemp()
+        # Put log somewhere persistent
+        self._init_logger('./')
+        # Mock this out cause it screws tests up
+        self.stubs.Set(os, 'chdir', lambda *args, **kwargs: None)
+        self.server = self._get_websockserver(daemon=True,
+                                              ssl_only=False)
         self.soc = self.server.socket('localhost')
 
     def tearDown(self):
         """Called automatically after each test."""
         self.stubs.UnsetAll()
+        shutil.rmtree(self.tmpdir)
         super(WebSocketTestCase, self).tearDown()
+
+    def _get_websockserver(self, **kwargs):
+        return websocket.WebSocketServer(listen_host='localhost',
+                                         listen_port=80,
+                                         key=self.tmpdir,
+                                         web=self.tmpdir,
+                                         record=self.tmpdir,
+                                         **kwargs)        
 
     def _mock_os_open_oserror(self, file, flags):
         raise OSError('')
@@ -83,28 +105,14 @@ class WebSocketTestCase(unittest.TestCase):
         sys.exit()
 
     def test_daemonize_error(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=1,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=True, ssl_only=1, idle_timeout=1)
         self.stubs.Set(os, 'fork', lambda *args: None)
         self.stubs.Set(os, 'setsid', lambda *args: None)
         self.stubs.Set(os, 'close', self._mock_os_close_oserror)
         self.assertRaises(OSError, soc.daemonize, keepfd=None, chdir='./')
 
     def test_daemonize_EBADF_error(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=1,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=True, ssl_only=1, idle_timeout=1)
         self.stubs.Set(os, 'fork', lambda *args: None)
         self.stubs.Set(os, 'setsid', lambda *args: None)
         self.stubs.Set(os, 'close', self._mock_os_close_oserror_EBADF)
@@ -112,27 +120,12 @@ class WebSocketTestCase(unittest.TestCase):
         self.assertRaises(OSError, soc.daemonize, keepfd=None, chdir='./')
 
     def test_decode_hybi(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=False,
-                                        ssl_only=1,
-                                        idle_timeout=1)
-
+        soc = self._get_websockserver(daemon=False, ssl_only=1, idle_timeout=1)
         self.assertRaises(Exception, soc.decode_hybi, 'a' * 128,
                           base64=True)
 
     def test_do_websocket_handshake(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=0,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=True, ssl_only=0, idle_timeout=1)
         soc.scheme = 'scheme'
         headers = {'Sec-WebSocket-Protocol': 'binary',
                    'Sec-WebSocket-Version': '7',
@@ -140,27 +133,13 @@ class WebSocketTestCase(unittest.TestCase):
         soc.do_websocket_handshake(headers, '127.0.0.1')
 
     def test_do_handshake(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=0,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=True, ssl_only=0, idle_timeout=1)
         self.stubs.Set(select, 'select', self._mock_select)
         self.stubs.Set(socket._socketobject, 'recv', lambda *args: 'mock_recv')
         self.assertRaises(Exception, soc.do_handshake, self.soc, '127.0.0.1')
 
     def test_do_handshake_ssl_error(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=0,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=True, ssl_only=0, idle_timeout=1)
 
         def _mock_wrap_socket(*args, **kwargs):
             from ssl import SSLError
@@ -172,25 +151,11 @@ class WebSocketTestCase(unittest.TestCase):
         self.assertRaises(SSLError, soc.do_handshake, self.soc, '127.0.0.1')
 
     def test_fallback_SIGCHILD(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=0,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=True, ssl_only=0, idle_timeout=1)
         soc.fallback_SIGCHLD(None, None)
 
     def test_start_server_Exception(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=False,
-                                        ssl_only=1,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=False, ssl_only=1, idle_timeout=1)
         self.stubs.Set(websocket.WebSocketServer, 'socket', self._mock_socket)
         self.stubs.Set(websocket.WebSocketServer, 'daemonize',
                        lambda *args, **kwargs: None)
@@ -198,15 +163,7 @@ class WebSocketTestCase(unittest.TestCase):
         self.assertEqual(None, soc.start_server())
 
     def test_start_server_KeyboardInterrupt(self):
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        cert='xxxxxx',
-                                        daemon=True,
-                                        ssl_only=1,
-                                        idle_timeout=1)
+        soc = self._get_websockserver(daemon=False, ssl_only=1, idle_timeout=1)
         self.stubs.Set(websocket.WebSocketServer, 'socket', self._mock_socket)
         self.stubs.Set(websocket.WebSocketServer, 'daemonize',
                        lambda *args, **kwargs: None)
@@ -215,19 +172,12 @@ class WebSocketTestCase(unittest.TestCase):
 
     def test_start_server_systemexit(self):
         websocket.ssl = None
-        soc = websocket.WebSocketServer(listen_host='localhost',
-                                        listen_port=80,
-                                        key='../',
-                                        web='../',
-                                        record='../',
-                                        daemon=True,
-                                        ssl_only=0,
-                                        idle_timeout=1,
-                                        verbose=True)
         self.stubs.Set(websocket.WebSocketServer, 'socket', self._mock_socket)
         self.stubs.Set(websocket.WebSocketServer, 'daemonize',
                        lambda *args, **kwargs: None)
         self.stubs.Set(select, 'select', self._mock_select_systemexit)
+        soc = self._get_websockserver(daemon=True, ssl_only=0, idle_timeout=1,
+                                      verbose=True)
         self.assertEqual(None, soc.start_server())
 
     def test_WSRequestHandle_do_GET_nofile(self):

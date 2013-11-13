@@ -331,7 +331,7 @@ Sec-WebSocket-Accept: %s\r
         return header + buf, len(header), 0
 
     @staticmethod
-    def decode_hybi(buf, base64=False):
+    def decode_hybi(buf, base64=False, logger=None):
         """ Decode HyBi style WebSocket packets.
         Returns:
             {'fin'          : 0_or_1,
@@ -355,7 +355,8 @@ Sec-WebSocket-Accept: %s\r
              'close_code'   : 1000,
              'close_reason' : ''}
 
-        logger = WebSocketServer.get_logger()
+        if logger is None:
+            logger = WebSocketServer.get_logger()
 
         blen = len(buf)
         f['left'] = blen
@@ -395,16 +396,15 @@ Sec-WebSocket-Accept: %s\r
             f['payload'] = WebSocketServer.unmask(buf, f['hlen'],
                                                   f['length'])
         else:
-            self.vmsg("Unmasked frame: %s" % repr(buf))
+            logger.debug("Unmasked frame: %s" % repr(buf))
             f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
 
         if base64 and f['opcode'] in [1, 2]:
             try:
                 f['payload'] = b64decode(f['payload'])
             except:
-                self.warn("Exception while b64decoding buffer: %s",
-                        repr(buf))
-                self.vmsg('Exception', exc_info=True)
+                logger.exception("Exception while b64decoding buffer: %s" %
+                                 (repr(buf)))
                 raise
 
         if f['opcode'] == 0x08:
@@ -510,7 +510,8 @@ Sec-WebSocket-Accept: %s\r
             self.recv_part = None
 
         while buf:
-            frame = self.decode_hybi(buf, base64=self.base64)
+            frame = self.decode_hybi(buf, base64=self.base64,
+                                     logger=self.logger)
             #self.msg("Received buf: %s, frame: %s", repr(buf), frame)
 
             if frame['payload'] == None:
