@@ -143,11 +143,10 @@ client.
 
     `sudo aptitude install python-dev bluetooth-dev`
 
-* Download, build the ssl module and symlink to it:
+* At the top level of the websockify repostory, download, build and
+  symlink the ssl module:
 
-    `cd websockify/`
-
-    `wget http://pypi.python.org/packages/source/s/ssl/ssl-1.15.tar.gz`
+    `wget --no-check-certificate http://pypi.python.org/packages/source/s/ssl/ssl-1.15.tar.gz`
 
     `tar xvzf ssl-1.15.tar.gz`
 
