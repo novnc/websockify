@@ -101,6 +101,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         self.run_once = getattr(server, "run_once", False)
         self.rec        = None
         self.handler_id = getattr(server, "handler_id", False)
+        self.file_only = getattr(server, "file_only", False)
     
         SimpleHTTPRequestHandler.__init__(self, req, addr, server)
 
@@ -481,6 +482,12 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                 self.send_error(405, "Method Not Allowed")
             else:
                 SimpleHTTPRequestHandler.do_GET(self)
+
+    def list_directory(self, path):
+        if self.file_only:
+            self.send_error(404, "No such file")
+        else:
+            return SimpleHTTPRequestHandler.list_directory(self, path)
                 
     def new_websocket_client(self):
         """ Do something with a WebSockets client connection. """
