@@ -833,9 +833,7 @@ class WebSocketServer(object):
 
         # Allow override of SIGINT
         signal.signal(signal.SIGINT, self.do_SIGINT)
-        if not multiprocessing:
-            # os.fork() (python 2.4) child reaper
-            signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
+        signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
 
         last_active_time = self.launch_time
         while True:
