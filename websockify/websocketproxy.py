@@ -229,9 +229,6 @@ class WebSocketProxy(websocket.WebSocketServer):
                 "REBIND_OLD_PORT": str(kwargs['listen_port']),
                 "REBIND_NEW_PORT": str(self.target_port)})
 
-        if self.target_cfg:
-            self.target_cfg = os.path.abspath(self.target_cfg)
-
         websocket.WebSocketServer.__init__(self, RequestHandlerClass, *args, **kwargs)
 
     def run_wrap_cmd(self):
@@ -388,6 +385,10 @@ def websockify_init():
             parser.error("Error parsing target")
         try:    opts.target_port = int(opts.target_port)
         except: parser.error("Error parsing target port")
+
+    # Transform to absolute path as daemon may chdir
+    if opts.target_cfg:
+        opts.target_cfg = os.path.abspath(opts.target_cfg)
 
     # Create and start the WebSockets proxy
     libserver = opts.libserver
