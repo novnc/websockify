@@ -1,4 +1,4 @@
-- Update setup.py and CHANGES.txt and commit
+- Update setup.py, CHANGES.txt and other/package.json and commit
 - Create version tag and tarball from tag
     WVER=0.1.0
     git tag v${WVER}
@@ -8,3 +8,6 @@
     python setup.py register
 - Upload the source distribution to pypi
     python setup.py sdist upload
+- Register with npmjs.org (once)
+- Upload websockify.js npmjs.org package
+    npm publish other/js
