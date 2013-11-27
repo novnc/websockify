@@ -201,7 +201,10 @@ class WebSocketProxy(websocket.WebSocketServer):
         self.wrap_times    = [0, 0, 0]
 
         if self.wrap_cmd:
-            rebinder_path = ['./', os.path.dirname(sys.argv[0])]
+            wsdir = os.path.dirname(sys.argv[0])
+            rebinder_path = [os.path.join(wsdir, "..", "lib"),
+                             os.path.join(wsdir, "..", "lib", "websockify"),
+                             wsdir]
             self.rebinder = None
 
             for rdir in rebinder_path:
