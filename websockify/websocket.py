@@ -466,7 +466,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
             try:
                 self.new_websocket_client()
-            except self.CClose:
+            except self.CClose, WebSocketServer.Terminate:
                 # Close the client
                 _, exc, _ = sys.exc_info()
                 self.send_close(exc.args[0], exc.args[1])                
@@ -528,6 +528,9 @@ class WebSocketServer(object):
 
     # An exception before the WebSocket connection was established
     class EClose(Exception):
+        pass
+
+    class Terminate(Exception):
         pass
 
     def __init__(self, RequestHandlerClass, listen_host='', 
@@ -654,8 +657,7 @@ class WebSocketServer(object):
         if os.fork() > 0: os._exit(0)  # Parent exits
 
         # Signal handling
-        def terminate(a,b): os._exit(0)
-        signal.signal(signal.SIGTERM, terminate)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
         signal.signal(signal.SIGINT, signal.SIG_IGN)
 
         # Close open files
@@ -778,6 +780,9 @@ class WebSocketServer(object):
         #self.vmsg("Running poll()")
         pass
 
+    def terminate(self):
+        raise self.Terminate()
+
     def fallback_SIGCHLD(self, sig, stack):
         # Reap zombies when using os.fork() (python 2.4)
         self.vmsg("Got SIGCHLD, reaping zombies")
@@ -791,7 +796,11 @@ class WebSocketServer(object):
 
     def do_SIGINT(self, sig, stack):
         self.msg("Got SIGINT, exiting")
-        sys.exit(0)
+        self.terminate()
+
+    def do_SIGTERM(self, sig, stack):
+        self.msg("Got SIGTERM, exiting")
+        self.terminate()
 
     def top_new_client(self, startsock, address):
         """ Do something with a WebSockets client connection. """
@@ -805,6 +814,8 @@ class WebSocketServer(object):
                 # Connection was not a WebSockets connection
                 if exc.args[0]:
                     self.msg("%s: %s" % (address[0], exc.args[0]))
+            except WebSocketServer.Terminate:
+                raise
             except Exception:
                 _, exc, _ = sys.exc_info()
                 self.msg("handler exception: %s" % str(exc))
@@ -831,108 +842,119 @@ class WebSocketServer(object):
 
         self.started()  # Some things need to happen after daemonizing
 
-        # Allow override of SIGINT
+        # Allow override of signals
+        original_signals = {
+            signal.SIGINT: signal.getsignal(signal.SIGINT),
+            signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+            signal.SIGCHLD: signal.getsignal(signal.SIGCHLD),
+        }
         signal.signal(signal.SIGINT, self.do_SIGINT)
+        signal.signal(signal.SIGTERM, self.do_SIGTERM)
         signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
 
         last_active_time = self.launch_time
-        while True:
-            try:
+        try:
+            while True:
                 try:
-                    startsock = None
-                    pid = err = 0
-                    child_count = 0
+                    try:
+                        startsock = None
+                        pid = err = 0
+                        child_count = 0
 
-                    if multiprocessing:
-                        # Collect zombie child processes
-                        child_count = len(multiprocessing.active_children())
+                        if multiprocessing:
+                            # Collect zombie child processes
+                            child_count = len(multiprocessing.active_children())
 
-                    time_elapsed = time.time() - self.launch_time
-                    if self.timeout and time_elapsed > self.timeout:
-                        self.msg('listener exit due to --timeout %s'
-                                % self.timeout)
-                        break
-
-                    if self.idle_timeout:
-                        idle_time = 0
-                        if child_count == 0:
-                            idle_time = time.time() - last_active_time
-                        else:
-                            idle_time = 0
-                            last_active_time = time.time()
-
-                        if idle_time > self.idle_timeout and child_count == 0:
-                            self.msg('listener exit due to --idle-timeout %s'
-                                        % self.idle_timeout)
+                        time_elapsed = time.time() - self.launch_time
+                        if self.timeout and time_elapsed > self.timeout:
+                            self.msg('listener exit due to --timeout %s'
+                                    % self.timeout)
                             break
 
-                    try:
-                        self.poll()
+                        if self.idle_timeout:
+                            idle_time = 0
+                            if child_count == 0:
+                                idle_time = time.time() - last_active_time
+                            else:
+                                idle_time = 0
+                                last_active_time = time.time()
 
-                        ready = select.select([lsock], [], [], 1)[0]
-                        if lsock in ready:
-                            startsock, address = lsock.accept()
+                            if idle_time > self.idle_timeout and child_count == 0:
+                                self.msg('listener exit due to --idle-timeout %s'
+                                            % self.idle_timeout)
+                                break
+
+                        try:
+                            self.poll()
+
+                            ready = select.select([lsock], [], [], 1)[0]
+                            if lsock in ready:
+                                startsock, address = lsock.accept()
+                            else:
+                                continue
+                        except self.Terminate:
+                            raise
+                        except Exception:
+                            _, exc, _ = sys.exc_info()
+                            if hasattr(exc, 'errno'):
+                                err = exc.errno
+                            elif hasattr(exc, 'args'):
+                                err = exc.args[0]
+                            else:
+                                err = exc[0]
+                            if err == errno.EINTR:
+                                self.vmsg("Ignoring interrupted syscall")
+                                continue
+                            else:
+                                raise
+
+                        if self.run_once:
+                            # Run in same process if run_once
+                            self.top_new_client(startsock, address)
+                            if self.ws_connection :
+                                self.msg('%s: exiting due to --run-once'
+                                        % address[0])
+                                break
+                        elif multiprocessing:
+                            self.vmsg('%s: new handler Process' % address[0])
+                            p = multiprocessing.Process(
+                                    target=self.top_new_client,
+                                    args=(startsock, address))
+                            p.start()
+                            # child will not return
                         else:
-                            continue
+                            # python 2.4
+                            self.vmsg('%s: forking handler' % address[0])
+                            pid = os.fork()
+                            if pid == 0:
+                                # child handler process
+                                self.top_new_client(startsock, address)
+                                break  # child process exits
+
+                        # parent process
+                        self.handler_id += 1
+
+                    except (self.Terminate, SystemExit, KeyboardInterrupt):
+                        _, exc, _ = sys.exc_info()
+                        print("In exit")
+                        break
                     except Exception:
                         _, exc, _ = sys.exc_info()
-                        if hasattr(exc, 'errno'):
-                            err = exc.errno
-                        elif hasattr(exc, 'args'):
-                            err = exc.args[0]
-                        else:
-                            err = exc[0]
-                        if err == errno.EINTR:
-                            self.vmsg("Ignoring interrupted syscall")
-                            continue
-                        else:
-                            raise
-                    
-                    if self.run_once:
-                        # Run in same process if run_once
-                        self.top_new_client(startsock, address)
-                        if self.ws_connection :
-                            self.msg('%s: exiting due to --run-once'
-                                    % address[0])
-                            break
-                    elif multiprocessing:
-                        self.vmsg('%s: new handler Process' % address[0])
-                        p = multiprocessing.Process(
-                                target=self.top_new_client,
-                                args=(startsock, address))
-                        p.start()
-                        # child will not return
-                    else:
-                        # python 2.4
-                        self.vmsg('%s: forking handler' % address[0])
-                        pid = os.fork()
-                        if pid == 0:
-                            # child handler process
-                            self.top_new_client(startsock, address)
-                            break  # child process exits
+                        self.msg("handler exception: %s" % str(exc))
+                        if self.verbose:
+                            self.msg(traceback.format_exc())
 
-                    # parent process
-                    self.handler_id += 1
+                finally:
+                    if startsock:
+                        startsock.close()
+        finally:
+            # Close listen port
+            self.vmsg("Closing socket listening at %s:%s"
+                    % (self.listen_host, self.listen_port))
+            lsock.close()
 
-                except KeyboardInterrupt:
-                    _, exc, _ = sys.exc_info()
-                    print("In KeyboardInterrupt")
-                    pass
-                except SystemExit:
-                    _, exc, _ = sys.exc_info()
-                    print("In SystemExit")
-                    break
-                except Exception:
-                    _, exc, _ = sys.exc_info()
-                    self.msg("handler exception: %s" % str(exc))
-                    if self.verbose:
-                        self.msg(traceback.format_exc())
+            # Restore signals
+            for sig, func in original_signals.items():
+                 signal.signal(sig, func)
 
-            finally:
-                if startsock:
-                    startsock.close()
 
-        # Close listen port
-        self.vmsg("Closing socket listening at %s:%s"
-                % (self.listen_host, self.listen_port))
-        lsock.close()
