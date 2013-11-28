@@ -157,7 +157,7 @@ Traffic Legend:
     # will be run in a separate forked process for each connection.
     #
 
-    def new_client(self):
+    def new_websocket_client(self):
         """
         Called after a new WebSocket connection has been established.
         """

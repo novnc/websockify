@@ -124,4 +124,4 @@ class WebSocketProxyTest(unittest.TestCase):
             return ins, outs, excepts
 
         self.stubs.Set(select, 'select', mock_select)
-        self.assertRaises(Exception, web_socket_proxy.new_client)
+        self.assertRaises(Exception, web_socket_proxy.new_websocket_client)

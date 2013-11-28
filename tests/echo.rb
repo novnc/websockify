@@ -12,7 +12,7 @@ require 'websocket'
 class WebSocketEcho < WebSocketServer
 
   # Echo back whatever is received    
-  def new_client(client)
+  def new_websocket_client(client)
 
     cqueue = []
     c_pend = 0

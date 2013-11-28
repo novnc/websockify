@@ -68,7 +68,7 @@ if multiprocessing and sys.platform == 'win32':
 class WebSocketServer(object):
     """
     WebSockets server class.
-    Must be sub-classed with new_client method definition.
+    Must be sub-classed with new_websocket_client method definition.
     """
 
     log_prefix = "websocket"
@@ -770,7 +770,7 @@ Sec-WebSocket-Accept: %s\r
                     self.rec.write("var VNC_frame_data = [\n")
 
                 self.ws_connection = True
-                self.new_client()
+                self.new_websocket_client()
             except self.CClose:
                 # Close the client
                 _, exc, _ = sys.exc_info()
@@ -797,15 +797,15 @@ Sec-WebSocket-Accept: %s\r
                 # Original socket closed by caller
                 self.request.close()
 
-    def new_client(self):
+    def new_websocket_client(self):
         """ Do something with a WebSockets client connection. """
-        raise("WebSocketServer.new_client() must be overloaded")
+        raise("WebSocketServer.new_websocket_client() must be overloaded")
 
     def start_server(self):
         """
         Daemonize if requested. Listen for for connections. Run
         do_handshake() method for each connection. If the connection
-        is a WebSockets client then call new_client() method (which must
+        is a WebSockets client then call new_websocket_client() method (which must
         be overridden) for each new client connection.
         """
         lsock = self.socket(self.listen_host, self.listen_port, False,

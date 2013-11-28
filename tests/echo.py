@@ -20,7 +20,7 @@ class WebSocketEcho(WebSocketServer):
     client.  """
     buffer_size = 8096
 
-    def new_client(self):
+    def new_websocket_client(self):
         """
         Echo back whatever is received.
         """

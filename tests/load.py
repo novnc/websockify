@@ -29,7 +29,7 @@ class WebSocketLoad(WebSocketServer):
 
         WebSocketServer.__init__(self, *args, **kwargs)
 
-    def new_client(self):
+    def new_websocket_client(self):
         self.send_cnt = 0
         self.recv_cnt = 0
 
