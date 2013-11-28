@@ -5,9 +5,8 @@ Display UTF-8 encoding for 0-255.'''
 
 import sys, os, socket, ssl, time, traceback
 from select import select
-
-sys.path.insert(0,os.path.dirname(__file__) + "/../websockify")
-from websocket import WebSocketServer
+sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
+from websockify.websocket import WebSocketServer
 
 if __name__ == '__main__':
     print "val: hybi_base64 | hybi_binary"
