@@ -241,23 +241,23 @@ Traffic Legend:
         cqueue = []
         c_pend = 0
         tqueue = []
-        rlist = [self.client, target]
+        rlist = [self.request, target]
 
         while True:
             wlist = []
 
             if tqueue: wlist.append(target)
-            if cqueue or c_pend: wlist.append(self.client)
+            if cqueue or c_pend: wlist.append(self.request)
             ins, outs, excepts = select(rlist, wlist, [], 1)
             if excepts: raise Exception("Socket exception")
 
-            if self.client in outs:
+            if self.request in outs:
                 # Send queued target data to the client
                 c_pend = self.send_frames(cqueue)
 
                 cqueue = []
 
-            if self.client in ins:
+            if self.request in ins:
                 # Receive client data, decode it, and queue for target
                 bufs, closed = self.recv_frames()
                 tqueue.extend(bufs)
