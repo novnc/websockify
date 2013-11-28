@@ -104,6 +104,10 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         self.handler_id = getattr(server, "handler_id", False)
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
+
+        self.logger = getattr(server, "logger", None)
+        if self.logger is None:
+            self.logger = WebSocketServer.get_logger()
     
         SimpleHTTPRequestHandler.__init__(self, req, addr, server)
 
@@ -265,17 +269,17 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
     def msg(self, msg, *args, **kwargs):
         """ Output message with handler_id prefix. """
         prefix = "% 3d: " % self.handler_id
-        self.server.msg("%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.INFO, "%s%s" % (prefix, msg), *args, **kwargs)
 
     def vmsg(self, msg, *args, **kwargs):
         """ Same as msg() but as debug. """
         prefix = "% 3d: " % self.handler_id
-        self.server.vmsg("%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.DEBUG, "%s%s" % (prefix, msg), *args, **kwargs)
 
     def warn(self, msg, *args, **kwargs):
         """ Same as msg() but as warning. """
         prefix = "% 3d: " % self.handler_id
-        self.server.warn("%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.WARN, "%s%s" % (prefix, msg), *args, **kwargs)
 
     #
     # Main WebSocketRequestHandler methods
