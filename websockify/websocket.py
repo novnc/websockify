@@ -65,45 +65,510 @@ if multiprocessing and sys.platform == 'win32':
     import multiprocessing.reduction
 
 
-class WebSocketServer(object):
+# HTTP handler with WebSocket upgrade support
+class WebSocketRequestHandler(SimpleHTTPRequestHandler):
     """
-    WebSockets server class.
-    Must be sub-classed with new_client method definition.
-    """
+    WebSocket Request Handler Class, derived from SimpleHTTPRequestHandler.
+    Must be sub-classed with new_websocket_client method definition.
+    The request handler can be configured by setting optional
+    attributes on the server object:
 
-    log_prefix = "websocket"
+    * only_upgrade: If true, SimpleHTTPRequestHandler will not be enabled,
+      only websocket is allowed. 
+    * verbose: If true, verbose logging is activated. 
+    * daemon: Running as daemon, do not write to console etc
+    * record: Record raw frame data as JavaScript array into specified filename
+    * run_once: Handle a single request
+    * handler_id: A sequence number for this connection, appended to record filename
+    """
     buffer_size = 65536
-
-    server_handshake_hybi = """HTTP/1.1 101 Switching Protocols\r
-Upgrade: websocket\r
-Connection: Upgrade\r
-Sec-WebSocket-Accept: %s\r
-"""
 
     GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-    policy_response = """<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\n"""
+    server_version = "WebSockify"
 
-    # An exception before the WebSocket connection was established
-    class EClose(Exception):
-        pass
+    protocol_version = "HTTP/1.1"
 
     # An exception while the WebSocket client was connected
     class CClose(Exception):
         pass
 
+    def __init__(self, req, addr, server):
+        # Retrieve a few configuration variables from the server
+        self.only_upgrade = getattr(server, "only_upgrade", False)
+        self.verbose = getattr(server, "verbose", False)
+        self.daemon = getattr(server, "daemon", False)
+        self.record = getattr(server, "record", False)
+        self.run_once = getattr(server, "run_once", False)
+        self.rec        = None
+        self.handler_id = getattr(server, "handler_id", False)
+        self.file_only = getattr(server, "file_only", False)
+        self.traffic = getattr(server, "traffic", False)
+
+        self.logger = getattr(server, "logger", None)
+        if self.logger is None:
+            self.logger = WebSocketServer.get_logger()
+    
+        SimpleHTTPRequestHandler.__init__(self, req, addr, server)
+
+    @staticmethod
+    def unmask(buf, hlen, plen):
+        pstart = hlen + 4
+        pend = pstart + plen
+        if numpy:
+            b = c = s2b('')
+            if plen >= 4:
+                mask = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
+                        offset=hlen, count=1)
+                data = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
+                        offset=pstart, count=int(plen / 4))
+                #b = numpy.bitwise_xor(data, mask).data
+                b = numpy.bitwise_xor(data, mask).tostring()
+
+            if plen % 4:
+                #self.msg("Partial unmask")
+                mask = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
+                        offset=hlen, count=(plen % 4))
+                data = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
+                        offset=pend - (plen % 4),
+                        count=(plen % 4))
+                c = numpy.bitwise_xor(data, mask).tostring()
+            return b + c
+        else:
+            # Slower fallback
+            mask = buf[hlen:hlen+4]
+            data = array.array('B')
+            mask = s2a(mask)
+            data.fromstring(buf[pstart:pend])
+            for i in range(len(data)):
+                data[i] ^= mask[i % 4]
+            return data.tostring()
+
+    @staticmethod
+    def encode_hybi(buf, opcode, base64=False):
+        """ Encode a HyBi style WebSocket frame.
+        Optional opcode:
+            0x0 - continuation
+            0x1 - text frame (base64 encode buf)
+            0x2 - binary frame (use raw buf)
+            0x8 - connection close
+            0x9 - ping
+            0xA - pong
+        """
+        if base64:
+            buf = b64encode(buf)
+
+        b1 = 0x80 | (opcode & 0x0f) # FIN + opcode
+        payload_len = len(buf)
+        if payload_len <= 125:
+            header = pack('>BB', b1, payload_len)
+        elif payload_len > 125 and payload_len < 65536:
+            header = pack('>BBH', b1, 126, payload_len)
+        elif payload_len >= 65536:
+            header = pack('>BBQ', b1, 127, payload_len)
+
+        #self.msg("Encoded: %s", repr(header + buf))
+
+        return header + buf, len(header), 0
+
+    @staticmethod
+    def decode_hybi(buf, base64=False, logger=None):
+        """ Decode HyBi style WebSocket packets.
+        Returns:
+            {'fin'          : 0_or_1,
+             'opcode'       : number,
+             'masked'       : boolean,
+             'hlen'         : header_bytes_number,
+             'length'       : payload_bytes_number,
+             'payload'      : decoded_buffer,
+             'left'         : bytes_left_number,
+             'close_code'   : number,
+             'close_reason' : string}
+        """
+
+        f = {'fin'          : 0,
+             'opcode'       : 0,
+             'masked'       : False,
+             'hlen'         : 2,
+             'length'       : 0,
+             'payload'      : None,
+             'left'         : 0,
+             'close_code'   : 1000,
+             'close_reason' : ''}
+
+        if logger is None:
+            logger = WebSocketServer.get_logger()
+
+        blen = len(buf)
+        f['left'] = blen
+
+        if blen < f['hlen']:
+            return f # Incomplete frame header
+
+        b1, b2 = unpack_from(">BB", buf)
+        f['opcode'] = b1 & 0x0f
+        f['fin'] = (b1 & 0x80) >> 7
+        f['masked'] = (b2 & 0x80) >> 7
+
+        f['length'] = b2 & 0x7f
+
+        if f['length'] == 126:
+            f['hlen'] = 4
+            if blen < f['hlen']:
+                return f # Incomplete frame header
+            (f['length'],) = unpack_from('>xxH', buf)
+        elif f['length'] == 127:
+            f['hlen'] = 10
+            if blen < f['hlen']:
+                return f # Incomplete frame header
+            (f['length'],) = unpack_from('>xxQ', buf)
+
+        full_len = f['hlen'] + f['masked'] * 4 + f['length']
+
+        if blen < full_len: # Incomplete frame
+            return f # Incomplete frame header
+
+        # Number of bytes that are part of the next frame(s)
+        f['left'] = blen - full_len
+
+        # Process 1 frame
+        if f['masked']:
+            # unmask payload
+            f['payload'] = WebSocketRequestHandler.unmask(buf, f['hlen'],
+                                                  f['length'])
+        else:
+            logger.debug("Unmasked frame: %s" % repr(buf))
+            f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
+
+        if base64 and f['opcode'] in [1, 2]:
+            try:
+                f['payload'] = b64decode(f['payload'])
+            except:
+                logger.exception("Exception while b64decoding buffer: %s" %
+                                 (repr(buf)))
+                raise
+
+        if f['opcode'] == 0x08:
+            if f['length'] >= 2:
+                f['close_code'] = unpack_from(">H", f['payload'])[0]
+            if f['length'] > 3:
+                f['close_reason'] = f['payload'][2:]
+
+        return f
+
+    #
+    # WebSocketRequestHandler logging/output functions
+    #
+
+    def print_traffic(self, token="."):
+        """ Show traffic flow mode. """
+        if self.traffic:
+            sys.stdout.write(token)
+            sys.stdout.flush()
+
+    def msg(self, msg, *args, **kwargs):
+        """ Output message with handler_id prefix. """
+        prefix = "% 3d: " % self.handler_id
+        self.logger.log(logging.INFO, "%s%s" % (prefix, msg), *args, **kwargs)
+
+    def vmsg(self, msg, *args, **kwargs):
+        """ Same as msg() but as debug. """
+        prefix = "% 3d: " % self.handler_id
+        self.logger.log(logging.DEBUG, "%s%s" % (prefix, msg), *args, **kwargs)
+
+    def warn(self, msg, *args, **kwargs):
+        """ Same as msg() but as warning. """
+        prefix = "% 3d: " % self.handler_id
+        self.logger.log(logging.WARN, "%s%s" % (prefix, msg), *args, **kwargs)
+
+    #
+    # Main WebSocketRequestHandler methods
+    #
+    def send_frames(self, bufs=None):
+        """ Encode and send WebSocket frames. Any frames already
+        queued will be sent first. If buf is not set then only queued
+        frames will be sent. Returns the number of pending frames that
+        could not be fully sent. If returned pending frames is greater
+        than 0, then the caller should call again when the socket is
+        ready. """
+
+        tdelta = int(time.time()*1000) - self.start_time
+
+        if bufs:
+            for buf in bufs:
+                if self.base64:
+                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=1, base64=True)
+                else:
+                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=2, base64=False)
+
+                if self.rec:
+                    self.rec.write("%s,\n" %
+                            repr("{%s{" % tdelta
+                                + encbuf[lenhead:len(encbuf)-lentail]))
+
+                self.send_parts.append(encbuf)
+
+        while self.send_parts:
+            # Send pending frames
+            buf = self.send_parts.pop(0)
+            sent = self.request.send(buf)
+
+            if sent == len(buf):
+                self.print_traffic("<")
+            else:
+                self.print_traffic("<.")
+                self.send_parts.insert(0, buf[sent:])
+                break
+
+        return len(self.send_parts)
+
+    def recv_frames(self):
+        """ Receive and decode WebSocket frames.
+
+        Returns:
+            (bufs_list, closed_string)
+        """
+
+        closed = False
+        bufs = []
+        tdelta = int(time.time()*1000) - self.start_time
+
+        buf = self.request.recv(self.buffer_size)
+        if len(buf) == 0:
+            closed = {'code': 1000, 'reason': "Client closed abruptly"}
+            return bufs, closed
+
+        if self.recv_part:
+            # Add partially received frames to current read buffer
+            buf = self.recv_part + buf
+            self.recv_part = None
+
+        while buf:
+            frame = self.decode_hybi(buf, base64=self.base64,
+                                     logger=self.logger)
+            #self.msg("Received buf: %s, frame: %s", repr(buf), frame)
+
+            if frame['payload'] == None:
+                # Incomplete/partial frame
+                self.print_traffic("}.")
+                if frame['left'] > 0:
+                    self.recv_part = buf[-frame['left']:]
+                break
+            else:
+                if frame['opcode'] == 0x8: # connection close
+                    closed = {'code': frame['close_code'],
+                              'reason': frame['close_reason']}
+                    break
+
+            self.print_traffic("}")
+
+            if self.rec:
+                start = frame['hlen']
+                end = frame['hlen'] + frame['length']
+                if frame['masked']:
+                    recbuf = WebSocketRequestHandler.unmask(buf, frame['hlen'],
+                                                   frame['length'])
+                else:
+                    recbuf = buf[frame['hlen']:frame['hlen'] +
+                                               frame['length']]
+                self.rec.write("%s,\n" %
+                        repr("}%s}" % tdelta + recbuf))
+
+
+            bufs.append(frame['payload'])
+
+            if frame['left']:
+                buf = buf[-frame['left']:]
+            else:
+                buf = ''
+
+        return bufs, closed
+
+    def send_close(self, code=1000, reason=''):
+        """ Send a WebSocket orderly close frame. """
+
+        msg = pack(">H%ds" % len(reason), code, reason)
+        buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
+        self.request.send(buf)
+
+    def do_websocket_handshake(self):
+        h = self.headers
+
+        prot = 'WebSocket-Protocol'
+        protocols = h.get('Sec-'+prot, h.get(prot, '')).split(',')
+
+        ver = h.get('Sec-WebSocket-Version')
+        if ver:
+            # HyBi/IETF version of the protocol
+
+            # HyBi-07 report version 7
+            # HyBi-08 - HyBi-12 report version 8
+            # HyBi-13 reports version 13
+            if ver in ['7', '8', '13']:
+                self.version = "hybi-%02d" % int(ver)
+            else:
+                self.send_error(400, "Unsupported protocol version %s" % ver)
+                return False
+
+            key = h['Sec-WebSocket-Key']
+
+            # Choose binary if client supports it
+            if 'binary' in protocols:
+                self.base64 = False
+            elif 'base64' in protocols:
+                self.base64 = True
+            else:
+                self.send_error(400, "Client must support 'binary' or 'base64' protocol")
+                return False
+
+            # Generate the hash value for the accept header
+            accept = b64encode(sha1(s2b(key + self.GUID)).digest())
+
+            self.send_response(101, "Switching Protocols")
+            self.send_header("Upgrade", "websocket")
+            self.send_header("Connection", "Upgrade")
+            self.send_header("Sec-WebSocket-Accept", b2s(accept))
+            if self.base64:
+                self.send_header("Sec-WebSocket-Protocol", "base64")
+            else:
+                self.send_header("Sec-WebSocket-Protocol", "binary")
+            self.end_headers()
+            return True
+        else: 
+            self.send_error(400, "Missing Sec-WebSocket-Version header. Hixie protocols not supported.")
+
+        return False
+
+    def handle_websocket(self):
+        """Upgrade a connection to Websocket, if requested. If this succeeds, 
+        new_websocket_client() will be called. Otherwise, False is returned.
+        """
+        if (self.headers.get('upgrade') and 
+            self.headers.get('upgrade').lower() == 'websocket'):
+
+            if not self.do_websocket_handshake():
+                return False
+
+            # Indicate to server that a Websocket upgrade was done
+            self.server.ws_connection = True
+            # Initialize per client settings
+            self.send_parts = []
+            self.recv_part  = None
+            self.start_time = int(time.time()*1000)
+
+            # client_address is empty with, say, UNIX domain sockets
+            client_addr = ""
+            is_ssl = False
+            try:
+                client_addr = self.client_address[0]
+                is_ssl = self.client_address[2]
+            except IndexError:
+                pass
+
+            if is_ssl:
+                self.stype = "SSL/TLS (wss://)"
+            else: 
+                self.stype = "Plain non-SSL (ws://)"
+
+            self.log_message("%s: %s WebSocket connection" % (client_addr,
+                                                             self.stype))
+            self.log_message("%s: Version %s, base64: '%s'" % (client_addr,
+                                                       self.version, self.base64))
+            if self.path != '/':
+                self.log_message("%s: Path: '%s'" % (client_addr, self.path))
+
+            if self.record:
+                # Record raw frame data as JavaScript array
+                fname = "%s.%s" % (self.record,
+                                   self.handler_id)
+                self.log_message("opening record file: %s" % fname)
+                self.rec = open(fname, 'w+')
+                encoding = "binary"
+                if self.base64: encoding = "base64"
+                self.rec.write("var VNC_frame_encoding = '%s';\n"
+                               % encoding)
+                self.rec.write("var VNC_frame_data = [\n")
+
+            try:
+                self.new_websocket_client()
+            except self.CClose:
+                # Close the client
+                _, exc, _ = sys.exc_info()
+                self.send_close(exc.args[0], exc.args[1])                
+            return True
+        else:
+            return False
+
+    def do_GET(self):
+        """Handle GET request. Calls handle_websocket(). If unsuccessful,
+        and web server is enabled, SimpleHTTPRequestHandler.do_GET will be called."""
+        if not self.handle_websocket():
+            if self.only_upgrade:
+                self.send_error(405, "Method Not Allowed")
+            else:
+                SimpleHTTPRequestHandler.do_GET(self)
+
+    def list_directory(self, path):
+        if self.file_only:
+            self.send_error(404, "No such file")
+        else:
+            return SimpleHTTPRequestHandler.list_directory(self, path)
+                
+    def new_websocket_client(self):
+        """ Do something with a WebSockets client connection. """
+        raise Exception("WebSocketRequestHandler.new_websocket_client() must be overloaded")
+
+    def do_HEAD(self):
+        if self.only_upgrade:
+            self.send_error(405, "Method Not Allowed")
+        else:
+            SimpleHTTPRequestHandler.do_HEAD(self)
+
+    def finish(self):
+        if self.rec:
+            self.rec.write("'EOF'];\n")
+            self.rec.close()
+
+    def handle(self):
+        # When using run_once, we have a single process, so
+        # we cannot loop in BaseHTTPRequestHandler.handle; we
+        # must return and handle new connections
+        if self.run_once:
+            self.handle_one_request()
+        else:
+            SimpleHTTPRequestHandler.handle(self)
+
+    def log_request(self, code='-', size='-'):
+        if self.verbose:
+            SimpleHTTPRequestHandler.log_request(self, code, size)
+
+
+class WebSocketServer(object):
+    """
+    WebSockets server class.
+    As an alternative, the standard library SocketServer can be used
+    """
+
+    policy_response = """<cross-domain-policy><allow-access-from domain="*" to-ports="*" /></cross-domain-policy>\n"""
+    log_prefix = "websocket"
+
+    # An exception before the WebSocket connection was established
+    class EClose(Exception):
+        pass
+
     class Terminate(Exception):
         pass
 
-    def __init__(self, listen_host='', listen_port=None, source_is_ipv6=False,
+    def __init__(self, RequestHandlerClass, listen_host='', 
+                 listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web='',
-            file_only=False, no_parent=False,
+            daemon=False, record='', web='', file_only=False, 
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
             tcp_keepintvl=None):
 
         # settings
+        self.RequestHandlerClass = RequestHandlerClass
         self.verbose        = verbose
         self.listen_host    = listen_host
         self.listen_port    = listen_port
@@ -117,11 +582,7 @@ Sec-WebSocket-Accept: %s\r
         
         self.launch_time    = time.time()
         self.ws_connection  = False
-        self.i_am_client    = False
         self.handler_id     = 1
-
-        self.file_only      = file_only
-        self.no_parent      = no_parent
 
         self.logger         = self.get_logger()
         self.tcp_keepalive  = tcp_keepalive
@@ -141,6 +602,7 @@ Sec-WebSocket-Accept: %s\r
 
         if self.web:
             os.chdir(self.web)
+        self.only_upgrade = not self.web
 
         # Sanity checks
         if not ssl and self.ssl_only:
@@ -270,338 +732,6 @@ Sec-WebSocket-Accept: %s\r
         os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdout.fileno())
         os.dup2(os.open(os.devnull, os.O_RDWR), sys.stderr.fileno())
 
-    @staticmethod
-    def unmask(buf, hlen, plen):
-        pstart = hlen + 4
-        pend = pstart + plen
-        if numpy:
-            b = c = s2b('')
-            if plen >= 4:
-                mask = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
-                        offset=hlen, count=1)
-                data = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
-                        offset=pstart, count=int(plen / 4))
-                #b = numpy.bitwise_xor(data, mask).data
-                b = numpy.bitwise_xor(data, mask).tostring()
-
-            if plen % 4:
-                #self.msg("Partial unmask")
-                mask = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
-                        offset=hlen, count=(plen % 4))
-                data = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
-                        offset=pend - (plen % 4),
-                        count=(plen % 4))
-                c = numpy.bitwise_xor(data, mask).tostring()
-            return b + c
-        else:
-            # Slower fallback
-            mask = buf[hlen:hlen+4]
-            data = array.array('B')
-            mask = s2a(mask)
-            data.fromstring(buf[pstart:pend])
-            for i in range(len(data)):
-                data[i] ^= mask[i % 4]
-            return data.tostring()
-
-    @staticmethod
-    def encode_hybi(buf, opcode, base64=False):
-        """ Encode a HyBi style WebSocket frame.
-        Optional opcode:
-            0x0 - continuation
-            0x1 - text frame (base64 encode buf)
-            0x2 - binary frame (use raw buf)
-            0x8 - connection close
-            0x9 - ping
-            0xA - pong
-        """
-        if base64:
-            buf = b64encode(buf)
-
-        b1 = 0x80 | (opcode & 0x0f) # FIN + opcode
-        payload_len = len(buf)
-        if payload_len <= 125:
-            header = pack('>BB', b1, payload_len)
-        elif payload_len > 125 and payload_len < 65536:
-            header = pack('>BBH', b1, 126, payload_len)
-        elif payload_len >= 65536:
-            header = pack('>BBQ', b1, 127, payload_len)
-
-        #self.msg("Encoded: %s", repr(header + buf))
-
-        return header + buf, len(header), 0
-
-    @staticmethod
-    def decode_hybi(buf, base64=False, logger=None):
-        """ Decode HyBi style WebSocket packets.
-        Returns:
-            {'fin'          : 0_or_1,
-             'opcode'       : number,
-             'masked'       : boolean,
-             'hlen'         : header_bytes_number,
-             'length'       : payload_bytes_number,
-             'payload'      : decoded_buffer,
-             'left'         : bytes_left_number,
-             'close_code'   : number,
-             'close_reason' : string}
-        """
-
-        f = {'fin'          : 0,
-             'opcode'       : 0,
-             'masked'       : False,
-             'hlen'         : 2,
-             'length'       : 0,
-             'payload'      : None,
-             'left'         : 0,
-             'close_code'   : 1000,
-             'close_reason' : ''}
-
-        if logger is None:
-            logger = WebSocketServer.get_logger()
-
-        blen = len(buf)
-        f['left'] = blen
-
-        if blen < f['hlen']:
-            return f # Incomplete frame header
-
-        b1, b2 = unpack_from(">BB", buf)
-        f['opcode'] = b1 & 0x0f
-        f['fin'] = (b1 & 0x80) >> 7
-        f['masked'] = (b2 & 0x80) >> 7
-
-        f['length'] = b2 & 0x7f
-
-        if f['length'] == 126:
-            f['hlen'] = 4
-            if blen < f['hlen']:
-                return f # Incomplete frame header
-            (f['length'],) = unpack_from('>xxH', buf)
-        elif f['length'] == 127:
-            f['hlen'] = 10
-            if blen < f['hlen']:
-                return f # Incomplete frame header
-            (f['length'],) = unpack_from('>xxQ', buf)
-
-        full_len = f['hlen'] + f['masked'] * 4 + f['length']
-
-        if blen < full_len: # Incomplete frame
-            return f # Incomplete frame header
-
-        # Number of bytes that are part of the next frame(s)
-        f['left'] = blen - full_len
-
-        # Process 1 frame
-        if f['masked']:
-            # unmask payload
-            f['payload'] = WebSocketServer.unmask(buf, f['hlen'],
-                                                  f['length'])
-        else:
-            logger.debug("Unmasked frame: %s" % repr(buf))
-            f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
-
-        if base64 and f['opcode'] in [1, 2]:
-            try:
-                f['payload'] = b64decode(f['payload'])
-            except:
-                logger.exception("Exception while b64decoding buffer: %s" %
-                                 (repr(buf)))
-                raise
-
-        if f['opcode'] == 0x08:
-            if f['length'] >= 2:
-                f['close_code'] = unpack_from(">H", f['payload'])[0]
-            if f['length'] > 3:
-                f['close_reason'] = f['payload'][2:]
-
-        return f
-
-
-    #
-    # WebSocketServer logging/output functions
-    #
-
-    def print_traffic(self, token="."):
-        """ Show traffic flow mode. """
-        if self.traffic:
-            sys.stdout.write(token)
-            sys.stdout.flush()
-
-
-    def log(self, lvl, msg, *args, **kwargs):
-        """ Wrapper around python logging """
-        prefix = ""
-        if self.i_am_client:
-            prefix = "% 3d: " % self.handler_id
-        self.logger.log(lvl, "%s%s" % (prefix, msg),
-            *args, **kwargs)
-
-    def msg(self, *args, **kwargs):
-        """ Output message with handler_id prefix. """
-        self.log(logging.INFO, *args, **kwargs)
-
-    def vmsg(self, *args, **kwargs):
-        """ Same as msg() but as debug. """
-        self.log(logging.DEBUG, *args, **kwargs)
-
-    def warn(self, *args, **kwargs):
-        """ Same as msg() but as warning. """
-        self.log(logging.WARN, *args, **kwargs)
-
-    #
-    # Main WebSocketServer methods
-    #
-    def send_frames(self, bufs=None):
-        """ Encode and send WebSocket frames. Any frames already
-        queued will be sent first. If buf is not set then only queued
-        frames will be sent. Returns the number of pending frames that
-        could not be fully sent. If returned pending frames is greater
-        than 0, then the caller should call again when the socket is
-        ready. """
-
-        tdelta = int(time.time()*1000) - self.start_time
-
-        if bufs:
-            for buf in bufs:
-                if self.base64:
-                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=1, base64=True)
-                else:
-                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=2, base64=False)
-
-                if self.rec:
-                    self.rec.write("%s,\n" %
-                            repr("{%s{" % tdelta
-                                + encbuf[lenhead:len(encbuf)-lentail]))
-
-                self.send_parts.append(encbuf)
-
-        while self.send_parts:
-            # Send pending frames
-            buf = self.send_parts.pop(0)
-            sent = self.client.send(buf)
-
-            if sent == len(buf):
-                self.print_traffic("<")
-            else:
-                self.print_traffic("<.")
-                self.send_parts.insert(0, buf[sent:])
-                break
-
-        return len(self.send_parts)
-
-    def recv_frames(self):
-        """ Receive and decode WebSocket frames.
-
-        Returns:
-            (bufs_list, closed_string)
-        """
-
-        closed = False
-        bufs = []
-        tdelta = int(time.time()*1000) - self.start_time
-
-        buf = self.client.recv(self.buffer_size)
-        if len(buf) == 0:
-            closed = {'code': 1000, 'reason': "Client closed abruptly"}
-            return bufs, closed
-
-        if self.recv_part:
-            # Add partially received frames to current read buffer
-            buf = self.recv_part + buf
-            self.recv_part = None
-
-        while buf:
-            frame = self.decode_hybi(buf, base64=self.base64,
-                                     logger=self.logger)
-            #self.msg("Received buf: %s, frame: %s", repr(buf), frame)
-
-            if frame['payload'] == None:
-                # Incomplete/partial frame
-                self.print_traffic("}.")
-                if frame['left'] > 0:
-                    self.recv_part = buf[-frame['left']:]
-                break
-            else:
-                if frame['opcode'] == 0x8: # connection close
-                    closed = {'code': frame['close_code'],
-                              'reason': frame['close_reason']}
-                    break
-
-            self.print_traffic("}")
-
-            if self.rec:
-                start = frame['hlen']
-                end = frame['hlen'] + frame['length']
-                if frame['masked']:
-                    recbuf = WebSocketServer.unmask(buf, frame['hlen'],
-                                                   frame['length'])
-                else:
-                    recbuf = buf[frame['hlen']:frame['hlen'] +
-                                               frame['length']]
-                self.rec.write("%s,\n" %
-                        repr("}%s}" % tdelta + recbuf))
-
-
-            bufs.append(frame['payload'])
-
-            if frame['left']:
-                buf = buf[-frame['left']:]
-            else:
-                buf = ''
-
-        return bufs, closed
-
-    def send_close(self, code=1000, reason=''):
-        """ Send a WebSocket orderly close frame. """
-
-        msg = pack(">H%ds" % len(reason), code, reason)
-        buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
-        self.client.send(buf)
-
-    def do_websocket_handshake(self, headers, path):
-        h = self.headers = headers
-        self.path = path
-
-        prot = 'WebSocket-Protocol'
-        protocols = h.get('Sec-'+prot, h.get(prot, '')).split(',')
-
-        ver = h.get('Sec-WebSocket-Version')
-        if ver:
-            # HyBi/IETF version of the protocol
-
-            # HyBi-07 report version 7
-            # HyBi-08 - HyBi-12 report version 8
-            # HyBi-13 reports version 13
-            if ver in ['7', '8', '13']:
-                self.version = "hybi-%02d" % int(ver)
-            else:
-                raise self.EClose('Unsupported protocol version %s' % ver)
-
-            key = h['Sec-WebSocket-Key']
-
-            # Choose binary if client supports it
-            if 'binary' in protocols:
-                self.base64 = False
-            elif 'base64' in protocols:
-                self.base64 = True
-            else:
-                raise self.EClose("Client must support 'binary' or 'base64' protocol")
-
-            # Generate the hash value for the accept header
-            accept = b64encode(sha1(s2b(key + self.GUID)).digest())
-
-            response = self.server_handshake_hybi % b2s(accept)
-            if self.base64:
-                response += "Sec-WebSocket-Protocol: base64\r\n"
-            else:
-                response += "Sec-WebSocket-Protocol: binary\r\n"
-            response += "\r\n"
-
-        else:
-            raise self.EClose("Missing Sec-WebSocket-Version header. Hixie protocols not supported.")
-
-        return response
-
-
     def do_handshake(self, sock, address):
         """
         do_handshake does the following:
@@ -619,7 +749,6 @@ Sec-WebSocket-Accept: %s\r
         - Send a WebSockets handshake server response.
         - Return the socket for this WebSocket client.
         """
-        stype = ""
         ready = select.select([sock], [], [], 3)[0]
 
         
@@ -663,46 +792,39 @@ Sec-WebSocket-Accept: %s\r
                 else:
                     raise
 
-            self.scheme = "wss"
-            stype = "SSL/TLS (wss://)"
-
         elif self.ssl_only:
             raise self.EClose("non-SSL connection received but disallowed")
 
         else:
             retsock = sock
-            self.scheme = "ws"
-            stype = "Plain non-SSL (ws://)"
 
-        wsh = WSRequestHandler(retsock, address, not self.web, 
-                               self.file_only, self.no_parent)
-        if wsh.last_code == 101:
-            # Continue on to handle WebSocket upgrade
-            pass
-        elif wsh.last_code == 405:
-            raise self.EClose("Normal web request received but disallowed")
-        elif wsh.last_code < 200 or wsh.last_code >= 300:
-            raise self.EClose(wsh.last_message)
-        elif self.verbose:
-            raise self.EClose(wsh.last_message)
-        else:
-            raise self.EClose("")
+        # If the address is like (host, port), we are extending it
+        # with a flag indicating SSL. Not many other options
+        # available...
+        if len(address) == 2:
+            address = (address[0], address[1], (retsock != sock))
 
-        response = self.do_websocket_handshake(wsh.headers, wsh.path)
-
-        self.msg("%s: %s WebSocket connection" % (address[0], stype))
-        self.msg("%s: Version %s, base64: '%s'" % (address[0],
-            self.version, self.base64))
-        if self.path != '/':
-            self.msg("%s: Path: '%s'" % (address[0], self.path))
-
-
-        # Send server WebSockets handshake response
-        #self.msg("sending response [%s]" % response)
-        retsock.send(s2b(response))
+        self.RequestHandlerClass(retsock, address, self)
 
         # Return the WebSockets socket which may be SSL wrapped
         return retsock
+
+
+    #
+    # WebSocketServer logging/output functions
+    #
+
+    def msg(self, *args, **kwargs):
+        """ Output message as info """
+        self.logger.log(logging.INFO, *args, **kwargs)
+
+    def vmsg(self, *args, **kwargs):
+        """ Same as msg() but as debug. """
+        self.logger.log(logging.DEBUG, *args, **kwargs)
+
+    def warn(self, *args, **kwargs):
+        """ Same as msg() but as warning. """
+        self.logger.log(logging.WARN, *args, **kwargs)
 
 
     #
@@ -744,38 +866,11 @@ Sec-WebSocket-Accept: %s\r
 
     def top_new_client(self, startsock, address):
         """ Do something with a WebSockets client connection. """
-        # Initialize per client settings
-        self.i_am_client = True
-        self.send_parts = []
-        self.recv_part  = None
-        self.base64     = False
-        self.rec        = None
-        self.start_time = int(time.time()*1000)
-
         # handler process        
+        client = None
         try:
             try:
-                self.client = self.do_handshake(startsock, address)
-
-                if self.record:
-                    # Record raw frame data as JavaScript array
-                    fname = "%s.%s" % (self.record,
-                                        self.handler_id)
-                    self.msg("opening record file: %s" % fname)
-                    self.rec = open(fname, 'w+')
-                    encoding = "binary"
-                    if self.base64: encoding = "base64"
-                    self.rec.write("var VNC_frame_encoding = '%s';\n"
-                            % encoding)
-                    self.rec.write("var VNC_frame_data = [\n")
-
-                self.ws_connection = True
-                self.new_client()
-            except self.CClose:
-                # Close the client
-                _, exc, _ = sys.exc_info()
-                if self.client:
-                    self.send_close(exc.args[0], exc.args[1])
+                client = self.do_handshake(startsock, address)
             except self.EClose:
                 _, exc, _ = sys.exc_info()
                 # Connection was not a WebSockets connection
@@ -788,18 +883,11 @@ Sec-WebSocket-Accept: %s\r
                 self.msg("handler exception: %s" % str(exc))
                 self.vmsg("exception", exc_info=True)
         finally:
-            if self.rec:
-                self.rec.write("'EOF'];\n")
-                self.rec.close()
 
-            if self.client and self.client != startsock:
+            if client and client != startsock:
                 # Close the SSL wrapped socket
                 # Original socket closed by caller
-                self.client.close()
-
-    def new_client(self):
-        """ Do something with a WebSockets client connection. """
-        raise("WebSocketServer.new_client() must be overloaded")
+                client.close()
 
     def start_server(self):
         """
@@ -841,7 +929,6 @@ Sec-WebSocket-Accept: %s\r
             while True:
                 try:
                     try:
-                        self.client = None
                         startsock = None
                         pid = err = 0
                         child_count = 0
@@ -937,43 +1024,6 @@ Sec-WebSocket-Accept: %s\r
 
             # Restore signals
             for sig, func in original_signals.items():
-                signal.signal(sig, func)
+                 signal.signal(sig, func)
 
 
-# HTTP handler with WebSocket upgrade support
-class WSRequestHandler(SimpleHTTPRequestHandler):
-    def __init__(self, req, addr, only_upgrade=False, file_only=False,
-                 no_parent=False):
-        self.only_upgrade = only_upgrade # only allow upgrades
-        self.webroot = os.path.realpath(".")
-        self.file_only = file_only
-        self.no_parent = no_parent
-        SimpleHTTPRequestHandler.__init__(self, req, addr, object())
-
-    def do_GET(self):
-        abspath = os.path.realpath("." + (self.path.split('?')[0]))
-        if (self.headers.get('upgrade') and
-                self.headers.get('upgrade').lower() == 'websocket'):
-
-            # Just indicate that an WebSocket upgrade is needed
-            self.last_code = 101
-            self.last_message = "101 Switching Protocols"
-        elif self.only_upgrade:
-            # Normal web request responses are disabled
-            self.last_code = 405
-            self.last_message = "405 Method Not Allowed"
-        elif self.file_only and not os.path.isfile(abspath):
-            self.send_response(404,  "No such file")
-        elif self.no_parent and not abspath.startswith(self.webroot):
-            self.send_response(403,  "Hidden resources")
-        else:
-            SimpleHTTPRequestHandler.do_GET(self)
-
-    def send_response(self, code, message=None):
-        # Save the status code
-        self.last_code = code
-        SimpleHTTPRequestHandler.send_response(self, code, message)
-
-    def log_message(self, f, *args):
-        # Save instead of printing
-        self.last_message = f % args
