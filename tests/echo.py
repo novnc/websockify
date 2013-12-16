@@ -20,7 +20,7 @@ class WebSocketEcho(WebSocketServer):
     client.  """
     buffer_size = 8096
 
-    def new_client(self):
+    def new_websocket_client(self):
         """
         Echo back whatever is received.
         """
@@ -28,21 +28,21 @@ class WebSocketEcho(WebSocketServer):
         cqueue = []
         c_pend = 0
         cpartial = ""
-        rlist = [self.client]
+        rlist = [self.request]
 
         while True:
             wlist = []
 
-            if cqueue or c_pend: wlist.append(self.client)
+            if cqueue or c_pend: wlist.append(self.request)
             ins, outs, excepts = select.select(rlist, wlist, [], 1)
             if excepts: raise Exception("Socket exception")
 
-            if self.client in outs:
+            if self.request in outs:
                 # Send queued target data to the client
                 c_pend = self.send_frames(cqueue)
                 cqueue = []
 
-            if self.client in ins:
+            if self.request in ins:
                 # Receive client data, decode it, and send it back
                 frames, closed = self.recv_frames()
                 cqueue.extend(frames)
