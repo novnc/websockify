@@ -98,7 +98,7 @@ Sec-WebSocket-Accept: %s\r
 
     begin
       t[:client] = do_handshake(io)
-      new_client(t[:client])
+      new_websocket_client(t[:client])
     rescue EClose => e
       msg "Client closed: #{e.message}"
       return

@@ -39,7 +39,7 @@ Traffic Legend:
   end
 
   # Echo back whatever is received    
-  def new_client(client)
+  def new_websocket_client(client)
 
     msg "connecting to: %s:%s" % [@target_host, @target_port]
     tsock = TCPSocket.open(@target_host, @target_port)

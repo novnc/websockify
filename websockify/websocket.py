@@ -893,7 +893,7 @@ class WebSocketServer(object):
         """
         Daemonize if requested. Listen for for connections. Run
         do_handshake() method for each connection. If the connection
-        is a WebSockets client then call new_client() method (which must
+        is a WebSockets client then call new_websocket_client() method (which must
         be overridden) for each new client connection.
         """
         lsock = self.socket(self.listen_host, self.listen_port, False,
