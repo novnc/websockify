@@ -31,7 +31,7 @@ Traffic Legend:
     }  - Client receive
     }. - Client receive partial
     {  - Target receive
- 
+
     >  - Target send
     >. - Target send partial
     <  - Client send

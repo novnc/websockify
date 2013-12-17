@@ -256,6 +256,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
         return f
 
+
     #
     # WebSocketRequestHandler logging/output functions
     #
@@ -562,7 +563,8 @@ class WebSocketServer(object):
     def __init__(self, RequestHandlerClass, listen_host='', 
                  listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
-            daemon=False, record='', web='', file_only=False, 
+            daemon=False, record='', web='',
+            file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
             tcp_keepintvl=None):
@@ -809,7 +811,6 @@ class WebSocketServer(object):
         # Return the WebSockets socket which may be SSL wrapped
         return retsock
 
-
     #
     # WebSocketServer logging/output functions
     #
@@ -1024,6 +1025,6 @@ class WebSocketServer(object):
 
             # Restore signals
             for sig, func in original_signals.items():
-                 signal.signal(sig, func)
+                signal.signal(sig, func)
 
 
