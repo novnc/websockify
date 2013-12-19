@@ -42,116 +42,6 @@ Traffic Legend:
     <. - Client send partial
 """
 
-    def __init__(self, *args, **kwargs):
-        # Save off proxy specific options
-        self.target_host    = kwargs.pop('target_host', None)
-        self.target_port    = kwargs.pop('target_port', None)
-        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode      = kwargs.pop('wrap_mode', None)
-        self.unix_target    = kwargs.pop('unix_target', None)
-        self.ssl_target     = kwargs.pop('ssl_target', None)
-        self.target_cfg     = kwargs.pop('target_cfg', None)
-        # Last 3 timestamps command was run
-        self.wrap_times    = [0, 0, 0]
-
-        if self.wrap_cmd:
-            wsdir = os.path.dirname(sys.argv[0])
-            rebinder_path = [os.path.join(wsdir, "..", "lib"),
-                             os.path.join(wsdir, "..", "lib", "websockify"),
-                             wsdir]
-            self.rebinder = None
-
-            for rdir in rebinder_path:
-                rpath = os.path.join(rdir, "rebind.so")
-                if os.path.exists(rpath):
-                    self.rebinder = rpath
-                    break
-
-            if not self.rebinder:
-                raise Exception("rebind.so not found, perhaps you need to run make")
-            self.rebinder = os.path.abspath(self.rebinder)
-
-            self.target_host = "127.0.0.1"  # Loopback
-            # Find a free high port
-            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            sock.bind(('', 0))
-            self.target_port = sock.getsockname()[1]
-            sock.close()
-
-            os.environ.update({
-                "LD_PRELOAD": self.rebinder,
-                "REBIND_OLD_PORT": str(kwargs['listen_port']),
-                "REBIND_NEW_PORT": str(self.target_port)})
-
-        websocket.WebSocketServer.__init__(self, *args, **kwargs)
-
-    def run_wrap_cmd(self):
-        self.msg("Starting '%s'", " ".join(self.wrap_cmd))
-        self.wrap_times.append(time.time())
-        self.wrap_times.pop(0)
-        self.cmd = subprocess.Popen(
-                self.wrap_cmd, env=os.environ, preexec_fn=_subprocess_setup)
-        self.spawn_message = True
-
-    def started(self):
-        """
-        Called after Websockets server startup (i.e. after daemonize)
-        """
-        # Need to call wrapped command after daemonization so we can
-        # know when the wrapped command exits
-        if self.wrap_cmd:
-            dst_string = "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
-        elif self.unix_target:
-            dst_string = self.unix_target
-        else:
-            dst_string = "%s:%s" % (self.target_host, self.target_port)
-
-        if self.target_cfg:
-            msg = "  - proxying from %s:%s to targets in %s" % (
-                self.listen_host, self.listen_port, self.target_cfg)
-        else:
-            msg = "  - proxying from %s:%s to %s" % (
-                self.listen_host, self.listen_port, dst_string)
-
-        if self.ssl_target:
-            msg += " (using SSL)"
-
-        self.msg("%s", msg)
-
-        if self.wrap_cmd:
-            self.run_wrap_cmd()
-
-    def poll(self):
-        # If we are wrapping a command, check it's status
-
-        if self.wrap_cmd and self.cmd:
-            ret = self.cmd.poll()
-            if ret != None:
-                self.vmsg("Wrapped command exited (or daemon). Returned %s" % ret)
-                self.cmd = None
-
-        if self.wrap_cmd and self.cmd == None:
-            # Response to wrapped command being gone
-            if self.wrap_mode == "ignore":
-                pass
-            elif self.wrap_mode == "exit":
-                sys.exit(ret)
-            elif self.wrap_mode == "respawn":
-                now = time.time()
-                avg = sum(self.wrap_times)/len(self.wrap_times)
-                if (now - avg) < 10:
-                    # 3 times in the last 10 seconds
-                    if self.spawn_message:
-                        self.warn("Command respawning too fast")
-                        self.spawn_message = False
-                else:
-                    self.run_wrap_cmd()
-
-    #
-    # Routines above this point are run in the master listener
-    # process.
-    #
-
     #
     # Routines below this point are connection handler routines and
     # will be run in a separate forked process for each connection.
@@ -292,6 +182,116 @@ Traffic Legend:
                 cqueue.append(buf)
                 self.print_traffic("{")
 
+
+    #
+    # Routines below this point are run in the master listener
+    # process.
+    #
+
+    def __init__(self, *args, **kwargs):
+        # Save off proxy specific options
+        self.target_host    = kwargs.pop('target_host', None)
+        self.target_port    = kwargs.pop('target_port', None)
+        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
+        self.wrap_mode      = kwargs.pop('wrap_mode', None)
+        self.unix_target    = kwargs.pop('unix_target', None)
+        self.ssl_target     = kwargs.pop('ssl_target', None)
+        self.target_cfg     = kwargs.pop('target_cfg', None)
+        # Last 3 timestamps command was run
+        self.wrap_times    = [0, 0, 0]
+
+        if self.wrap_cmd:
+            wsdir = os.path.dirname(sys.argv[0])
+            rebinder_path = [os.path.join(wsdir, "..", "lib"),
+                             os.path.join(wsdir, "..", "lib", "websockify"),
+                             wsdir]
+            self.rebinder = None
+
+            for rdir in rebinder_path:
+                rpath = os.path.join(rdir, "rebind.so")
+                if os.path.exists(rpath):
+                    self.rebinder = rpath
+                    break
+
+            if not self.rebinder:
+                raise Exception("rebind.so not found, perhaps you need to run make")
+            self.rebinder = os.path.abspath(self.rebinder)
+
+            self.target_host = "127.0.0.1"  # Loopback
+            # Find a free high port
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.bind(('', 0))
+            self.target_port = sock.getsockname()[1]
+            sock.close()
+
+            os.environ.update({
+                "LD_PRELOAD": self.rebinder,
+                "REBIND_OLD_PORT": str(kwargs['listen_port']),
+                "REBIND_NEW_PORT": str(self.target_port)})
+
+        websocket.WebSocketServer.__init__(self, *args, **kwargs)
+
+    def run_wrap_cmd(self):
+        self.msg("Starting '%s'", " ".join(self.wrap_cmd))
+        self.wrap_times.append(time.time())
+        self.wrap_times.pop(0)
+        self.cmd = subprocess.Popen(
+                self.wrap_cmd, env=os.environ, preexec_fn=_subprocess_setup)
+        self.spawn_message = True
+
+    def started(self):
+        """
+        Called after Websockets server startup (i.e. after daemonize)
+        """
+        # Need to call wrapped command after daemonization so we can
+        # know when the wrapped command exits
+        if self.wrap_cmd:
+            dst_string = "'%s' (port %s)" % (" ".join(self.wrap_cmd), self.target_port)
+        elif self.unix_target:
+            dst_string = self.unix_target
+        else:
+            dst_string = "%s:%s" % (self.target_host, self.target_port)
+
+        if self.target_cfg:
+            msg = "  - proxying from %s:%s to targets in %s" % (
+                self.listen_host, self.listen_port, self.target_cfg)
+        else:
+            msg = "  - proxying from %s:%s to %s" % (
+                self.listen_host, self.listen_port, dst_string)
+
+        if self.ssl_target:
+            msg += " (using SSL)"
+
+        self.msg("%s", msg)
+
+        if self.wrap_cmd:
+            self.run_wrap_cmd()
+
+    def poll(self):
+        # If we are wrapping a command, check it's status
+
+        if self.wrap_cmd and self.cmd:
+            ret = self.cmd.poll()
+            if ret != None:
+                self.vmsg("Wrapped command exited (or daemon). Returned %s" % ret)
+                self.cmd = None
+
+        if self.wrap_cmd and self.cmd == None:
+            # Response to wrapped command being gone
+            if self.wrap_mode == "ignore":
+                pass
+            elif self.wrap_mode == "exit":
+                sys.exit(ret)
+            elif self.wrap_mode == "respawn":
+                now = time.time()
+                avg = sum(self.wrap_times)/len(self.wrap_times)
+                if (now - avg) < 10:
+                    # 3 times in the last 10 seconds
+                    if self.spawn_message:
+                        self.warn("Command respawning too fast")
+                        self.spawn_message = False
+                else:
+                    self.run_wrap_cmd()
 
 
 def _subprocess_setup():
