@@ -1011,6 +1011,7 @@ class WebSocketServer(object):
                         self.msg("In exit")
                         break
                     except Exception:
+                        _, exc, _ = sys.exc_info()
                         self.msg("handler exception: %s", str(exc))
                         self.vmsg("exception", exc_info=True)
 
