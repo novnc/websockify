@@ -16,6 +16,7 @@
 #include <netdb.h>
 #include <sys/select.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #include "websocket.h"
 
