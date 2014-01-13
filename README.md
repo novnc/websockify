@@ -116,7 +116,7 @@ new (moved) port of the program.
 The program wrap mode is invoked by replacing the target with `--`
 followed by the program command line to wrap.
 
-    `./websockify 2023 -- PROGRAM ARGS`
+    `./run 2023 -- PROGRAM ARGS`
 
 The `--wrap-mode` option can be used to indicate what action to take
 when the wrapped program exits or daemonizes.
@@ -125,16 +125,17 @@ Here is an example of using websockify to wrap the vncserver command
 (which backgrounds itself) for use with
 [noVNC](https://github.com/kanaka/noVNC):
 
-    `./websockify 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
+    `./run 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
-Here is an example of wrapping telnetd (from krb5-telnetd).telnetd
+Here is an example of wrapping telnetd (from krb5-telnetd). telnetd
 exits after the connection closes so the wrap mode is set to respawn
 the command:
 
-    `sudo ./websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
+    `sudo ./run 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
 The `wstelnet.html` page demonstrates a simple WebSockets based telnet
-client.
+client (use 'localhost' and '2023' for the host and port
+respectively).
 
 
 ### Building the Python ssl module (for python 2.5 and older)
