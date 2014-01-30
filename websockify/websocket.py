@@ -913,17 +913,21 @@ class WebSocketServer(object):
         original_signals = {
             signal.SIGINT: signal.getsignal(signal.SIGINT),
             signal.SIGTERM: signal.getsignal(signal.SIGTERM),
-            signal.SIGCHLD: signal.getsignal(signal.SIGCHLD),
         }
+        if getattr(signal, 'SIGCHLD', None) is not None:
+            original_signals[signal.SIGCHLD] = signal.getsignal(signal.SIGCHLD),
+
         signal.signal(signal.SIGINT, self.do_SIGINT)
         signal.signal(signal.SIGTERM, self.do_SIGTERM)
-        if not multiprocessing:
-            # os.fork() (python 2.4) child reaper
-            signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
-        else:
-            # make sure that _cleanup is called when children die
-            # by calling active_children on SIGCHLD
-            signal.signal(signal.SIGCHLD, self.multiprocessing_SIGCHLD)
+
+        if getattr(signal, 'SIGCHLD', None) is not None:
+            if not multiprocessing:
+                # os.fork() (python 2.4) child reaper
+                signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
+            else:
+                # make sure that _cleanup is called when children die
+                # by calling active_children on SIGCHLD
+                signal.signal(signal.SIGCHLD, self.multiprocessing_SIGCHLD)
 
         last_active_time = self.launch_time
         try:
