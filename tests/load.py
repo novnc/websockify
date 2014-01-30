@@ -6,7 +6,7 @@ that has a random payload (length and content) that is checksummed and
 given a sequence number. Any errors are reported and counted.
 '''
 
-import sys, os, select, random, time, optparse
+import sys, os, select, random, time, optparse, logging
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websocket import WebSocketServer, WebSocketRequestHandler
 
@@ -161,6 +161,8 @@ if __name__ == '__main__':
             opts.delay = 10
     except:
         parser.error("Invalid arguments")
+
+    logging.basicConfig(level=logging.INFO)
 
     opts.web = "."
     server = WebSocketLoadServer(WebSocketLoad, **opts.__dict__)

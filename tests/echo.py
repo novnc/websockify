@@ -10,7 +10,7 @@ openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
 as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
-import os, sys, select, optparse
+import os, sys, select, optparse, logging
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websocket import WebSocketServer, WebSocketRequestHandler
 
@@ -67,6 +67,8 @@ if __name__ == '__main__':
         opts.listen_port = int(args[0])
     except:
         parser.error("Invalid arguments")
+
+    logging.basicConfig(level=logging.INFO)
 
     opts.web = "."
     server = WebSocketServer(WebSocketEcho, **opts.__dict__)
