@@ -8,6 +8,28 @@ to normal socket traffic. Websockify accepts the WebSockets handshake,
 parses it, and then begins forwarding traffic between the client and
 the target in both directions.
 
+### News/help/contact
+
+Notable commits, announcements and news are posted to
+<a href="http://www.twitter.com/noVNC">@noVNC</a>
+
+If you are a websockify developer/integrator/user (or want to be)
+please join the <a
+href="https://groups.google.com/forum/?fromgroups#!forum/novnc">noVNC/websockify
+discussion group</a>
+
+Bugs and feature requests can be submitted via [github
+issues](https://github.com/kanaka/websockify/issues).
+
+If you want to show appreciation for websockify you could donate to a great
+non-profits such as: [Compassion
+International](http://www.compassion.com/), [SIL](http://www.sil.org),
+[Habitat for Humanity](http://www.habitat.org), [Electronic Frontier
+Foundation](https://www.eff.org/), [Against Malaria
+Foundation](http://www.againstmalaria.com/), [Nothing But
+Nets](http://www.nothingbutnets.net/), etc. Please tweet <a
+href="http://www.twitter.com/noVNC">@noVNC</a> if you do.
+
 ### WebSockets binary data
 
 Starting with websockify 0.5.0, only the HyBi / IETF
