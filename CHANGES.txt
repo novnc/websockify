@@ -1,6 +1,15 @@
 Changes
 =======
 
+0.6.0 - Feb 18, 2014
+--------------------
+
+* **NOTE** : 0.6.0 will break existing code that sub-classes WebsocketProxy
+* Refactor to use standard SocketServer RequestHandler design
+* Fix zombie process bug on certain systems when using multiprocessing
+* Add better unit tests
+* Log information via python `logging` module
+
 0.5.1 - Jun 27, 2013
 --------------------
 
