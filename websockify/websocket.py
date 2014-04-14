@@ -74,8 +74,8 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
     attributes on the server object:
 
     * only_upgrade: If true, SimpleHTTPRequestHandler will not be enabled,
-      only websocket is allowed. 
-    * verbose: If true, verbose logging is activated. 
+      only websocket is allowed.
+    * verbose: If true, verbose logging is activated.
     * daemon: Running as daemon, do not write to console etc
     * record: Record raw frame data as JavaScript array into specified filename
     * run_once: Handle a single request
@@ -108,7 +108,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
             self.logger = WebSocketServer.get_logger()
-    
+
         SimpleHTTPRequestHandler.__init__(self, req, addr, server)
 
     @staticmethod
@@ -435,16 +435,16 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                 self.send_header("Sec-WebSocket-Protocol", "binary")
             self.end_headers()
             return True
-        else: 
+        else:
             self.send_error(400, "Missing Sec-WebSocket-Version header. Hixie protocols not supported.")
 
         return False
 
     def handle_websocket(self):
-        """Upgrade a connection to Websocket, if requested. If this succeeds, 
+        """Upgrade a connection to Websocket, if requested. If this succeeds,
         new_websocket_client() will be called. Otherwise, False is returned.
         """
-        if (self.headers.get('upgrade') and 
+        if (self.headers.get('upgrade') and
             self.headers.get('upgrade').lower() == 'websocket'):
 
             if not self.do_websocket_handshake():
@@ -468,7 +468,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
             if is_ssl:
                 self.stype = "SSL/TLS (wss://)"
-            else: 
+            else:
                 self.stype = "Plain non-SSL (ws://)"
 
             self.log_message("%s: %s WebSocket connection", client_addr,
@@ -495,7 +495,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             except self.CClose:
                 # Close the client
                 _, exc, _ = sys.exc_info()
-                self.send_close(exc.args[0], exc.args[1])                
+                self.send_close(exc.args[0], exc.args[1])
             return True
         else:
             return False
@@ -514,7 +514,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             self.send_error(404, "No such file")
         else:
             return SimpleHTTPRequestHandler.list_directory(self, path)
-                
+
     def new_websocket_client(self):
         """ Do something with a WebSockets client connection. """
         raise Exception("WebSocketRequestHandler.new_websocket_client() must be overloaded")
@@ -560,7 +560,7 @@ class WebSocketServer(object):
     class Terminate(Exception):
         pass
 
-    def __init__(self, RequestHandlerClass, listen_host='', 
+    def __init__(self, RequestHandlerClass, listen_host='',
                  listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
@@ -581,7 +581,7 @@ class WebSocketServer(object):
         self.timeout        = timeout
         self.idle_timeout   = idle_timeout
         self.traffic        = traffic
-        
+
         self.launch_time    = time.time()
         self.ws_connection  = False
         self.handler_id     = 1
@@ -662,7 +662,7 @@ class WebSocketServer(object):
             raise Exception("SSL only supported in connect mode (for now)")
         if not connect:
             flags = flags | socket.AI_PASSIVE
-            
+
         if not unix_socket:
             addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
                     socket.IPPROTO_TCP, flags)
@@ -693,7 +693,7 @@ class WebSocketServer(object):
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind(addrs[0][4])
                 sock.listen(100)
-        else:    
+        else:
             sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             sock.connect(unix_socket)
 
