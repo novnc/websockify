@@ -402,21 +402,27 @@ def websockify_init():
         try:    opts.target_port = int(opts.target_port)
         except: parser.error("Error parsing target port")
 
-    # Transform to absolute path as daemon may chdir
-    if opts.target_cfg:
-        opts.target_cfg = os.path.abspath(opts.target_cfg)
+    try:
+        # Transform to absolute path as daemon may chdir
+        if opts.target_cfg:
+            opts.target_cfg = os.path.abspath(opts.target_cfg)
 
-    # Create and start the WebSockets proxy
-    libserver = opts.libserver
-    del opts.libserver
-    if libserver:
-        # Use standard Python SocketServer framework
-        server = LibProxyServer(**opts.__dict__)
-        server.serve_forever()
-    else:
-        # Use internal service framework
-        server = WebSocketProxy(**opts.__dict__)
-        server.start_server()
+        # Create and start the WebSockets proxy
+        libserver = opts.libserver
+        del opts.libserver
+        if libserver:
+            # Use standard Python SocketServer framework
+            server = LibProxyServer(**opts.__dict__)
+            server.serve_forever()
+        else:
+            # Use internal service framework
+            server = WebSocketProxy(**opts.__dict__)
+            server.start_server()
+    except:
+        if opts.verbose:
+            raise
+        else:
+            print >> sys.stderr, 'Unexpected error:', sys.exc_info()[1]
 
 
 class LibProxyServer(ForkingMixIn, HTTPServer):
