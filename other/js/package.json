@@ -9,9 +9,6 @@
     "url": "git://github.com/kanaka/websockify.git"
   },
   "files": ["../../docs/LICENSE.LGPL-3"],
-  "bin": {
-    "websockify": "./websockify.js"
-  },
   "engines": {
     "node": ">=0.8.9"
   },
