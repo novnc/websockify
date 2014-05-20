@@ -844,7 +844,7 @@ class WebSocketServer(object):
         raise self.Terminate()
 
     def multiprocessing_SIGCHLD(self, sig, stack):
-        self.vmsg('Reaing zombies, active child count is %s', len(multiprocessing.active_children()))
+        self.vmsg('Reaping zombies, active child count is %s', len(multiprocessing.active_children()))
 
     def fallback_SIGCHLD(self, sig, stack):
         # Reap zombies when using os.fork() (python 2.4)
