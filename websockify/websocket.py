@@ -147,13 +147,16 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
     @staticmethod
     def encode_hybi(buf, opcode, base64=False):
         """ Encode a HyBi style WebSocket frame.
-        Optional opcode:
+        Opcode, defined by the HyBi spec:
             0x0 - continuation
-            0x1 - text frame (base64 encode buf)
-            0x2 - binary frame (use raw buf)
+            0x1 - text frame
+            0x2 - binary frame
             0x8 - connection close
             0x9 - ping
             0xA - pong
+        
+        If base64 is set, the buffer will be base64 encoded before being sent.
+        This is probably only useful in conjunction with opcode=0x1.
         """
         if base64:
             buf = b64encode(buf)
@@ -297,10 +300,12 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
         if bufs:
             for buf in bufs:
-                if self.base64:
+                if self.mode == 'base64':
                     encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=1, base64=True)
-                else:
+                elif self.mode == 'binary':
                     encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=2, base64=False)
+                elif self.mode == 'text':
+                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=1, base64=False)
 
                 if self.rec:
                     self.rec.write("%s,\n" %
@@ -415,12 +420,13 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
             # Choose binary if client supports it
             if 'binary' in protocols:
-                self.base64 = False
+                self.mode = 'binary'
             elif 'base64' in protocols:
-                self.base64 = True
+                self.mode = 'base64'
+            elif 'text' in protocols:
+                self.mode = 'text'
             else:
-                self.send_error(400, "Client must support 'binary' or 'base64' protocol")
-                return False
+                self.mode = 'text'
 
             # Generate the hash value for the accept header
             accept = b64encode(sha1(s2b(key + self.GUID)).digest())
@@ -431,15 +437,23 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             self.send_header("Sec-WebSocket-Accept", b2s(accept))
             if self.base64:
                 self.send_header("Sec-WebSocket-Protocol", "base64")
-            else:
+            elif self.binary:
                 self.send_header("Sec-WebSocket-Protocol", "binary")
+            # no header for "text" mode; it is the default websocket mode.
+            
             self.end_headers()
             return True
         else:
             self.send_error(400, "Missing Sec-WebSocket-Version header. Hixie protocols not supported.")
 
         return False
-
+    
+    @property
+    def base64(self): return self.mode == 'base64'
+    
+    @property
+    def binary(self): return self.mode == 'binary'
+    
     def handle_websocket(self):
         """Upgrade a connection to Websocket, if requested. If this succeeds,
         new_websocket_client() will be called. Otherwise, False is returned.
