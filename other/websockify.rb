@@ -15,6 +15,7 @@ require 'optparse'
 # encoded/decoded to allow binary data to be sent/received to/from
 # the target.
 class WebSocketProxy < WebSocketServer
+  attr_accessor :target_host, :target_port
 
   @@Traffic_legend = "
 Traffic Legend:
@@ -33,13 +34,24 @@ Traffic Legend:
     vmsg "in WebSocketProxy.initialize"
 
     super(opts)
-    
+
     @target_host = opts["target_host"]
     @target_port = opts["target_port"]
   end
 
-  # Echo back whatever is received    
+  # Echo back whatever is received
   def new_websocket_client(client)
+    path = Thread.current[:path]
+    if path =~ /:/
+      msg "Path has a ip and port specified. Using those for target"
+      possible_target_host = path[/(\d+\.\d+\.\d+\.\d+):(\d+)/,1]
+      possible_target_port = path[/(\d+\.\d+\.\d+\.\d+):(\d+)/,2].to_i
+    end
+
+    if possible_target_host and possible_target_port
+      @target_host = possible_target_host
+      @target_port = possible_target_port
+    end
 
     msg "connecting to: %s:%s" % [@target_host, @target_port]
     tsock = TCPSocket.open(@target_host, @target_port)
@@ -122,50 +134,50 @@ Traffic Legend:
 end
 
 # Parse parameters
-opts = {}
-parser = OptionParser.new do |o|
-  o.on('--verbose', '-v') { |b| opts['verbose'] = b }
-  o.parse!
-end
-
-if ARGV.length < 2
-  puts "Too few arguments"
-  exit 2
-end
-
-# Parse host:port and convert ports to numbers
-if ARGV[0].count(":") > 0
-  opts['listen_host'], _, opts['listen_port'] = ARGV[0].rpartition(':')
-else
-  opts['listen_host'], opts['listen_port'] = nil, ARGV[0]
-end
-
-begin
-  opts['listen_port'] = opts['listen_port'].to_i
-rescue
-  puts "Error parsing listen port"
-  exit 2
-end
-
-if ARGV[1].count(":") > 0
-  opts['target_host'], _, opts['target_port'] = ARGV[1].rpartition(':')
-else
-  puts "Error parsing target"
-  exit 2
-end
-
-begin
-  opts['target_port'] = opts['target_port'].to_i
-rescue
-  puts "Error parsing target port"
-  exit 2
-end
-
-puts "Starting server on #{opts['listen_host']}:#{opts['listen_port']}"
-server = WebSocketProxy.new(opts)
-server.start(100)
-server.join
-
-puts "Server has been terminated"
+#opts = {}
+#parser = OptionParser.new do |o|
+#  o.on('--verbose', '-v') { |b| opts['verbose'] = b }
+#  o.parse!
+#end
+#
+#if ARGV.length < 2
+#  puts "Too few arguments"
+#  exit 2
+#end
+#
+## Parse host:port and convert ports to numbers
+#if ARGV[0].count(":") > 0
+#  opts['listen_host'], _, opts['listen_port'] = ARGV[0].rpartition(':')
+#else
+#  opts['listen_host'], opts['listen_port'] = nil, ARGV[0]
+#end
+#
+#begin
+#  opts['listen_port'] = opts['listen_port'].to_i
+#rescue
+#  puts "Error parsing listen port"
+#  exit 2
+#end
+#
+#if ARGV[1].count(":") > 0
+#  opts['target_host'], _, opts['target_port'] = ARGV[1].rpartition(':')
+#else
+#  puts "Error parsing target"
+#  exit 2
+#end
+#
+#begin
+#  opts['target_port'] = opts['target_port'].to_i
+#rescue
+#  puts "Error parsing target port"
+#  exit 2
+#end
+#
+#puts "Starting server on #{opts['listen_host']}:#{opts['listen_port']}"
+#server = WebSocketProxy.new(opts)
+#server.start(100)
+#server.join
+#
+#puts "Server has been terminated"
 
 # vim: sw=2
