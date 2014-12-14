@@ -134,50 +134,50 @@ Traffic Legend:
 end
 
 # Parse parameters
-#opts = {}
-#parser = OptionParser.new do |o|
-#  o.on('--verbose', '-v') { |b| opts['verbose'] = b }
-#  o.parse!
-#end
-#
-#if ARGV.length < 2
-#  puts "Too few arguments"
-#  exit 2
-#end
-#
-## Parse host:port and convert ports to numbers
-#if ARGV[0].count(":") > 0
-#  opts['listen_host'], _, opts['listen_port'] = ARGV[0].rpartition(':')
-#else
-#  opts['listen_host'], opts['listen_port'] = nil, ARGV[0]
-#end
-#
-#begin
-#  opts['listen_port'] = opts['listen_port'].to_i
-#rescue
-#  puts "Error parsing listen port"
-#  exit 2
-#end
-#
-#if ARGV[1].count(":") > 0
-#  opts['target_host'], _, opts['target_port'] = ARGV[1].rpartition(':')
-#else
-#  puts "Error parsing target"
-#  exit 2
-#end
-#
-#begin
-#  opts['target_port'] = opts['target_port'].to_i
-#rescue
-#  puts "Error parsing target port"
-#  exit 2
-#end
-#
-#puts "Starting server on #{opts['listen_host']}:#{opts['listen_port']}"
-#server = WebSocketProxy.new(opts)
-#server.start(100)
-#server.join
-#
-#puts "Server has been terminated"
+opts = {}
+parser = OptionParser.new do |o|
+  o.on('--verbose', '-v') { |b| opts['verbose'] = b }
+  o.parse!
+end
+
+if ARGV.length < 2
+  puts "Too few arguments"
+  exit 2
+end
+
+# Parse host:port and convert ports to numbers
+if ARGV[0].count(":") > 0
+  opts['listen_host'], _, opts['listen_port'] = ARGV[0].rpartition(':')
+else
+  opts['listen_host'], opts['listen_port'] = nil, ARGV[0]
+end
+
+begin
+  opts['listen_port'] = opts['listen_port'].to_i
+rescue
+  puts "Error parsing listen port"
+  exit 2
+end
+
+if ARGV[1].count(":") > 0
+  opts['target_host'], _, opts['target_port'] = ARGV[1].rpartition(':')
+else
+  puts "Error parsing target"
+  exit 2
+end
+
+begin
+  opts['target_port'] = opts['target_port'].to_i
+rescue
+  puts "Error parsing target port"
+  exit 2
+end
+
+puts "Starting server on #{opts['listen_host']}:#{opts['listen_port']}"
+server = WebSocketProxy.new(opts)
+server.start(100)
+server.join
+
+puts "Server has been terminated"
 
 # vim: sw=2
