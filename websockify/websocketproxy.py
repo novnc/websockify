@@ -17,7 +17,7 @@ except: from SocketServer import ForkingMixIn
 try:    from http.server import HTTPServer
 except: from BaseHTTPServer import HTTPServer
 from select import select
-import websocket
+from websockify import websocket
 try:
     from urllib.parse import parse_qs, urlparse
 except:
