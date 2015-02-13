@@ -11,7 +11,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess, logging
+import signal, socket, optparse, time, os, sys, subprocess, logging, urllib2, json
 try:    from socketserver import ForkingMixIn
 except: from SocketServer import ForkingMixIn
 try:    from http.server import HTTPServer
@@ -46,6 +46,8 @@ Traffic Legend:
         # for a valid target for it then
         if self.server.target_cfg:
             (self.server.target_host, self.server.target_port) = self.get_target(self.server.target_cfg, self.path)
+        elif self.server.target_api:
+            (self.server.target_host, self.server.target_port) = self.get_target_via_api(self.server.target_api, self.path)
 
         # Connect to the target
         if self.server.wrap_cmd:
@@ -73,7 +75,7 @@ Traffic Legend:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
-                if self.verbose: 
+                if self.verbose:
                     self.log_message("%s:%s: Closed target",
                             self.server.target_host, self.server.target_port)
             raise
@@ -117,6 +119,28 @@ Traffic Legend:
         else:
             raise self.EClose("Token '%s' not found" % token)
 
+    def get_target_via_api(self,target_api,path):
+        """
+        Parses the path, extracts a token, and looks for a valid
+        target for that token in the Installer API. Sets
+        target_host and target_port if successful
+        """
+
+        # Extract the token parameter from url
+        args = parse_qs(urlparse(path)[4]) # 4 is the query from url
+
+        if not 'token' in args or not len(args['token']):
+            raise self.EClose("Token not present")
+
+		# installId to be passed in in request/query string
+        token = args['token'][0].rstrip('\n')
+        try:
+            output = urllib2.urlopen(target_api+token).read()
+            decoded = json.loads(output)
+            return decoded['ip'],decoded['port']
+        except:
+            raise self.EClose("Token '%s' not found" % token)
+
     def do_proxy(self, target):
         """
         Proxy client WebSocket to normal target socket.
@@ -147,7 +171,7 @@ Traffic Legend:
 
                 if closed:
                     # TODO: What about blocking on client socket?
-                    if self.verbose: 
+                    if self.verbose:
                         self.log_message("%s:%s: Client closed connection",
                                 self.server.target_host, self.server.target_port)
                     raise self.CClose(closed['code'], closed['reason'])
@@ -196,6 +220,7 @@ class WebSocketProxy(websocket.WebSocketServer):
         self.unix_target    = kwargs.pop('unix_target', None)
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.target_cfg     = kwargs.pop('target_cfg', None)
+        self.target_api     = kwargs.pop('target_api', None)
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
@@ -254,6 +279,9 @@ class WebSocketProxy(websocket.WebSocketServer):
         if self.target_cfg:
             msg = "  - proxying from %s:%s to targets in %s" % (
                 self.listen_host, self.listen_port, self.target_cfg)
+        elif self.target_api:
+	    msg = "  - proxying from %s:%s to targets (if found) in API" % (
+		self.listen_host, self.listen_port)
         else:
             msg = "  - proxying from %s:%s to %s" % (
                 self.listen_host, self.listen_port, dst_string)
@@ -352,6 +380,11 @@ def websockify_init():
     parser.add_option("--prefer-ipv6", "-6",
             action="store_true", dest="source_is_ipv6",
             help="prefer IPv6 when resolving source_addr")
+    parser.add_option("--target-api", metavar="FILE",
+            dest="target_api",
+            help="JSON Rest API address to check token, token is appended"
+            "e.g. http://localhost/api/[token]"
+            "API should return ip and port in JSON response")
     parser.add_option("--target-config", metavar="FILE",
             dest="target_cfg",
             help="Configuration file containing valid targets "
@@ -365,7 +398,7 @@ def websockify_init():
         logging.getLogger(WebSocketProxy.log_prefix).setLevel(logging.DEBUG)
 
     # Sanity checks
-    if len(args) < 2 and not (opts.target_cfg or opts.unix_target):
+    if len(args) < 2 and not (opts.target_cfg or opts.unix_target or opts.target_api):
         parser.error("Too few arguments")
     if sys.argv.count('--'):
         opts.wrap_cmd = args[1:]
@@ -390,7 +423,7 @@ def websockify_init():
     try:    opts.listen_port = int(opts.listen_port)
     except: parser.error("Error parsing listen port")
 
-    if opts.wrap_cmd or opts.unix_target or opts.target_cfg:
+    if opts.wrap_cmd or opts.unix_target or opts.target_cfg or opts.target_api:
         opts.target_host = None
         opts.target_port = None
     else:
@@ -434,7 +467,9 @@ class LibProxyServer(ForkingMixIn, HTTPServer):
         self.unix_target    = kwargs.pop('unix_target', None)
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.target_cfg     = kwargs.pop('target_cfg', None)
+        self.target_api     = kwargs.pop('target_api', None)
         self.daemon = False
+        self.target_api = None
         self.target_cfg = None
 
         # Server configuration
@@ -456,8 +491,8 @@ class LibProxyServer(ForkingMixIn, HTTPServer):
 
         if web:
             os.chdir(web)
-            
-        HTTPServer.__init__(self, (listen_host, listen_port), 
+
+        HTTPServer.__init__(self, (listen_host, listen_port),
                             RequestHandlerClass)
 
 
