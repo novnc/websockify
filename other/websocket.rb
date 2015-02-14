@@ -50,6 +50,10 @@ Sec-WebSocket-Accept: %s\r
 
 
   def initialize(opts)
+    @verbose = opts['verbose']
+    @opts = opts
+    @@client_id = 0  # Track client number total on class
+    
     vmsg "in WebSocketServer.initialize"
     port = opts['listen_port']
     host = opts['listen_host'] || GServer::DEFAULT_HOST
@@ -65,11 +69,6 @@ Sec-WebSocket-Accept: %s\r
       @sslContext.verify_mode = OpenSSL::SSL::VERIFY_NONE
       @sslContext.verify_depth = 0
     end
-
-    @@client_id = 0  # Track client number total on class
-
-    @verbose = opts['verbose']
-    @opts = opts
   end
   
   def serve(io)
@@ -119,7 +118,7 @@ Sec-WebSocket-Accept: %s\r
   end
 
   def msg(m)
-    printf("% 3d: %s\n", Thread.current[:my_client_id] || 0, m)
+    log sprintf("% 3d: %s\n", Thread.current[:my_client_id] || 0, m)
   end
 
   def vmsg(m)
