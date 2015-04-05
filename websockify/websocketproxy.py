@@ -11,12 +11,12 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess, logging
+import signal, socket, optparse, time, os, sys, subprocess, logging, errno
 try:    from socketserver import ForkingMixIn
 except: from SocketServer import ForkingMixIn
 try:    from http.server import HTTPServer
 except: from BaseHTTPServer import HTTPServer
-from select import select
+import select
 from websockify import websocket
 try:
     from urllib.parse import parse_qs, urlparse
@@ -131,7 +131,14 @@ Traffic Legend:
 
             if tqueue: wlist.append(target)
             if cqueue or c_pend: wlist.append(self.request)
-            ins, outs, excepts = select(rlist, wlist, [], 1)
+            try:
+                ins, outs, excepts = select.select(rlist, wlist, [], 1)
+            except select.error, err:
+                if err[0] != errno.EINTR:
+                    raise
+                else:
+                    continue
+                
             if excepts: raise Exception("Socket exception")
 
             if self.request in outs:
