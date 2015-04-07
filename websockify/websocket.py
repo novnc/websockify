@@ -118,20 +118,24 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         if numpy:
             b = c = s2b('')
             if plen >= 4:
-                mask = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
-                        offset=hlen, count=1)
-                data = numpy.frombuffer(buf, dtype=numpy.dtype('<u4'),
-                        offset=pstart, count=int(plen / 4))
+                dtype=numpy.dtype('<u4')
+                if sys.byteorder == 'big':
+                    dtype = dtype.newbyteorder('>')
+                mask = numpy.frombuffer(buf, dtype, offset=hlen, count=1)
+                data = numpy.frombuffer(buf, dtype, offset=pstart,
+                        count=int(plen / 4))
                 #b = numpy.bitwise_xor(data, mask).data
                 b = numpy.bitwise_xor(data, mask).tostring()
 
             if plen % 4:
                 #self.msg("Partial unmask")
-                mask = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
-                        offset=hlen, count=(plen % 4))
-                data = numpy.frombuffer(buf, dtype=numpy.dtype('B'),
-                        offset=pend - (plen % 4),
+                dtype=numpy.dtype('B')
+                if sys.byteorder == 'big':
+                    dtype = dtype.newbyteorder('>')
+                mask = numpy.frombuffer(buf, dtype, offset=hlen,
                         count=(plen % 4))
+                data = numpy.frombuffer(buf, dtype,
+                        offset=pend - (plen % 4), count=(plen % 4))
                 c = numpy.bitwise_xor(data, mask).tostring()
             return b + c
         else:
