@@ -384,7 +384,8 @@ def websockify_init():
     if opts.target_cfg:
         opts.token_plugin = 'TokenFile'
         opts.token_source = opts.target_cfg
-        del opts.target_cfg
+
+    del opts.target_cfg
 
     # Sanity checks
     if len(args) < 2 and not (opts.token_plugin or opts.unix_target):
@@ -451,9 +452,11 @@ class LibProxyServer(ForkingMixIn, HTTPServer):
         self.wrap_mode      = kwargs.pop('wrap_mode', None)
         self.unix_target    = kwargs.pop('unix_target', None)
         self.ssl_target     = kwargs.pop('ssl_target', None)
-        self.target_cfg     = kwargs.pop('target_cfg', None)
+        self.token_plugin   = kwargs.pop('token_plugin', None)
+        self.token_source   = kwargs.pop('token_source', None)
+
+        self.token_plugin = None
         self.daemon = False
-        self.target_cfg = None
 
         # Server configuration
         listen_host    = kwargs.pop('listen_host', '')
