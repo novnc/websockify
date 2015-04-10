@@ -370,6 +370,10 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                         repr(frame['payload']))
                     self.send_pong(frame['payload'])
                     return [], False
+                elif frame['opcode'] == 0xA: # pong
+                    self.print_traffic("} pong %s\n" %
+                        repr(frame['payload']))
+                    return [], False
 
             self.print_traffic("}")
 
@@ -405,6 +409,11 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
     def send_pong(self, data=''):
         """ Send a WebSocket pong frame. """
         buf, h, t = self.encode_hybi(s2b(data), opcode=0x0A, base64=False)
+        self.request.send(buf)
+
+    def send_ping(self, data=''):
+        """ Send a WebSocket ping frame. """
+        buf, h, t = self.encode_hybi(s2b(data), opcode=0x09, base64=False)
         self.request.send(buf)
 
     def do_websocket_handshake(self):

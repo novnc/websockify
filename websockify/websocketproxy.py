@@ -111,8 +111,20 @@ Traffic Legend:
         tqueue = []
         rlist = [self.request, target]
 
+        if self.server.heartbeat:
+            now = time.time()
+            self.heartbeat = now + self.server.heartbeat
+        else:
+            self.heartbeat = None
+
         while True:
             wlist = []
+
+            if self.heartbeat is not None:
+                now = time.time()
+                if now > self.heartbeat:
+                    self.heartbeat = now + self.server.heartbeat
+                    self.send_ping()
 
             if tqueue: wlist.append(target)
             if cqueue or c_pend: wlist.append(self.request)
@@ -180,6 +192,7 @@ class WebSocketProxy(websocket.WebSocketServer):
         self.wrap_mode      = kwargs.pop('wrap_mode', None)
         self.unix_target    = kwargs.pop('unix_target', None)
         self.ssl_target     = kwargs.pop('ssl_target', None)
+        self.heartbeat      = kwargs.pop('heartbeat', None)
 
         token_plugin = kwargs.pop('token_plugin', None)
         token_source = kwargs.pop('token_source', None)
@@ -370,6 +383,8 @@ def websockify_init():
                            "on instantiation")
     parser.add_option("--auto-pong", action="store_true",
             help="Automatically respond to ping frames with a pong")
+    parser.add_option("--heartbeat", type=int, default=0,
+            help="send a ping to the client every HEARTBEAT seconds")
 
     (opts, args) = parser.parse_args()
 
@@ -456,6 +471,7 @@ class LibProxyServer(ForkingMixIn, HTTPServer):
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.token_plugin   = kwargs.pop('token_plugin', None)
         self.token_source   = kwargs.pop('token_source', None)
+        self.heartbeat      = kwargs.pop('heartbeat', None)
 
         self.token_plugin = None
         self.daemon = False
