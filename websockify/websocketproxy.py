@@ -368,6 +368,8 @@ def websockify_init():
     parser.add_option("--token-source", default=None, metavar="ARG",
                       help="an argument to be passed to the token plugin"
                            "on instantiation")
+    parser.add_option("--auto-pong", action="store_true",
+            help="Automatically respond to ping frames with a pong")
 
     (opts, args) = parser.parse_args()
 

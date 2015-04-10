@@ -104,6 +104,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         self.handler_id = getattr(server, "handler_id", False)
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
+        self.auto_pong = getattr(server, "auto_pong", False)
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
@@ -364,6 +365,11 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                     closed = {'code': frame['close_code'],
                               'reason': frame['close_reason']}
                     break
+                elif self.auto_pong and frame['opcode'] == 0x9: # ping
+                    self.print_traffic("} ping %s\n" %
+                        repr(frame['payload']))
+                    self.send_pong(frame['payload'])
+                    return [], False
 
             self.print_traffic("}")
 
@@ -394,6 +400,11 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
         msg = pack(">H%ds" % len(reason), code, s2b(reason))
         buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
+        self.request.send(buf)
+
+    def send_pong(self, data=''):
+        """ Send a WebSocket pong frame. """
+        buf, h, t = self.encode_hybi(s2b(data), opcode=0x0A, base64=False)
         self.request.send(buf)
 
     def do_websocket_handshake(self):
@@ -571,7 +582,7 @@ class WebSocketServer(object):
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
-            tcp_keepintvl=None):
+            tcp_keepintvl=None, auto_pong=False):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
@@ -596,6 +607,7 @@ class WebSocketServer(object):
         self.tcp_keepidle   = tcp_keepidle
         self.tcp_keepintvl  = tcp_keepintvl
 
+        self.auto_pong      = auto_pong
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
         self.key = self.web = self.record = ''
