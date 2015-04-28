@@ -47,6 +47,11 @@ Traffic Legend:
         if self.server.token_plugin:
             (self.server.target_host, self.server.target_port) = self.get_target(self.server.token_plugin, self.path)
 
+        if self.server.auth_plugin:
+            self.server.auth_plugin.authenticate(
+                headers=self.headers, target_host=self.server.target_host,
+                target_port=self.server.target_port)
+
         # Connect to the target
         if self.server.wrap_cmd:
             msg = "connecting to command: '%s' (port %s)" % (" ".join(self.server.wrap_cmd), self.server.target_port)
@@ -197,6 +202,9 @@ class WebSocketProxy(websocket.WebSocketServer):
         token_plugin = kwargs.pop('token_plugin', None)
         token_source = kwargs.pop('token_source', None)
 
+        auth_plugin = kwargs.pop('auth_plugin', None)
+        auth_source = kwargs.pop('auth_source', None)
+
         if token_plugin is not None:
             if '.' not in token_plugin:
                 token_plugin = 'websockify.token_plugins.%s' % token_plugin
@@ -209,6 +217,19 @@ class WebSocketProxy(websocket.WebSocketServer):
             self.token_plugin = token_plugin_cls(token_source)
         else:
             self.token_plugin = None
+
+        if auth_plugin is not None:
+            if '.' not in auth_plugin:
+                auth_plugin = 'websockify.auth_plugins.%s' % auth_plugin
+
+            auth_plugin_module, auth_plugin_cls = auth_plugin.rsplit('.', 1)
+
+            __import__(auth_plugin_module)
+            auth_plugin_cls = getattr(sys.modules[auth_plugin_module], auth_plugin_cls)
+
+            self.auth_plugin = auth_plugin_cls(auth_source)
+        else:
+            self.auth_plugin = None
 
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
@@ -381,6 +402,12 @@ def websockify_init():
     parser.add_option("--token-source", default=None, metavar="ARG",
                       help="an argument to be passed to the token plugin"
                            "on instantiation")
+    parser.add_option("--auth-plugin", default=None, metavar="PLUGIN",
+                      help="use the given Python class to determine if "
+                           "a connection is allowed")
+    parser.add_option("--auth-source", default=None, metavar="ARG",
+                      help="an argument to be passed to the auth plugin"
+                           "on instantiation")
     parser.add_option("--auto-pong", action="store_true",
             help="Automatically respond to ping frames with a pong")
     parser.add_option("--heartbeat", type=int, default=0,
@@ -393,6 +420,10 @@ def websockify_init():
 
     if opts.token_source and not opts.token_plugin:
         parser.error("You must use --token-plugin to use --token-source")
+
+    if opts.auth_source and not opts.auth_plugin:
+        parser.error("You must use --auth-plugin to use --auth-source")
+
 
     # Transform to absolute path as daemon may chdir
     if opts.target_cfg:
@@ -471,9 +502,11 @@ class LibProxyServer(ForkingMixIn, HTTPServer):
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.token_plugin   = kwargs.pop('token_plugin', None)
         self.token_source   = kwargs.pop('token_source', None)
+        self.auth_plugin    = kwargs.pop('auth_plugin', None)
         self.heartbeat      = kwargs.pop('heartbeat', None)
 
         self.token_plugin = None
+        self.auth_plugin = None
         self.daemon = False
 
         # Server configuration
