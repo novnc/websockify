@@ -199,37 +199,8 @@ class WebSocketProxy(websocket.WebSocketServer):
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.heartbeat      = kwargs.pop('heartbeat', None)
 
-        token_plugin = kwargs.pop('token_plugin', None)
-        token_source = kwargs.pop('token_source', None)
-
-        auth_plugin = kwargs.pop('auth_plugin', None)
-        auth_source = kwargs.pop('auth_source', None)
-
-        if token_plugin is not None:
-            if '.' not in token_plugin:
-                token_plugin = 'websockify.token_plugins.%s' % token_plugin
-
-            token_plugin_module, token_plugin_cls = token_plugin.rsplit('.', 1)
-
-            __import__(token_plugin_module)
-            token_plugin_cls = getattr(sys.modules[token_plugin_module], token_plugin_cls)
-
-            self.token_plugin = token_plugin_cls(token_source)
-        else:
-            self.token_plugin = None
-
-        if auth_plugin is not None:
-            if '.' not in auth_plugin:
-                auth_plugin = 'websockify.auth_plugins.%s' % auth_plugin
-
-            auth_plugin_module, auth_plugin_cls = auth_plugin.rsplit('.', 1)
-
-            __import__(auth_plugin_module)
-            auth_plugin_cls = getattr(sys.modules[auth_plugin_module], auth_plugin_cls)
-
-            self.auth_plugin = auth_plugin_cls(auth_source)
-        else:
-            self.auth_plugin = None
+        self.token_plugin = kwargs.pop('token_plugin', None)
+        self.auth_plugin = kwargs.pop('auth_plugin', None)
 
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
@@ -473,6 +444,31 @@ def websockify_init():
         try:    opts.target_port = int(opts.target_port)
         except: parser.error("Error parsing target port")
 
+    if opts.token_plugin is not None:
+        if '.' not in opts.token_plugin:
+            opts.token_plugin = (
+                'websockify.token_plugins.%s' % opts.token_plugin)
+
+        token_plugin_module, token_plugin_cls = opts.token_plugin.rsplit('.', 1)
+
+        __import__(token_plugin_module)
+        token_plugin_cls = getattr(sys.modules[token_plugin_module], token_plugin_cls)
+
+        opts.token_plugin = token_plugin_cls(opts.token_source)
+        del opts.token_source
+
+    if opts.auth_plugin is not None:
+        if '.' not in opts.auth_plugin:
+            opts.auth_plugin = 'websockify.auth_plugins.%s' % opts.auth_plugin
+
+        auth_plugin_module, auth_plugin_cls = opts.auth_plugin.rsplit('.', 1)
+
+        __import__(auth_plugin_module)
+        auth_plugin_cls = getattr(sys.modules[auth_plugin_module], auth_plugin_cls)
+
+        opts.auth_plugin = auth_plugin_cls(opts.auth_source)
+        del opts.auth_source
+
     # Create and start the WebSockets proxy
     libserver = opts.libserver
     del opts.libserver
@@ -501,7 +497,6 @@ class LibProxyServer(ForkingMixIn, HTTPServer):
         self.unix_target    = kwargs.pop('unix_target', None)
         self.ssl_target     = kwargs.pop('ssl_target', None)
         self.token_plugin   = kwargs.pop('token_plugin', None)
-        self.token_source   = kwargs.pop('token_source', None)
         self.auth_plugin    = kwargs.pop('auth_plugin', None)
         self.heartbeat      = kwargs.pop('heartbeat', None)
 
