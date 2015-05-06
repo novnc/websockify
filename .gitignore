@@ -9,3 +9,5 @@ other/node_modules
 .pydevproject
 target.cfg
 target.cfg.d
+.tox
+*.egg-info
