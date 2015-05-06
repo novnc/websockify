@@ -1,6 +1,6 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
-# Copyright(c)2013 NTT corp. All Rights Reserved.
+# Copyright(c) 2015 Red Hat, Inc All Rights Reserved.
 #
 #    Licensed under the Apache License, Version 2.0 (the "License"); you may
 #    not use this file except in compliance with the License. You may obtain
@@ -15,113 +15,122 @@
 #    under the License.
 
 """ Unit tests for websocketproxy """
-import os
-import logging
-import select
-import shutil
-import stubout
-import subprocess
-import tempfile
-import time
+
 import unittest
+import unittest
+import socket
 
+import stubout
+
+from websockify import websocket
 from websockify import websocketproxy
+from websockify import token_plugins
+from websockify import auth_plugins
+
+try:
+    from StringIO import StringIO
+    BytesIO = StringIO
+except ImportError:
+    from io import StringIO
+    from io import BytesIO
 
 
-class MockSocket(object):
-    def __init__(*args, **kwargs):
+class FakeSocket(object):
+    def __init__(self, data=''):
+        if isinstance(data, bytes):
+            self._data = data
+        else:
+            self._data = data.encode('latin_1')
+
+    def recv(self, amt, flags=None):
+        res = self._data[0:amt]
+        if not (flags & socket.MSG_PEEK):
+            self._data = self._data[amt:]
+
+        return res
+
+    def makefile(self, mode='r', buffsize=None):
+        if 'b' in mode:
+            return BytesIO(self._data)
+        else:
+            return StringIO(self._data.decode('latin_1'))
+
+
+class FakeServer(object):
+    class EClose(Exception):
         pass
 
-    def shutdown(*args):
-        pass
+    def __init__(self):
+        self.token_plugin = None
+        self.auth_plugin = None
+        self.wrap_cmd = None
+        self.ssl_target = None
+        self.unix_target = None
 
-    def close(*args):
-        pass
-
-
-class WebSocketProxyTest(unittest.TestCase):
-
-    def _init_logger(self, tmpdir):
-        name = 'websocket-unittest'
-        logger = logging.getLogger(name)
-        logger.setLevel(logging.DEBUG)
-        logger.propagate = True
-        filename = "%s.log" % (name)
-        handler = logging.FileHandler(filename)
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logger.addHandler(handler)
-
+class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
-        """Called automatically before each test."""
-        super(WebSocketProxyTest, self).setUp()
-        self.soc = ''
+        super(ProxyRequestHandlerTestCase, self).setUp()
         self.stubs = stubout.StubOutForTesting()
-        # Temporary dir for test data
-        self.tmpdir = tempfile.mkdtemp()
-        # Put log somewhere persistent
-        self._init_logger('./')
-        # Mock this out cause it screws tests up
-        self.stubs.Set(os, 'chdir', lambda *args, **kwargs: None)
+        self.handler = websocketproxy.ProxyRequestHandler(
+            FakeSocket(''), "127.0.0.1", FakeServer())
+        self.handler.path = "https://localhost:6080/websockify?token=blah"
+        self.handler.headers = None
+        self.stubs.Set(websocket.WebSocketServer, 'socket',
+                       staticmethod(lambda *args, **kwargs: None))
 
     def tearDown(self):
-        """Called automatically after each test."""
         self.stubs.UnsetAll()
-        shutil.rmtree(self.tmpdir)
-        super(WebSocketProxyTest, self).tearDown()
+        super(ProxyRequestHandlerTestCase, self).tearDown()
 
-    def _get_websockproxy(self, **kwargs):
-        return websocketproxy.WebSocketProxy(key=self.tmpdir,
-                                             web=self.tmpdir,
-                                             record=self.tmpdir,
-                                             **kwargs)
+    def test_get_target(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return ("some host", "some port")
 
-    def test_run_wrap_cmd(self):
-        web_socket_proxy = self._get_websockproxy()
-        web_socket_proxy.__dict__["wrap_cmd"] = "wrap_cmd"
+        host, port = self.handler.get_target(
+            TestPlugin(None), self.handler.path)
 
-        def mock_Popen(*args, **kwargs):
-            return '_mock_cmd'
+        self.assertEqual(host, "some host")
+        self.assertEqual(port, "some port")
 
-        self.stubs.Set(subprocess, 'Popen', mock_Popen)
-        web_socket_proxy.run_wrap_cmd()
-        self.assertEquals(web_socket_proxy.spawn_message, True)
+    def test_get_target_raises_error_on_unknown_token(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return None
 
-    def test_started(self):
-        web_socket_proxy = self._get_websockproxy()
-        web_socket_proxy.__dict__["spawn_message"] = False
-        web_socket_proxy.__dict__["wrap_cmd"] = "wrap_cmd"
+        self.assertRaises(FakeServer.EClose, self.handler.get_target,
+            TestPlugin(None), "https://localhost:6080/websockify?token=blah")
 
-        def mock_run_wrap_cmd(*args, **kwargs):
-            web_socket_proxy.__dict__["spawn_message"] = True
+    def test_token_plugin(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return (self.source + token).split(',')
 
-        self.stubs.Set(web_socket_proxy, 'run_wrap_cmd', mock_run_wrap_cmd)
-        web_socket_proxy.started()
-        self.assertEquals(web_socket_proxy.__dict__["spawn_message"], True)
+        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'do_proxy',
+                       lambda *args, **kwargs: None)
 
-    def test_poll(self):
-        web_socket_proxy = self._get_websockproxy()
-        web_socket_proxy.__dict__["wrap_cmd"] = "wrap_cmd"
-        web_socket_proxy.__dict__["wrap_mode"] = "respawn"
-        web_socket_proxy.__dict__["wrap_times"] = [99999999]
-        web_socket_proxy.__dict__["spawn_message"] = True
-        web_socket_proxy.__dict__["cmd"] = None
-        self.stubs.Set(time, 'time', lambda: 100000000.000)
-        web_socket_proxy.poll()
-        self.assertEquals(web_socket_proxy.spawn_message, False)
+        self.handler.server.token_plugin = TestPlugin("somehost,")
+        self.handler.new_websocket_client()
 
-    def test_new_client(self):
-        web_socket_proxy = self._get_websockproxy()
-        web_socket_proxy.__dict__["verbose"] = "verbose"
-        web_socket_proxy.__dict__["daemon"] = None
-        web_socket_proxy.__dict__["client"] = "client"
+        self.assertEqual(self.handler.server.target_host, "somehost")
+        self.assertEqual(self.handler.server.target_port, "blah")
 
-        self.stubs.Set(web_socket_proxy, 'socket', MockSocket)
+    def test_auth_plugin(self):
+        class TestPlugin(auth_plugins.BasePlugin):
+            def authenticate(self, headers, target_host, target_port):
+                if target_host == self.source:
+                    raise auth_plugins.AuthenticationError("some error")
 
-        def mock_select(*args, **kwargs):
-            ins = None
-            outs = None
-            excepts = "excepts"
-            return ins, outs, excepts
+        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'do_proxy',
+                       staticmethod(lambda *args, **kwargs: None))
 
-        self.stubs.Set(select, 'select', mock_select)
-        self.assertRaises(Exception, web_socket_proxy.new_websocket_client)
+        self.handler.server.auth_plugin = TestPlugin("somehost")
+        self.handler.server.target_host = "somehost"
+        self.handler.server.target_port = "someport"
+
+        self.assertRaises(auth_plugins.AuthenticationError,
+                          self.handler.new_websocket_client)
+
+        self.handler.server.target_host = "someotherhost"
+        self.handler.new_websocket_client()
+

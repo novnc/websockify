@@ -790,7 +790,7 @@ class WebSocketServer(object):
         handshake = sock.recv(1024, socket.MSG_PEEK)
         #self.msg("Handshake [%s]" % handshake)
 
-        if handshake == "":
+        if not handshake:
             raise self.EClose("ignoring empty handshake")
 
         elif handshake.startswith(s2b("<policy-file-request/>")):
