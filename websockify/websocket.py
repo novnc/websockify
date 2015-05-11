@@ -581,7 +581,8 @@ class WebSocketServer(object):
         self.timeout        = timeout
         self.idle_timeout   = idle_timeout
         self.traffic        = traffic
-        
+        self.file_only      = file_only
+
         self.launch_time    = time.time()
         self.ws_connection  = False
         self.handler_id     = 1
@@ -618,7 +619,10 @@ class WebSocketServer(object):
                 self.listen_host, self.listen_port)
         self.msg("  - Flash security policy server")
         if self.web:
-            self.msg("  - Web server. Web root: %s", self.web)
+            if self.file_only:
+                self.msg("  - Web server (no directory listings). Web root: %s", self.web)
+            else:
+                self.msg("  - Web server. Web root: %s", self.web)
         if ssl:
             if os.path.exists(self.cert):
                 self.msg("  - SSL/TLS support")
