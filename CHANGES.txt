@@ -1,6 +1,11 @@
 Changes
 =======
 
+0.6.1 - May 11, 2015
+--------------------
+
+* **PATCH RELEASE**: Fixes a bug causing file_only to not be passed properly
+
 0.6.0 - Feb 18, 2014
 --------------------
 
