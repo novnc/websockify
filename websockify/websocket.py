@@ -105,6 +105,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
         self.auto_pong = getattr(server, "auto_pong", False)
+        self.strict_mode = getattr(server, "strict_mode", True)
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
@@ -177,7 +178,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         return header + buf, len(header), 0
 
     @staticmethod
-    def decode_hybi(buf, base64=False, logger=None):
+    def decode_hybi(buf, base64=False, logger=None, strict=True):
         """ Decode HyBi style WebSocket packets.
         Returns:
             {'fin'          : 0_or_1,
@@ -243,6 +244,10 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                                                   f['length'])
         else:
             logger.debug("Unmasked frame: %s" % repr(buf))
+
+            if strict:
+                raise WebSocketRequestHandler.CClose(1002, "The client sent an unmasked frame.")
+
             f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
 
         if base64 and f['opcode'] in [1, 2]:
@@ -351,7 +356,8 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
         while buf:
             frame = self.decode_hybi(buf, base64=self.base64,
-                                     logger=self.logger)
+                                     logger=self.logger,
+                                     strict=self.strict_mode)
             #self.msg("Received buf: %s, frame: %s", repr(buf), frame)
 
             if frame['payload'] == None:
@@ -591,7 +597,7 @@ class WebSocketServer(object):
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
-            tcp_keepintvl=None, auto_pong=False):
+            tcp_keepintvl=None, auto_pong=False, strict_mode=True):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
@@ -606,6 +612,7 @@ class WebSocketServer(object):
         self.idle_timeout   = idle_timeout
         self.traffic        = traffic
         self.file_only      = file_only
+        self.strict_mode    = strict_mode
 
         self.launch_time    = time.time()
         self.ws_connection  = False
