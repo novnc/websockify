@@ -1,6 +1,23 @@
 Changes
 =======
 
+0.7.0
+-----
+
+* Python 3 support fixes (#140, #155, #159)
+* Generic token-parsing plugins support (#162)
+* Generic authentication plugins support (#172)
+* Fixed frame corruption on big-endian systems (#161)
+* Support heartbeats (via PING) and automatic responses to PONG (#169)
+* Automatically reject unmasked client frames by default (strict mode) (#174)
+* Automatically restart interrupted select calls (#175)
+* Make 'run' respect environment settings (including virtualenv) (#176)
+
+0.6.1 - May 11, 2015
+--------------------
+
+* **PATCH RELEASE**: Fixes a bug causing file_only to not be passed properly
+
 0.6.0 - Feb 18, 2014
 --------------------
 
