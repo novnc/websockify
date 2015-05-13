@@ -12,6 +12,10 @@ class ReadOnlyTokenFile(BasePlugin):
     # source is a token file with lines like
     #   token: host:port
     # or a directory of such files
+    def __init__(self, *args, **kwargs):
+        super(ReadOnlyTokenFile, self).__init__(*args, **kwargs)
+        self._targets = None
+
     def _load_targets(self):
         if os.path.isdir(self.source):
             cfg_files = [os.path.join(self.source, f) for
