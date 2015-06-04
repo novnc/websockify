@@ -1,11 +1,12 @@
 from setuptools import setup, find_packages
-
+import py2exe
 version = '0.5.1'
 name = 'websockify'
 long_description = open("README.md").read() + "\n" + \
     open("CHANGES.txt").read() + "\n"
 
 setup(name=name,
+      console=['run'],
       version=version,
       description="Websockify.",
       long_description=long_description,
