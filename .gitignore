@@ -4,7 +4,7 @@
 other/.lein-deps-sum
 other/classes
 other/lib
-other/node_modules
+other/js/node_modules
 .project
 .pydevproject
 target.cfg
