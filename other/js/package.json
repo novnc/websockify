@@ -17,7 +17,6 @@
   },
   "dependencies": {
     "ws": ">=0.4.27",
-    "base64": "latest",
     "optimist": "latest",
     "policyfile": "latest"
   }
