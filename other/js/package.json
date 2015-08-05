@@ -2,7 +2,7 @@
   "author": "Joel Martin <github@martintribe.org> (http://github.com/kanaka)",
   "name": "websockify",
   "description": "websockify is a WebSocket-to-TCP proxy/bridge",
-  "license": "LGPL-3",
+  "license": "LGPL-3.0",
   "version": "0.7.0",
   "repository": {
     "type": "git",
