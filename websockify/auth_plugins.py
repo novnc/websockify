@@ -19,7 +19,6 @@ class InvalidOriginError(AuthenticationError):
             "Invalid Origin Header: Expected one of "
             "%s, got '%s'" % (expected, actual))
 
-
 class ExpectOrigin(object):
     def __init__(self, src=None):
         if src is None:
@@ -28,6 +27,6 @@ class ExpectOrigin(object):
             self.source = src.split()
 
     def authenticate(self, headers, target_host, target_port):
-        origin = headers.getheader('Origin', None)
+        origin = headers.get('Origin', None)
         if origin is None or origin not in self.source:
             raise InvalidOriginError(expected=self.source, actual=origin)
