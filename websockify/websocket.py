@@ -474,8 +474,12 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         """Upgrade a connection to Websocket, if requested. If this succeeds,
         new_websocket_client() will be called. Otherwise, False is returned.
         """
+
         if (self.headers.get('upgrade') and
             self.headers.get('upgrade').lower() == 'websocket'):
+
+            # ensure connection is authorized, and determine the target
+            self.validate_connection()
 
             if not self.do_websocket_handshake():
                 return False
@@ -548,6 +552,10 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
     def new_websocket_client(self):
         """ Do something with a WebSockets client connection. """
         raise Exception("WebSocketRequestHandler.new_websocket_client() must be overloaded")
+
+    def validate_connection(self):
+        """ Ensure that the connection is a valid connection, and set the target. """
+        pass
 
     def do_HEAD(self):
         if self.only_upgrade:
@@ -789,7 +797,7 @@ class WebSocketServer(object):
         """
         ready = select.select([sock], [], [], 3)[0]
 
-        
+
         if not ready:
             raise self.EClose("ignoring socket not ready")
         # Peek, but do not read the data so that we have a opportunity
@@ -903,7 +911,7 @@ class WebSocketServer(object):
 
     def top_new_client(self, startsock, address):
         """ Do something with a WebSockets client connection. """
-        # handler process        
+        # handler process
         client = None
         try:
             try:

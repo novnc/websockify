@@ -106,11 +106,11 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             def lookup(self, token):
                 return (self.source + token).split(',')
 
-        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'do_proxy',
-                       lambda *args, **kwargs: None)
+        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
+                       staticmethod(lambda *args, **kwargs: None))
 
         self.handler.server.token_plugin = TestPlugin("somehost,")
-        self.handler.new_websocket_client()
+        self.handler.validate_connection()
 
         self.assertEqual(self.handler.server.target_host, "somehost")
         self.assertEqual(self.handler.server.target_port, "blah")
@@ -119,9 +119,9 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         class TestPlugin(auth_plugins.BasePlugin):
             def authenticate(self, headers, target_host, target_port):
                 if target_host == self.source:
-                    raise auth_plugins.AuthenticationError("some error")
+                    raise auth_plugins.AuthenticationError(response_msg="some_error")
 
-        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'do_proxy',
+        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
                        staticmethod(lambda *args, **kwargs: None))
 
         self.handler.server.auth_plugin = TestPlugin("somehost")
@@ -129,8 +129,8 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.handler.server.target_port = "someport"
 
         self.assertRaises(auth_plugins.AuthenticationError,
-                          self.handler.new_websocket_client)
+                          self.handler.validate_connection)
 
         self.handler.server.target_host = "someotherhost"
-        self.handler.new_websocket_client()
+        self.handler.validate_connection()
 
