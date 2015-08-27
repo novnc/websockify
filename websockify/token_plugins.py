@@ -79,4 +79,4 @@ class JSONTokenApi(BaseTokenAPI):
     # should go
 
     def process_result(self, resp):
-        return (resp.json['host'], resp.json['port'])
+        return (str(resp.json()['host']), str(resp.json()['port']))
