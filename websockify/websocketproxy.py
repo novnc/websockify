@@ -18,6 +18,7 @@ try:    from http.server import HTTPServer
 except: from BaseHTTPServer import HTTPServer
 import select
 from websockify import websocket
+from websockify import auth_plugins as auth
 try:
     from urllib.parse import parse_qs, urlparse
 except:
@@ -37,20 +38,34 @@ Traffic Legend:
     <  - Client send
     <. - Client send partial
 """
+    
+    def send_auth_error(self, ex):
+        self.send_response(ex.code, ex.msg)
+        self.send_header('Content-Type', 'text/html')
+        for name, val in ex.headers.items():
+            self.send_header(name, val)
+        
+        self.end_headers()
+    
+    def validate_connection(self):
+        if self.server.token_plugin: 
+            (self.server.target_host, self.server.target_port) = self.get_target(self.server.token_plugin, self.path)
+
+        if self.server.auth_plugin:
+            try:
+                self.server.auth_plugin.authenticate(
+                    headers=self.headers, target_host=self.server.target_host,
+                    target_port=self.server.target_port)
+            except auth.AuthenticationError:
+                ex = sys.exc_info()[1]
+                self.send_auth_error(ex)
+                raise
 
     def new_websocket_client(self):
         """
         Called after a new WebSocket connection has been established.
         """
-        # Checks if we receive a token, and look
-        # for a valid target for it then
-        if self.server.token_plugin:
-            (self.server.target_host, self.server.target_port) = self.get_target(self.server.token_plugin, self.path)
-
-        if self.server.auth_plugin:
-            self.server.auth_plugin.authenticate(
-                headers=self.headers, target_host=self.server.target_host,
-                target_port=self.server.target_port)
+        # Checking for a token is done in validate_connection()
 
         # Connect to the target
         if self.server.wrap_cmd:
