@@ -1,3 +1,15 @@
+'''
+Django authentication plugins for Python WebSocket library.
+Copyright 2015 Luca Capacci
+Licensed under LGPL version 3
+
+- SessionIdAuth grants access to the target only to the users authenticated in a django web app.
+ 
+- SessionIdAuthAndHostPort determines the target based on the authenticated user. Edit get_host_port(current_user) to determine a target and a host for each user.
+
+'''
+
+
 from auth_plugins import AuthenticationError
 
 
@@ -39,8 +51,8 @@ class SessionIdAuthAndHostPort(object):
 
 
 def get_host_port(current_user):
-    host_port_dict = {'pippo': ('localhost', 5900),
-                      'luca': ('localhost', 9001)}
+    host_port_dict = {'john': ('localhost', 5900),
+                      'bob': ('localhost', 5901)}
 
     if current_user.username in host_port_dict:
         return host_port_dict[current_user.username]
