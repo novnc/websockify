@@ -3,9 +3,64 @@ Django authentication plugins for Python WebSocket library.
 Copyright 2015 Luca Capacci
 Licensed under LGPL version 3
 
-- SessionIdAuth grants access to the target only to the users authenticated in a django web app.
- 
-- SessionIdAuthAndHostPort determines the target based on the authenticated user. Edit get_host_port(current_user) to determine a target and a host for each user.
+
+**************************************** SessionIdAuth ****************************************
+
+  SessionIdAuth grants access to the target only to the users authenticated in a django web app.
+
+  Usage: put the websockify folder inside the django project, as shown below:
+
+  django_project
+        |__________django_project
+        |                   |__________ settings.py
+        |                   |
+        |                   |__________ urls.py
+        |                   |
+        |                   |__________ wsgi.py
+        |
+        |
+        |__________ websockify
+        |                   |__________ some files...
+        |                   |
+        |                   |__________ websockify
+        |                                   |_____________ django_auth_plugins.py
+        |
+        |
+        |__________ other files and folders...
+
+   Right after starting the django web app, run websockify with the --auth-plugin option (Example: ./websockify/run 6080 localhost:5900 --auth-plugin="websockify.django_auth_plugins.SessionIdAuth")
+
+
+**************************************** SessionIdAuthAndHostPort ****************************************
+
+  SessionIdAuthAndHostPort determines the target based on the authenticated user. 
+
+  Usage: put the websockify folder inside the django project, as shown below:
+
+  django_project
+        |__________django_project
+        |                   |__________ settings.py
+        |                   |
+        |                   |__________ urls.py
+        |                   |
+        |                   |__________ wsgi.py
+        |
+        |
+        |__________ websockify
+        |                   |__________ some files...
+        |                   |
+        |                   |__________ websockify
+        |                                   |_____________ django_auth_plugins.py
+        |
+        |
+        |__________ other files and folders...
+
+
+   Edit get_host_port(current_user) to implement an algorithm to determine a target and a host for each user.
+
+   Right after starting the django web app, run websockify with the --auth-plugin and the --auth-host-port options (Example: ./websockify/run 6080 --auth-plugin="websockify.django_auth_plugins.SessionIdAuthAndHostPort" --auth-host-port)
+  
+   For a complete example: https://github.com/lucacapacci/noVncDjangoPoC
 
 '''
 
