@@ -28,7 +28,7 @@ class ReadOnlyTokenFile(BasePlugin):
             for line in [l.strip() for l in open(f).readlines()]:
                 if line and not line.startswith('#'):
                     tok, target = line.split(': ')
-                    self._targets[tok] = target.strip().split(':')
+                    self._targets[tok] = target.strip().rsplit(':', 1)
 
     def lookup(self, token):
         if self._targets is None:
