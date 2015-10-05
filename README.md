@@ -47,16 +47,28 @@ which is why the negotiation is necessary.
 
 ### Encrypted WebSocket connections (wss://)
 
-To encrypt the traffic using the WebSocket 'wss://' URI scheme you
-need to generate a certificate for websockify to load. By default websockify
-loads a certificate file name `self.pem` but the `--cert=CERT` option can
-override the file name. You can generate a self-signed certificate using
-openssl. When asked for the common name, use the hostname of the server where
-the proxy will be running:
+To encrypt the traffic using the WebSocket 'wss://' URI scheme you need to
+generate a certificate and key for Websockify to load. By default, Websockify
+loads a certificate file name `self.pem` but the `--cert=CERT` and `--key=KEY`
+options can override the file name. You can generate a self-signed certificate
+using openssl. When asked for the common name, use the hostname of the server
+where the proxy will be running:
 
 ```
 openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
 ```
+
+For a self-signed certificate to work, you need to make your client/browser
+understand it. You can do this by installing it as accepted certificate, or by
+using that same certificate for a HTTPS connection to which you navigate first
+and approve. Browsers generally don't give you the "trust certificate?" prompt
+by opening a WSS socket with invalid certificate, hence you need to have it
+acccept it by either of those two methods.
+
+If you have a commercial/valid SSL certificate with one ore more intermediate
+certificates, concat them into one file, server certificate first, then the
+intermediate(s) from the CA, etc. Point to this file with the `--cert` option
+and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
 
 
 ### Websock Javascript library
