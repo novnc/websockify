@@ -108,7 +108,7 @@ Traffic Legend:
         # in the form of token: host:port
 
         # Extract the token parameter from url
-        args = parse_qs(urlparse(path)[4]) # 4 is the query from url
+        args = parse_qs(urlparse(path).query)
 
         if not 'token' in args or not len(args['token']):
             raise self.server.EClose("Token not present")
@@ -152,9 +152,9 @@ Traffic Legend:
                 ins, outs, excepts = select.select(rlist, wlist, [], 1)
             except (select.error, OSError):
                 exc = sys.exc_info()[1]
-                if hasattr(exc, 'errno'):
+                try:
                     err = exc.errno
-                else:
+                except AttributeError:
                     err = exc[0]
 
                 if err != errno.EINTR:
