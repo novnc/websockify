@@ -3,7 +3,7 @@
   "name": "websockify",
   "description": "websockify is a WebSocket-to-TCP proxy/bridge",
   "license": "LGPL-3.0",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "repository": {
     "type": "git",
     "url": "git://github.com/kanaka/websockify.git"
