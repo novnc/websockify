@@ -113,6 +113,9 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
         SimpleHTTPRequestHandler.__init__(self, req, addr, server)
 
+    def log_message(self, format, *args):
+        self.logger.info("%s - - [%s] %s" % (self.address_string(), self.log_date_time_string(), format % args))
+
     @staticmethod
     def unmask(buf, hlen, plen):
         pstart = hlen + 4

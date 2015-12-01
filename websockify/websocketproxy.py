@@ -411,8 +411,21 @@ def websockify_init():
             help="Automatically respond to ping frames with a pong")
     parser.add_option("--heartbeat", type=int, default=0,
             help="send a ping to the client every HEARTBEAT seconds")
+    parser.add_option("--log-file", metavar="FILE",
+            dest="log_file",
+            help="File where logs will be saved")
+
 
     (opts, args) = parser.parse_args()
+
+    if opts.log_file:
+        opts.log_file = os.path.abspath(opts.log_file)
+        handler = logging.FileHandler(opts.log_file)
+        handler.setLevel(logging.DEBUG)
+        handler.setFormatter(logging.Formatter("%(message)s"))
+        logging.getLogger(WebSocketProxy.log_prefix).addHandler(handler)
+
+    del opts.log_file
 
     if opts.verbose:
         logging.getLogger(WebSocketProxy.log_prefix).setLevel(logging.DEBUG)
