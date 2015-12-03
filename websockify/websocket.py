@@ -748,6 +748,10 @@ class WebSocketServer(object):
 
     @staticmethod
     def daemonize(keepfd=None, chdir='/'):
+        
+        if keepfd is None:
+            keepfd = []
+
         os.umask(0)
         if chdir:
             os.chdir(chdir)
@@ -770,7 +774,7 @@ class WebSocketServer(object):
         if maxfd == resource.RLIM_INFINITY: maxfd = 256
         for fd in reversed(range(maxfd)):
             try:
-                if fd != keepfd:
+                if fd not in keepfd:
                     os.close(fd)
             except OSError:
                 _, exc, _ = sys.exc_info()
@@ -937,6 +941,18 @@ class WebSocketServer(object):
                 # Original socket closed by caller
                 client.close()
 
+    def get_log_fd(self):
+        """
+        Get file descriptors for the loggers.
+        They should not be closed when the process is forked.
+        """
+        descriptors = []
+        for handler in self.logger.parent.handlers:
+            if isinstance(handler, logging.FileHandler):
+                descriptors.append(handler.stream.fileno())
+
+        return descriptors
+
     def start_server(self):
         """
         Daemonize if requested. Listen for for connections. Run
@@ -952,7 +968,9 @@ class WebSocketServer(object):
                             tcp_keepintvl=self.tcp_keepintvl)
 
         if self.daemon:
-            self.daemonize(keepfd=lsock.fileno(), chdir=self.web)
+            keepfd = self.get_log_fd()
+            keepfd.append(lsock.fileno())
+            self.daemonize(keepfd=keepfd, chdir=self.web)
 
         self.started()  # Some things need to happen after daemonizing
 
