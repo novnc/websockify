@@ -115,11 +115,14 @@ These are not necessary for the basic operation.
 
 * Mini-webserver: websockify can detect and respond to normal web
   requests on the same port as the WebSockets proxy and Flash security
-  policy. This functionality is activate with the `--web DIR` option
+  policy. This functionality is activated with the `--web DIR` option
   where DIR is the root of the web directory to serve.
 
 * Wrap a program: see the "Wrap a Program" section below.
 
+* Log files: websockify can save all logging information in a file.
+  This functionality is activated with the `--log-file FILE` option
+  where FILE is the file where the logs should be saved.
 
 ### Implementations of websockify
 
