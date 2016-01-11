@@ -895,11 +895,14 @@ class WebSocketServer(object):
         raise self.Terminate()
 
     def multiprocessing_SIGCHLD(self, sig, stack):
-        self.vmsg('Reaping zombies, active child count is %s', len(multiprocessing.active_children()))
+        # TODO: figure out a way to actually log this information without
+        #       calling `log` in the signal handlers
+        multiprocessing.active_children()
 
     def fallback_SIGCHLD(self, sig, stack):
         # Reap zombies when using os.fork() (python 2.4)
-        self.vmsg("Got SIGCHLD, reaping zombies")
+        # TODO: figure out a way to actually log this information without
+        #       calling `log` in the signal handlers
         try:
             result = os.waitpid(-1, os.WNOHANG)
             while result[0]:
@@ -909,11 +912,13 @@ class WebSocketServer(object):
             pass
 
     def do_SIGINT(self, sig, stack):
-        self.msg("Got SIGINT, exiting")
+        # TODO: figure out a way to actually log this information without
+        #       calling `log` in the signal handlers
         self.terminate()
 
     def do_SIGTERM(self, sig, stack):
-        self.msg("Got SIGTERM, exiting")
+        # TODO: figure out a way to actually log this information without
+        #       calling `log` in the signal handlers
         self.terminate()
 
     def top_new_client(self, startsock, address):
