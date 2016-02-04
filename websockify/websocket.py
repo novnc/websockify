@@ -1079,6 +1079,14 @@ class WebSocketServer(object):
 
                     except (self.Terminate, SystemExit, KeyboardInterrupt):
                         self.msg("In exit")
+                        # terminate all child processes
+                        if multiprocessing and not self.run_once:
+                            children = multiprocessing.active_children()
+
+                            for child in children:
+                                self.msg("Terminating child %s" % child.pid)
+                                child.terminate()
+
                         break
                     except Exception:
                         exc = sys.exc_info()[1]
