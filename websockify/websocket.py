@@ -1087,7 +1087,7 @@ class WebSocketServer(object):
                                 pid = child.pid
                                 if pid != os.getpid():
                                     self.msg("Terminating child %s" % pid)
-                                    os.kill(pid, signal.SIGTERM)
+                                    child.terminate()
 
                         break
                     except Exception:
