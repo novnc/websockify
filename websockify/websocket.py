@@ -35,6 +35,8 @@ try:    from io import StringIO
 except: from cStringIO import StringIO
 try:    from http.server import SimpleHTTPRequestHandler
 except: from SimpleHTTPServer import SimpleHTTPRequestHandler
+try:    from urllib.parse import unquote
+except: from urllib import unquote
 
 # python 2.6 differences
 try:    from hashlib import sha1
@@ -510,7 +512,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             self.log_message("%s: Version %s, base64: '%s'", client_addr,
                              self.version, self.base64)
             if self.path != '/':
-                self.log_message("%s: Path: '%s'", client_addr, self.path)
+                self.log_message("%s: Path: '%s'", client_addr, unquote(self.path))
 
             if self.record:
                 # Record raw frame data as JavaScript array
