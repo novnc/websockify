@@ -612,15 +612,28 @@ ws_ctx_t *do_handshake(int sock) {
     }
     offset = 0;
     for (i = 0; i < 10; i++) {
-        len = ws_recv(ws_ctx, handshake+offset, 4096);
-        if (len == 0) {
+        /* (offset + 1): reserve one byte for the trailing '\0' */
+        if (0 > (len = ws_recv(ws_ctx, handshake + offset, sizeof(handshake) - (offset + 1)))) {
+            handler_emsg("Read error during handshake: %m\n");
+            free_ws_ctx(ws_ctx);
+            return NULL;
+        } else if (0 == len) {
             handler_emsg("Client closed during handshake\n");
+            free_ws_ctx(ws_ctx);
             return NULL;
         }
         offset += len;
         handshake[offset] = 0;
         if (strstr(handshake, "\r\n\r\n")) {
             break;
+        } else if (sizeof(handshake) <= (size_t)(offset + 1)) {
+            handler_emsg("Oversized handshake\n");
+            free_ws_ctx(ws_ctx);
+            return NULL;
+        } else if (9 == i) {
+            handler_emsg("Incomplete handshake\n");
+            free_ws_ctx(ws_ctx);
+            return NULL;
         }
         usleep(10);
     }
@@ -628,6 +641,7 @@ ws_ctx_t *do_handshake(int sock) {
     //handler_msg("handshake: %s\n", handshake);
     if (!parse_handshake(ws_ctx, handshake)) {
         handler_emsg("Invalid WS request\n");
+        free_ws_ctx(ws_ctx);
         return NULL;
     }
 
