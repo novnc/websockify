@@ -84,6 +84,10 @@ Traffic Legend:
                                                  self.server.target_port,
                 connect=True, use_ssl=self.server.ssl_target, unix_socket=self.server.unix_target)
 
+        self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        if not self.server.wrap_cmd and not self.server.unix_target:
+            tsock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+
         self.print_traffic(self.traffic_legend)
 
         # Start proxying
