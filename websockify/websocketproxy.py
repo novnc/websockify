@@ -48,8 +48,14 @@ Traffic Legend:
         self.end_headers()
     
     def validate_connection(self):
-        if self.server.token_plugin: 
-            (self.server.target_host, self.server.target_port) = self.get_target(self.server.token_plugin, self.path)
+        if self.server.token_plugin:
+            host, port = self.get_target(self.server.token_plugin, self.path)
+            if host == 'unix_socket':
+                self.server.unix_target = port
+
+            else:
+                self.server.target_host = host
+                self.server.target_port = port
 
         if self.server.auth_plugin:
             try:

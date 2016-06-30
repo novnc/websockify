@@ -93,6 +93,16 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(host, "some host")
         self.assertEqual(port, "some port")
 
+    def test_get_target_unix_socket(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return ("unix_socket", "/tmp/socket")
+
+        _, socket = self.handler.get_target(
+            TestPlugin(None), self.handler.path)
+
+        self.assertEqual(socket, "/tmp/socket")
+
     def test_get_target_raises_error_on_unknown_token(self):
         class TestPlugin(token_plugins.BasePlugin):
             def lookup(self, token):
