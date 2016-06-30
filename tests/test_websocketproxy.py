@@ -20,7 +20,7 @@ import unittest
 import unittest
 import socket
 
-import stubout
+from mox3 import stubout
 
 from websockify import websocket
 from websockify import websocketproxy
