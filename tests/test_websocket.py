@@ -22,7 +22,7 @@ import select
 import shutil
 import socket
 import ssl
-import stubout
+from mox3 import stubout
 import sys
 import tempfile
 import unittest
