@@ -195,4 +195,20 @@ respectively).
     `cd ../`
 
     `ln -sf ssl-1.15/build/lib.linux-*/ssl ssl`
+    
+### Running as a Docker container
 
+By using the [efrecon/websockify](https://hub.docker.com/r/efrecon/websockify/)
+you should be able to run the python version of websockify in a Docker
+container. The image automatically exports the standed encrypted and clear-text
+web ports `443` and `80`, you will have to remap at least one of them through
+the `-p` option of `docker run`. Also, the image provides `/opt/websockify/data`
+and `/opt/websockify/config`, two volumes that can be used to mount local data
+from the host and give to websockify for specifying certificates and keys, for
+example.
+
+This command would websockify the remote at `xxx.xx.xx.xx:yyy`, without
+encryption on port `8080` (not the remapping).
+
+    docker run -it --rm -p 8080:80 --name websockify efrecon/websockify 80 xxx.xx.xx.xx:yyy
+    
