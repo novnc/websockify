@@ -28,4 +28,4 @@ VOLUME /opt/websockify/config
 EXPOSE 443
 EXPOSE 80
 
-ENTRYPOINT ["/websockify/run"]
+ENTRYPOINT ["/opt/websockify/run"]
