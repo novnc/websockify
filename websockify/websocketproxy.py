@@ -137,7 +137,6 @@ Traffic Legend:
         Proxy client WebSocket to normal target socket.
         """
         cqueue = []
-        c_pend = 0
         tqueue = []
         rlist = [self.request, target]
 
@@ -157,7 +156,7 @@ Traffic Legend:
                     self.send_ping()
 
             if tqueue: wlist.append(target)
-            if cqueue or c_pend: wlist.append(self.request)
+            if cqueue: wlist.append(self.request)
             try:
                 ins, outs, excepts = select.select(rlist, wlist, [], 1)
             except (select.error, OSError):
@@ -176,7 +175,7 @@ Traffic Legend:
 
             if self.request in outs:
                 # Send queued target data to the client
-                c_pend = self.send_frames(cqueue)
+                self.send_frames(cqueue)
 
                 cqueue = []
 

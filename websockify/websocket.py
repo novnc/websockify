@@ -327,21 +327,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                     opcode = 1
                 else:
                     opcode = 2
-                encbufs = self.send_hybi(buf, opcode, base64=self.base64, record=self.rec)
-
-        while self.send_parts:
-            # Send pending frames
-            buf = self.send_parts.pop(0)
-            sent = self.request.send(buf)
-
-            if sent == len(buf):
-                self.print_traffic("<")
-            else:
-                self.print_traffic("<.")
-                self.send_parts.insert(0, buf[sent:])
-                break
-
-        return len(self.send_parts)
+                self.send_hybi(buf, opcode, base64=self.base64, record=self.rec)
 
     def recv_frames(self):
         """ Receive and decode WebSocket frames.
@@ -494,7 +480,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             # Indicate to server that a Websocket upgrade was done
             self.server.ws_connection = True
             # Initialize per client settings
-            self.send_parts = []
             self.recv_part  = None
             self.start_time = int(time.time()*1000)
 
