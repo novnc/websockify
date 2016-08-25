@@ -228,6 +228,8 @@ class WebSocketProxy(websocket.WebSocketServer):
 
     def __init__(self, RequestHandlerClass=ProxyRequestHandler, *args, **kwargs):
         # Save off proxy specific options
+        if sys.platform.startswith("win"):
+            kwargs.pop("multiprocessing_fork", None)
         self.target_host    = kwargs.pop('target_host', None)
         self.target_port    = kwargs.pop('target_port', None)
         self.wrap_cmd       = kwargs.pop('wrap_cmd', None)

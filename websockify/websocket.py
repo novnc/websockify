@@ -50,10 +50,15 @@ except:
         return struct.unpack(fmt, slice)
 
 # Degraded functionality if these imports are missing
-for mod, msg in [('numpy', 'HyBi protocol will be slower'),
-                 ('ssl', 'TLS/SSL/wss is disabled'),
-                 ('multiprocessing', 'Multi-Processing is disabled'),
-                 ('resource', 'daemonizing is disabled')]:
+OPTIONAL_FEATURES = [
+                     ('numpy', 'HyBi protocol will be slower'),
+                     ('ssl', 'TLS/SSL/wss is disabled'),
+                     ('multiprocessing', 'Multi-Processing is disabled'),
+                    ]
+if not sys.platform.startswith("win"):
+    #resource module is not available on Windows
+    OPTIONAL_FEATURES.append(('resource', 'daemonizing is disabled'))
+for mod, msg in OPTIONAL_FEATURES:
     try:
         globals()[mod] = __import__(mod)
     except ImportError:
@@ -535,6 +540,20 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             else:
                 SimpleHTTPRequestHandler.do_GET(self)
 
+    def copyfile(self, source, outputfile):
+        """Adds retry code for WSAEWOULDBLOCK on MS Windows"""
+        if not sys.platform.startswith("win"):
+            return SimpleHTTPRequestHandler.copyfile(self, source, outputfile)
+        import shutil
+        while True:
+            try:
+                shutil.copyfileobj(source, outputfile)
+                return
+            except (IOError, OSError) as e:
+                if e[0]==errno.WSAEWOULDBLOCK:
+                    continue
+                raise
+
     def list_directory(self, path):
         if self.file_only:
             self.send_error(404, "No such file")
@@ -972,17 +991,20 @@ class WebSocketServer(object):
         original_signals = {
             signal.SIGINT: signal.getsignal(signal.SIGINT),
             signal.SIGTERM: signal.getsignal(signal.SIGTERM),
-            signal.SIGCHLD: signal.getsignal(signal.SIGCHLD),
         }
         signal.signal(signal.SIGINT, self.do_SIGINT)
         signal.signal(signal.SIGTERM, self.do_SIGTERM)
-        if not multiprocessing:
-            # os.fork() (python 2.4) child reaper
-            signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
-        else:
-            # make sure that _cleanup is called when children die
-            # by calling active_children on SIGCHLD
-            signal.signal(signal.SIGCHLD, self.multiprocessing_SIGCHLD)
+        #SIGCHLD is only available on posix:
+        SIGCHLD = getattr(signal, "SIGCHLD", None)
+        if SIGCHLD:
+            original_signals[SIGCHLD] = signal.getsignal(SIGCHLD)
+            if not multiprocessing:
+                # os.fork() (python 2.4) child reaper
+                signal.signal(SIGCHLD, self.fallback_SIGCHLD)
+            else:
+                # make sure that _cleanup is called when children die
+                # by calling active_children on SIGCHLD
+                signal.signal(SIGCHLD, self.multiprocessing_SIGCHLD)
 
         last_active_time = self.launch_time
         try:
