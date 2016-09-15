@@ -22,7 +22,7 @@ import socket
 
 from mox3 import stubout
 
-from websockify import websocket
+from websockify import websocketserver
 from websockify import websocketproxy
 from websockify import token_plugins
 from websockify import auth_plugins
@@ -75,7 +75,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             FakeSocket(''), "127.0.0.1", FakeServer())
         self.handler.path = "https://localhost:6080/websockify?token=blah"
         self.handler.headers = None
-        self.stubs.Set(websocket.WebSocketServer, 'socket',
+        self.stubs.Set(websocketserver.WebSocketServer, 'socket',
                        staticmethod(lambda *args, **kwargs: None))
 
     def tearDown(self):

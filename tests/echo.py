@@ -12,7 +12,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import os, sys, select, optparse, logging
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
-from websockify.websocket import WebSocketServer, WebSocketRequestHandler
+from websockify.websocketserver import WebSocketServer, WebSocketRequestHandler
 
 class WebSocketEcho(WebSocketRequestHandler):
     """
@@ -48,7 +48,7 @@ class WebSocketEcho(WebSocketRequestHandler):
                 cqueue.extend(frames)
 
                 if closed:
-                    self.send_close()
+                    break
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog [options] listen_port")
