@@ -14,7 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-""" Unit tests for websocketserver """
+""" Unit tests for websockifyserver """
 import errno
 import os
 import logging
@@ -28,12 +28,12 @@ import tempfile
 import unittest
 import socket
 import signal
-from websockify import websocketserver
+from websockify import websockifyserver
 
 try:
-    from SimpleHTTPServer import SimpleHTTPRequestHandler
+    from BaseHTTPServer import BaseHTTPRequestHandler
 except ImportError:
-    from http.server import SimpleHTTPRequestHandler
+    from http.server import BaseHTTPRequestHandler
 
 try:
     from StringIO import StringIO
@@ -70,26 +70,26 @@ class FakeSocket(object):
             return StringIO(self._data.decode('latin_1'))
 
 
-class WebSocketRequestHandlerTestCase(unittest.TestCase):
+class WebSockifyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
-        super(WebSocketRequestHandlerTestCase, self).setUp()
+        super(WebSockifyRequestHandlerTestCase, self).setUp()
         self.stubs = stubout.StubOutForTesting()
         self.tmpdir = tempfile.mkdtemp('-websockify-tests')
         # Mock this out cause it screws tests up
         self.stubs.Set(os, 'chdir', lambda *args, **kwargs: None)
-        self.stubs.Set(SimpleHTTPRequestHandler, 'send_response',
+        self.stubs.Set(BaseHTTPRequestHandler, 'send_response',
                        lambda *args, **kwargs: None)
 
     def tearDown(self):
         """Called automatically after each test."""
         self.stubs.UnsetAll()
         os.rmdir(self.tmpdir)
-        super(WebSocketRequestHandlerTestCase, self).tearDown()
+        super(WebSockifyRequestHandlerTestCase, self).tearDown()
 
-    def _get_server(self, handler_class=websocketserver.WebSocketRequestHandler,
+    def _get_server(self, handler_class=websockifyserver.WebSockifyRequestHandler,
                     **kwargs):
         web = kwargs.pop('web', self.tmpdir)
-        return websocketserver.WebSocketServer(
+        return websockifyserver.WebSockifyServer(
             handler_class, listen_host='localhost',
             listen_port=80, key=self.tmpdir, web=web,
             record=self.tmpdir, daemon=False, ssl_only=0, idle_timeout=1,
@@ -97,13 +97,13 @@ class WebSocketRequestHandlerTestCase(unittest.TestCase):
 
     def test_normal_get_with_only_upgrade_returns_error(self):
         server = self._get_server(web=None)
-        handler = websocketserver.WebSocketRequestHandler(
+        handler = websockifyserver.WebSockifyRequestHandler(
             FakeSocket('GET /tmp.txt HTTP/1.1'), '127.0.0.1', server)
 
         def fake_send_response(self, code, message=None):
             self.last_code = code
 
-        self.stubs.Set(SimpleHTTPRequestHandler, 'send_response',
+        self.stubs.Set(BaseHTTPRequestHandler, 'send_response',
                        fake_send_response)
 
         handler.do_GET()
@@ -111,13 +111,13 @@ class WebSocketRequestHandlerTestCase(unittest.TestCase):
 
     def test_list_dir_with_file_only_returns_error(self):
         server = self._get_server(file_only=True)
-        handler = websocketserver.WebSocketRequestHandler(
+        handler = websockifyserver.WebSockifyRequestHandler(
             FakeSocket('GET / HTTP/1.1'), '127.0.0.1', server)
 
         def fake_send_response(self, code, message=None):
             self.last_code = code
 
-        self.stubs.Set(SimpleHTTPRequestHandler, 'send_response',
+        self.stubs.Set(BaseHTTPRequestHandler, 'send_response',
                        fake_send_response)
 
         handler.path = '/'
@@ -125,9 +125,9 @@ class WebSocketRequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(handler.last_code, 404)
 
 
-class WebSocketServerTestCase(unittest.TestCase):
+class WebSockifyServerTestCase(unittest.TestCase):
     def setUp(self):
-        super(WebSocketServerTestCase, self).setUp()
+        super(WebSockifyServerTestCase, self).setUp()
         self.stubs = stubout.StubOutForTesting()
         self.tmpdir = tempfile.mkdtemp('-websockify-tests')
         # Mock this out cause it screws tests up
@@ -137,11 +137,11 @@ class WebSocketServerTestCase(unittest.TestCase):
         """Called automatically after each test."""
         self.stubs.UnsetAll()
         os.rmdir(self.tmpdir)
-        super(WebSocketServerTestCase, self).tearDown()
+        super(WebSockifyServerTestCase, self).tearDown()
 
-    def _get_server(self, handler_class=websocketserver.WebSocketRequestHandler,
+    def _get_server(self, handler_class=websockifyserver.WebSockifyRequestHandler,
                     **kwargs):
-        return websocketserver.WebSocketServer(
+        return websockifyserver.WebSockifyServer(
             handler_class, listen_host='localhost',
             listen_port=80, key=self.tmpdir, web=self.tmpdir,
             record=self.tmpdir, **kwargs)
@@ -174,7 +174,7 @@ class WebSocketServerTestCase(unittest.TestCase):
 
         self.stubs.Set(select, 'select', fake_select)
         self.assertRaises(
-            websocketserver.WebSocketServer.EClose, server.do_handshake,
+            websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             FakeSocket(), '127.0.0.1')
 
     def test_empty_handshake_fails(self):
@@ -187,7 +187,7 @@ class WebSocketServerTestCase(unittest.TestCase):
 
         self.stubs.Set(select, 'select', fake_select)
         self.assertRaises(
-            websocketserver.WebSocketServer.EClose, server.do_handshake,
+            websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
 
     def test_handshake_policy_request(self):
@@ -204,7 +204,7 @@ class WebSocketServerTestCase(unittest.TestCase):
 
         self.stubs.Set(select, 'select', fake_select)
         self.assertRaises(
-            websocketserver.WebSocketServer.EClose, server.do_handshake,
+            websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
 
     def test_do_handshake_no_ssl(self):
@@ -247,7 +247,7 @@ class WebSocketServerTestCase(unittest.TestCase):
 
         self.stubs.Set(select, 'select', fake_select)
         self.assertRaises(
-            websocketserver.WebSocketServer.EClose, server.do_handshake,
+            websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
 
     def test_do_handshake_ssl_error_eof_raises_close_error(self):
@@ -264,7 +264,7 @@ class WebSocketServerTestCase(unittest.TestCase):
         self.stubs.Set(select, 'select', fake_select)
         self.stubs.Set(ssl, 'wrap_socket', fake_wrap_socket)
         self.assertRaises(
-            websocketserver.WebSocketServer.EClose, server.do_handshake,
+            websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
 
     def test_fallback_sigchld_handler(self):
@@ -278,9 +278,9 @@ class WebSocketServerTestCase(unittest.TestCase):
         def fake_select(rlist, wlist, xlist, timeout=None):
             raise Exception("fake error")
 
-        self.stubs.Set(websocketserver.WebSocketServer, 'socket',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'socket',
                        lambda *args, **kwargs: sock)
-        self.stubs.Set(websocketserver.WebSocketServer, 'daemonize',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'daemonize',
                        lambda *args, **kwargs: None)
         self.stubs.Set(select, 'select', fake_select)
         server.start_server()
@@ -292,9 +292,9 @@ class WebSocketServerTestCase(unittest.TestCase):
         def fake_select(rlist, wlist, xlist, timeout=None):
             raise KeyboardInterrupt
 
-        self.stubs.Set(websocketserver.WebSocketServer, 'socket',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'socket',
                        lambda *args, **kwargs: sock)
-        self.stubs.Set(websocketserver.WebSocketServer, 'daemonize',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'daemonize',
                        lambda *args, **kwargs: None)
         self.stubs.Set(select, 'select', fake_select)
         server.start_server()
@@ -306,9 +306,9 @@ class WebSocketServerTestCase(unittest.TestCase):
         def fake_select(rlist, wlist, xlist, timeout=None):
             sys.exit()
 
-        self.stubs.Set(websocketserver.WebSocketServer, 'socket',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'socket',
                        lambda *args, **kwargs: sock)
-        self.stubs.Set(websocketserver.WebSocketServer, 'daemonize',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'daemonize',
                        lambda *args, **kwargs: None)
         self.stubs.Set(select, 'select', fake_select)
         server.start_server()
