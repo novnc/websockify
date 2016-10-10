@@ -723,8 +723,11 @@ class WebSocketServer(object):
             if  tcp_keepalive:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 if tcp_keepcnt:
-                    sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
-                                    tcp_keepcnt)
+                    if hasattr(socket, 'TCP_KEEPCNT'):
+                        sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
+                                        tcp_keepcnt)
+                    else:
+                        self.msg('tcp_keepcnt not available on your system')
                 if tcp_keepidle:
                     sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE,
                                     tcp_keepidle)
