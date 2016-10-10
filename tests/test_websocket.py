@@ -324,8 +324,9 @@ class WebSocketServerTestCase(unittest.TestCase):
                              tcp_keepidle=keepidle,
                              tcp_keepintvl=keepintvl)
 
-        self.assertEqual(sock.getsockopt(socket.SOL_TCP,
-                                         socket.TCP_KEEPCNT), keepcnt)
+        if hasattr(socket, 'TCP_KEEPCNT'):
+            self.assertEqual(sock.getsockopt(socket.SOL_TCP,
+                                             socket.TCP_KEEPCNT), keepcnt)
         self.assertEqual(sock.getsockopt(socket.SOL_TCP,
                                          socket.TCP_KEEPIDLE), keepidle)
         self.assertEqual(sock.getsockopt(socket.SOL_TCP,
@@ -337,8 +338,9 @@ class WebSocketServerTestCase(unittest.TestCase):
                              tcp_keepidle=keepidle,
                              tcp_keepintvl=keepintvl)
 
-        self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
-                                            socket.TCP_KEEPCNT), keepcnt)
+        if hasattr(socket, 'TCP_KEEPCNT'):
+            self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
+                                                socket.TCP_KEEPCNT), keepcnt)
         self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
                                             socket.TCP_KEEPIDLE), keepidle)
         self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
