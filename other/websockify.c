@@ -155,7 +155,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             cout_start = 0;
             if (ws_ctx->hybi) {
                 cout_end = encode_hybi(ws_ctx->cin_buf, bytes,
-                                   ws_ctx->cout_buf, BUFSIZE, 1);
+                                   ws_ctx->cout_buf, BUFSIZE, ws_ctx->opcode);
             } else {
                 cout_end = encode_hixie(ws_ctx->cin_buf, bytes,
                                     ws_ctx->cout_buf, BUFSIZE);
@@ -202,7 +202,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             }
 
             if (opcode == 8) {
-                handler_emsg("client sent orderly close frame\n");
+                handler_msg("client sent orderly close frame\n");
                 break;
             }
 
