@@ -66,6 +66,8 @@ typedef struct {
     int ssl_only;
     int daemon;
     int run_once;
+    char *whitelist;
+    char *pattern;
 } settings_t;
 
 
