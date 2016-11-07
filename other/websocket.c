@@ -706,9 +706,16 @@ ws_ctx_t *do_handshake(int sock) {
 
 void signal_handler(sig) {
     switch (sig) {
-        case SIGHUP: break; // ignore for now
+        case SIGHUP:
+            if (settings.whitelist != NULL) {
+              load_whitelist();
+            }
+            break;
         case SIGPIPE: pipe_error = 1; break; // handle inline
-        case SIGTERM: exit(0); break;
+        case SIGTERM:
+            remove(settings.pid);
+            exit(0);
+            break;
     }
 }
 
@@ -727,7 +734,17 @@ void daemonize(int keepfd) {
     setsid();                // Obtain new process group
     pid = fork();
     if (pid<0) { fatal("fork error"); }
-    if (pid>0) { exit(0); }  // parent exits
+    if (pid>0) {
+      // parent exits
+      FILE *pidf = fopen(settings.pid, "w");
+      if (pidf) {
+        fprintf(pidf, "%d", pid);
+        fclose(pidf);
+      } else {
+        fprintf(stderr, "Could not write daemon PID file '%s': %s\n", settings.pid, strerror(errno));
+      }
+      exit(0);
+    }
 
     /* Signal handling */
     signal(SIGHUP, signal_handler);   // catch HUP

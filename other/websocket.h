@@ -68,6 +68,7 @@ typedef struct {
     int run_once;
     char *whitelist;
     char *pattern;
+    char *pid;
 } settings_t;
 
 

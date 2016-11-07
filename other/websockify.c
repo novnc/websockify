@@ -17,6 +17,7 @@
 #include <sys/select.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include "websocket.h"
 
 char traffic_legend[] = "\n\
@@ -40,7 +41,8 @@ char USAGE[] = "Usage: [options] " \
                "  --ssl-only           disallow non-encrypted connections\n" \
                "  --whitelist|-w LIST  new-line separated target port whitelist file\n" \
                "                       (target_port is not required only with this option)\n" \
-               "  --pattern|-p         target port request pattern. Default: '/%d'";
+               "  --pattern|-P         target port request pattern. Default: '/%d'\n" \
+               "  --pid|-p             desired path of pid file. Default: '/var/run/websockify.pid'";
 
 #define usage(fmt, args...) \
     do { \
@@ -298,6 +300,62 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
     close(tsock);
 }
 
+int load_whitelist() {
+  printf("loading port whitelist '%s'\n", settings.whitelist);
+  FILE *whitelist = fopen(settings.whitelist, "r");
+  if (whitelist == NULL) {
+    fprintf(stderr, "Error opening whitelist file '%s':\n\t%s\n",
+          settings.whitelist, strerror(errno));
+    return -1;
+  }
+
+  const int tplen_grow = 512;
+  int tplen = tplen_grow, tpcount = 0;
+  target_ports = (int*)malloc(tplen*sizeof(int));
+  if (target_ports == NULL) {
+    fprintf(stderr, "Whitelist port malloc error");
+    return -2;
+  }
+
+  char *line = NULL;
+  ssize_t n = 0, nread = 0;
+  while ((nread = getline(&line, &n, whitelist)) > 0) {
+      if (line[0] == '\n') continue;
+      line[nread-1] = '\x00';
+      long int port = strtol(line, NULL, 10);
+      if (port < 1 || port > 65535) {
+          fprintf(stderr,
+            "Whitelist port '%s' is not between valid range 1 and 65535", line);
+          return -3;
+      }
+      tpcount++;
+      if (tpcount >= tplen) {
+          tplen += tplen_grow;
+          target_ports = (int*)realloc(target_ports, tplen*sizeof(int));
+          if (target_ports == NULL) {
+              fprintf(stderr, "Whitelist port realloc error");
+              return -2;
+          }
+      }
+      target_ports[tpcount-1] = port;
+  }
+  if (line != NULL) free(line);
+
+  if (tpcount == 0) {
+      fprintf(stderr, "0 ports read from whitelist file '%s'\n",
+                      settings.whitelist);
+      return -4;
+  }
+
+  target_ports = (int*)realloc(target_ports, (tpcount + 1)*sizeof(int));
+  if (target_ports == NULL) {
+      fprintf(stderr, "Whitelist port realloc error");
+      return -2;
+  }
+  target_ports[tpcount] = 0;
+  return 0;
+}
+
 int main(int argc, char *argv[])
 {
     int fd, c, option_index = 0;
@@ -311,7 +369,8 @@ int main(int argc, char *argv[])
         {"cert",      required_argument, 0,                 'c'},
         {"key",       required_argument, 0,                 'k'},
         {"whitelist", required_argument, 0,                 'w'},
-        {"pattern",   required_argument, 0,                 'p'},
+        {"pattern",   required_argument, 0,                 'P'},
+        {"pid",       required_argument, 0,                 'p'},
         {0, 0, 0, 0}
     };
 
@@ -322,9 +381,10 @@ int main(int argc, char *argv[])
     }
     settings.key = "";
     settings.pattern = "/%d";
+    settings.pid = "/var/run/websockify.pid";
 
     while (1) {
-        c = getopt_long (argc, argv, "vDrc:k:w:p:",
+        c = getopt_long (argc, argv, "vDrc:k:w:p:P:",
                          long_options, &option_index);
 
         /* Detect the end */
@@ -362,6 +422,12 @@ int main(int argc, char *argv[])
                     usage("No whitelist file at %s\n", optarg);
                 }
                 break;
+            case 'P':
+                settings.pattern = optarg;
+                break;
+            case 'p':
+                settings.pid = optarg;
+                break;
             default:
                 usage(" ");
         }
@@ -390,45 +456,9 @@ int main(int argc, char *argv[])
         target_port = strtol(found+1, NULL, 10);
         target_ports = NULL;
     } else if (!found && settings.whitelist != NULL) {
-        FILE *whitelist = fopen(settings.whitelist, "r");
-        if (whitelist == NULL) {
-        usage("Error opening whitelist file '%s':\n\t%s\n",
-            settings.whitelist, strerror(errno));
+        if (load_whitelist()) {
+          usage("Whitelist error.");
         }
-
-        const int tplen_grow = 512;
-        int tplen = tplen_grow, tpcount = 0;
-        target_ports = (int*)malloc(tplen*sizeof(int));
-        if (target_ports == NULL) usage("Whitelist port malloc error");
-
-        char *line = NULL;
-        ssize_t n = 0, nread = 0;
-        while ((nread = getline(&line, &n, whitelist)) > 0) {
-            if (line[0] == '\n') continue;
-            line[nread-1] = '\x00';
-            long int port = strtol(line, NULL, 10);
-            if (port < 1 || port > 65535) {
-                usage("Whitelist port '%s' is not between valid range 1 and 65535",
-                    line);
-            }
-            tpcount++;
-            if (tpcount >= tplen) {
-                tplen += tplen_grow;
-                target_ports = (int*)realloc(target_ports, tplen*sizeof(int));
-                if (target_ports == NULL) usage("Whitelist port realloc error");
-            }
-            target_ports[tpcount-1] = port;
-        }
-        if (line != NULL) free(line);
-
-        if (tpcount == 0) {
-            usage("0 ports read from whitelist file '%s'\n", settings.whitelist);
-        }
-
-        target_ports = (int*)realloc(target_ports, (tpcount + 1)*sizeof(int));
-        if (target_ports == NULL) usage("Whitelist port realloc error");
-        target_ports[tpcount] = 0;
-
         memcpy(target_host, argv[optind], strlen(argv[optind]));
         target_port = -1;
 
@@ -454,7 +484,7 @@ int main(int argc, char *argv[])
     //printf("  cert: %s\n",      settings.cert);
     //printf("  key: %s\n",       settings.key);
 
-    settings.handler = proxy_handler; 
+    settings.handler = proxy_handler;
     start_server();
 
 }
