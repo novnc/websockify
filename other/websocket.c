@@ -21,10 +21,12 @@
 #include <fcntl.h>  // daemonizing
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <resolv.h>      /* base64 encode/decode */
 #include <openssl/md5.h> /* md5 hash */
 #include <openssl/sha.h> /* sha1 hash */
 #include "websocket.h"
+
+int ws_b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize);
+int ws_b64_pton(char const *src, u_char *target, size_t targsize);
 
 /*
  * Global state
@@ -214,7 +216,7 @@ int encode_hixie(u_char const *src, size_t srclength,
                  char *target, size_t targsize) {
     int sz = 0, len = 0;
     target[sz++] = '\x00';
-    len = b64_ntop(src, srclength, target+sz, targsize-sz);
+    len = ws_b64_ntop(src, srclength, target+sz, targsize-sz);
     if (len < 0) {
         return len;
     }
@@ -249,7 +251,7 @@ int decode_hixie(char *src, size_t srclength,
         /* We may have more than one frame */
         end = (char *)memchr(start, '\xff', srclength);
         *end = '\x00';
-        len = b64_pton(start, target+retlen, targsize-retlen);
+        len = ws_b64_pton(start, target+retlen, targsize-retlen);
         if (len < 0) {
             return len;
         }
@@ -294,7 +296,7 @@ int encode_hybi(u_char const *src, size_t srclength,
         //payload_offset = 10;
     }
 
-    len = b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+    len = ws_b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
     
     if (len < 0) {
         return len;
@@ -390,7 +392,7 @@ int decode_hybi(unsigned char *src, size_t srclength,
         }
 
         // base64 decode the data
-        len = b64_pton((const char*)payload, target+target_offset, targsize);
+        len = ws_b64_pton((const char*)payload, target+target_offset, targsize);
 
         // Restore the first character of the next frame
         payload[payload_length] = save_char;
@@ -560,7 +562,7 @@ static void gen_sha1(headers_t *headers, char *target) {
     SHA1_Update(&c, HYBI_GUID, 36);
     SHA1_Final(hash, &c);
 
-    r = b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
+    r = ws_b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
     //assert(r == HYBI10_ACCEPTHDRLEN - 1);
 }
 
