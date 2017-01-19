@@ -467,6 +467,10 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             else:
                 self.send_header("Sec-WebSocket-Protocol", "binary")
             self.end_headers()
+
+            # Other requests cannot follow Websocket data
+            self.close_connection = True
+
             return True
         else:
             self.send_error(400, "Missing Sec-WebSocket-Version header. Hixie protocols not supported.")
