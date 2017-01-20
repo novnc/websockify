@@ -837,11 +837,12 @@ class WebSocketServer(object):
                                   % self.cert)
             retsock = None
             try:
-                retsock = ssl.wrap_socket(
-                        sock,
-                        server_side=True,
-                        certfile=self.cert,
-                        keyfile=self.key)
+                # This stuff only works in Python3. In the Python 2.7.4 in Ubuntu it's mighty hard to disable SSLv3, because of the lack of SSLContext
+                sslcontext = ssl.SSLContext(protocol=ssl.PROTOCOL_SSLv23) # SSLv23 is the deprecrated, python 3.4 compatible way of saying 'everything, also TLS'
+                sslcontext.load_cert_chain(certfile=self.cert, keyfile=self.key);
+                sslcontext.options |= ssl.OP_NO_SSLv3
+
+                retsock = sslcontext.wrap_socket(sock, server_side=True);
             except ssl.SSLError:
                 _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
