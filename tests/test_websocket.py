@@ -411,9 +411,11 @@ class HyBiEncodeDecodeTestCase(unittest.TestCase):
 
     def test_encode_hybi_basic(self):
         res = websocket.WebSocketRequestHandler.encode_hybi(b'Hello', 0x1)
-        expected = (b'\x81\x05\x48\x65\x6c\x6c\x6f', 2, 0)
+        expected_header = (b'\x81\x05')
+        expected_data = (b'\x48\x65\x6c\x6c\x6f')
 
-        self.assertEqual(res, expected)
+        self.assertEqual(res[0], expected_header)
+        self.assertEqual(res[1], expected_data)
 
     def test_strict_mode_refuses_unmasked_client_frames(self):
         buf = b'\x81\x05\x48\x65\x6c\x6c\x6f'
