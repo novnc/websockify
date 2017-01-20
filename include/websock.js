@@ -65,7 +65,8 @@ var api = {},         // Public API
         'error'   : function() {}
     },
 
-    test_mode = false;
+    test_mode = false,
+    sendDataFromQueueTimer = -1;
 
 
 //
@@ -209,9 +210,20 @@ function flush() {
 
 // overridable for testing
 function send(arr) {
+    var dataSentOk;
     //Util.Debug(">> send_array: " + arr);
     sQ = sQ.concat(arr);
-    return flush();
+    dataSentOk = flush();
+    if (dataSentOk === false && sendDataFromQueueTimer === -1) {
+        sendDataFromQueueTimer = setInterval(function () {
+            dataSentOk = flush();
+            if (dataSentOk === true) {
+                clearInterval(sendDataFromQueueTimer);
+                sendDataFromQueueTimer = -1;
+            }
+        }, 100);
+    }
+    return dataSentOk;
 }
 
 function send_string(str) {
