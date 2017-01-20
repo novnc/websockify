@@ -837,11 +837,12 @@ class WebSocketServer(object):
                                   % self.cert)
             retsock = None
             try:
-                retsock = ssl.wrap_socket(
+                context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                context.load_cert_chain(self.cert, self.key)
+
+                retsock = context.wrap_socket(
                         sock,
-                        server_side=True,
-                        certfile=self.cert,
-                        keyfile=self.key)
+                        server_side=True)
             except ssl.SSLError:
                 _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
