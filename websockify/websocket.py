@@ -17,8 +17,10 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, time, errno, signal, socket, select, logging
-import array, struct
+import array, ssl, multiprocessing
 from base64 import b64encode, b64decode
+from hashlib import sha1
+from struct import pack, unpack_from
 
 # Imports that vary by python version
 
@@ -36,23 +38,8 @@ except: from cStringIO import StringIO
 try:    from http.server import SimpleHTTPRequestHandler
 except: from SimpleHTTPServer import SimpleHTTPRequestHandler
 
-# python 2.6 differences
-try:    from hashlib import sha1
-except: from sha import sha as sha1
-
-# python 2.5 differences
-try:
-    from struct import pack, unpack_from
-except:
-    from struct import pack
-    def unpack_from(fmt, buf, offset=0):
-        slice = buffer(buf, offset, struct.calcsize(fmt))
-        return struct.unpack(fmt, slice)
-
 # Degraded functionality if these imports are missing
 for mod, msg in [('numpy', 'HyBi protocol will be slower'),
-                 ('ssl', 'TLS/SSL/wss is disabled'),
-                 ('multiprocessing', 'Multi-Processing is disabled'),
                  ('resource', 'daemonizing is disabled')]:
     try:
         globals()[mod] = __import__(mod)
@@ -60,7 +47,7 @@ for mod, msg in [('numpy', 'HyBi protocol will be slower'),
         globals()[mod] = None
         print("WARNING: no '%s' module, %s" % (mod, msg))
 
-if multiprocessing and sys.platform == 'win32':
+if sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
 
@@ -655,8 +642,6 @@ class WebSocketServer(object):
         self.only_upgrade = not self.web
 
         # Sanity checks
-        if not ssl and self.ssl_only:
-            raise Exception("No 'ssl' module and SSL-only specified")
         if self.daemon and not resource:
             raise Exception("Module 'resource' required to daemonize")
 
@@ -670,15 +655,12 @@ class WebSocketServer(object):
                 self.msg("  - Web server (no directory listings). Web root: %s", self.web)
             else:
                 self.msg("  - Web server. Web root: %s", self.web)
-        if ssl:
-            if os.path.exists(self.cert):
-                self.msg("  - SSL/TLS support")
-                if self.ssl_only:
-                    self.msg("  - Deny non-SSL/TLS connections")
-            else:
-                self.msg("  - No SSL/TLS support (no cert file)")
+        if os.path.exists(self.cert):
+            self.msg("  - SSL/TLS support")
+            if self.ssl_only:
+                self.msg("  - Deny non-SSL/TLS connections")
         else:
-            self.msg("  - No SSL/TLS support (no 'ssl' module)")
+            self.msg("  - No SSL/TLS support (no cert file)")
         if self.daemon:
             self.msg("  - Backgrounding (daemon)")
         if self.record:
@@ -707,8 +689,6 @@ class WebSocketServer(object):
             host = None
         if connect and not (port or unix_socket):
             raise Exception("Connect mode requires a port")
-        if use_ssl and not ssl:
-            raise Exception("SSL socket requested but Python SSL module not loaded.");
         if not connect and use_ssl:
             raise Exception("SSL only supported in connect mode (for now)")
         if not connect:
@@ -830,8 +810,6 @@ class WebSocketServer(object):
 
         elif handshake[0] in ("\x16", "\x80", 22, 128):
             # SSL wrap the connection
-            if not ssl:
-                raise self.EClose("SSL connection but no 'ssl' module")
             if not os.path.exists(self.cert):
                 raise self.EClose("SSL connection but '%s' not found"
                                   % self.cert)
@@ -994,13 +972,9 @@ class WebSocketServer(object):
         }
         signal.signal(signal.SIGINT, self.do_SIGINT)
         signal.signal(signal.SIGTERM, self.do_SIGTERM)
-        if not multiprocessing:
-            # os.fork() (python 2.4) child reaper
-            signal.signal(signal.SIGCHLD, self.fallback_SIGCHLD)
-        else:
-            # make sure that _cleanup is called when children die
-            # by calling active_children on SIGCHLD
-            signal.signal(signal.SIGCHLD, self.multiprocessing_SIGCHLD)
+        # make sure that _cleanup is called when children die
+        # by calling active_children on SIGCHLD
+        signal.signal(signal.SIGCHLD, self.multiprocessing_SIGCHLD)
 
         last_active_time = self.launch_time
         try:
@@ -1011,9 +985,8 @@ class WebSocketServer(object):
                         pid = err = 0
                         child_count = 0
 
-                        if multiprocessing:
-                            # Collect zombie child processes
-                            child_count = len(multiprocessing.active_children())
+                        # Collect zombie child processes
+                        child_count = len(multiprocessing.active_children())
 
                         time_elapsed = time.time() - self.launch_time
                         if self.timeout and time_elapsed > self.timeout:
@@ -1065,21 +1038,13 @@ class WebSocketServer(object):
                                 self.msg('%s: exiting due to --run-once'
                                         % address[0])
                                 break
-                        elif multiprocessing:
+                        else:
                             self.vmsg('%s: new handler Process' % address[0])
                             p = multiprocessing.Process(
                                     target=self.top_new_client,
                                     args=(startsock, address))
                             p.start()
                             # child will not return
-                        else:
-                            # python 2.4
-                            self.vmsg('%s: forking handler' % address[0])
-                            pid = os.fork()
-                            if pid == 0:
-                                # child handler process
-                                self.top_new_client(startsock, address)
-                                break  # child process exits
 
                         # parent process
                         self.handler_id += 1
@@ -1087,7 +1052,7 @@ class WebSocketServer(object):
                     except (self.Terminate, SystemExit, KeyboardInterrupt):
                         self.msg("In exit")
                         # terminate all child processes
-                        if multiprocessing and not self.run_once:
+                        if not self.run_once:
                             children = multiprocessing.active_children()
 
                             for child in children:
