@@ -33,16 +33,8 @@ href="http://www.twitter.com/noVNC">@noVNC</a> if you do.
 ### WebSockets binary data
 
 Starting with websockify 0.5.0, only the HyBi / IETF
-6455 WebSocket protocol is supported.
-
-Websockify negotiates whether to base64 encode traffic to and from the
-client via the subprotocol header (Sec-WebSocket-Protocol). The valid
-subprotocol values are 'binary' and 'base64' and if the client sends
-both then the server (the python implementation) will prefer 'binary'.
-The 'binary' subprotocol indicates that the data will be sent raw
-using binary WebSocket frames. Some HyBi clients (such as the Flash
-fallback and older Chrome and iOS versions) do not support binary data
-which is why the negotiation is necessary.
+6455 WebSocket protocol is supported. There is no support for the older
+Base64 encoded data format.
 
 
 ### Encrypted WebSocket connections (wss://)
@@ -77,8 +69,7 @@ and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
 The `include/websock.js` Javascript library library provides a Websock
 object that is similar to the standard WebSocket object but Websock
 enables communication with raw TCP sockets (i.e. the binary stream)
-via websockify. This is accomplished by base64 encoding the data
-stream between Websock and websockify.
+via websockify.
 
 Websock has built-in receive queue buffering; the message event
 does not contain actual data but is simply a notification that

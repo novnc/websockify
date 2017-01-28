@@ -220,9 +220,7 @@ Traffic Legend:
 class WebSocketProxy(websocket.WebSocketServer):
     """
     Proxy traffic to and from a WebSockets client to a normal TCP
-    socket server target. All traffic to/from the client is base64
-    encoded/decoded to allow binary data to be sent/received to/from
-    the target.
+    socket server target.
     """
 
     buffer_size = 65536

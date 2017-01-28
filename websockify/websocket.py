@@ -18,7 +18,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import os, sys, time, errno, signal, socket, select, logging
 import array, ssl, multiprocessing
-from base64 import b64encode, b64decode
+from base64 import b64encode
 from hashlib import sha1
 from struct import pack, unpack_from
 
@@ -141,7 +141,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             return data.tostring()
 
     @staticmethod
-    def encode_hybi(buf, opcode, base64=False):
+    def encode_hybi(buf, opcode):
         """ Encode a HyBi style WebSocket frame.
         Optional opcode:
             0x0 - continuation
@@ -151,8 +151,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             0x9 - ping
             0xA - pong
         """
-        if base64:
-            buf = b64encode(buf)
 
         b1 = 0x80 | (opcode & 0x0f) # FIN + opcode
         payload_len = len(buf)
@@ -168,7 +166,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         return header + buf, len(header), 0
 
     @staticmethod
-    def decode_hybi(buf, base64=False, logger=None, strict=True):
+    def decode_hybi(buf, logger=None, strict=True):
         """ Decode HyBi style WebSocket packets.
         Returns:
             {'fin'          : 0_or_1,
@@ -240,14 +238,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
             f['payload'] = buf[(f['hlen'] + f['masked'] * 4):full_len]
 
-        if base64 and f['opcode'] in [1, 2]:
-            try:
-                f['payload'] = b64decode(f['payload'])
-            except:
-                logger.exception("Exception while b64decoding buffer: %s" %
-                                 (repr(buf)))
-                raise
-
         if f['opcode'] == 0x08:
             if f['length'] >= 2:
                 f['close_code'] = unpack_from(">H", f['payload'])[0]
@@ -297,10 +287,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
         if bufs:
             for buf in bufs:
-                if self.base64:
-                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=1, base64=True)
-                else:
-                    encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=2, base64=False)
+                encbuf, lenhead, lentail = self.encode_hybi(buf, opcode=2)
 
                 if self.rec:
                     self.rec.write("%s,\n" %
@@ -345,7 +332,7 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             self.recv_part = None
 
         while buf:
-            frame = self.decode_hybi(buf, base64=self.base64,
+            frame = self.decode_hybi(buf,
                                      logger=self.logger,
                                      strict=self.strict_mode)
             #self.msg("Received buf: %s, frame: %s", repr(buf), frame)
@@ -399,17 +386,17 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
         """ Send a WebSocket orderly close frame. """
 
         msg = pack(">H%ds" % len(reason), code, s2b(reason))
-        buf, h, t = self.encode_hybi(msg, opcode=0x08, base64=False)
+        buf, h, t = self.encode_hybi(msg, opcode=0x08)
         self.request.send(buf)
 
     def send_pong(self, data=''):
         """ Send a WebSocket pong frame. """
-        buf, h, t = self.encode_hybi(s2b(data), opcode=0x0A, base64=False)
+        buf, h, t = self.encode_hybi(s2b(data), opcode=0x0A)
         self.request.send(buf)
 
     def send_ping(self, data=''):
         """ Send a WebSocket ping frame. """
-        buf, h, t = self.encode_hybi(s2b(data), opcode=0x09, base64=False)
+        buf, h, t = self.encode_hybi(s2b(data), opcode=0x09)
         self.request.send(buf)
 
     def do_websocket_handshake(self):
@@ -433,15 +420,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
             key = h['Sec-WebSocket-Key']
 
-            # Choose binary if client supports it
-            if 'binary' in protocols:
-                self.base64 = False
-            elif 'base64' in protocols:
-                self.base64 = True
-            else:
-                self.send_error(400, "Client must support 'binary' or 'base64' protocol")
-                return False
-
             # Generate the hash value for the accept header
             accept = b64encode(sha1(s2b(key + self.GUID)).digest())
 
@@ -449,10 +427,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
             self.send_header("Upgrade", "websocket")
             self.send_header("Connection", "Upgrade")
             self.send_header("Sec-WebSocket-Accept", b2s(accept))
-            if self.base64:
-                self.send_header("Sec-WebSocket-Protocol", "base64")
-            else:
-                self.send_header("Sec-WebSocket-Protocol", "binary")
             self.end_headers()
 
             # Other requests cannot follow Websocket data
@@ -501,8 +475,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
 
             self.log_message("%s: %s WebSocket connection", client_addr,
                              self.stype)
-            self.log_message("%s: Version %s, base64: '%s'", client_addr,
-                             self.version, self.base64)
             if self.path != '/':
                 self.log_message("%s: Path: '%s'", client_addr, self.path)
 
@@ -512,10 +484,6 @@ class WebSocketRequestHandler(SimpleHTTPRequestHandler):
                                    self.handler_id)
                 self.log_message("opening record file: %s", fname)
                 self.rec = open(fname, 'w+')
-                encoding = "binary"
-                if self.base64: encoding = "base64"
-                self.rec.write("var VNC_frame_encoding = '%s';\n"
-                               % encoding)
                 self.rec.write("var VNC_frame_data = [\n")
 
             try:

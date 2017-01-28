@@ -13,7 +13,6 @@ require 'openssl'
 require 'stringio'
 require 'digest/md5'
 require 'digest/sha1'
-require 'base64'
 
 unless OpenSSL::SSL::SSLSocket.instance_methods.index("read_nonblock")
   module OpenSSL
@@ -92,7 +91,6 @@ Sec-WebSocket-Accept: %s\r
     t[:my_client_id] = @@client_id
     t[:send_parts] = []
     t[:recv_part] = nil
-    t[:base64] = nil
 
     puts "in serve, client: #{t[:my_client_id].inspect}"
 
@@ -151,11 +149,7 @@ Sec-WebSocket-Accept: %s\r
     return data
   end
 
-  def encode_hybi(buf, opcode, base64=false)
-    if base64
-      buf = Base64.encode64(buf).gsub(/\n/, '')
-    end
-
+  def encode_hybi(buf, opcode)
     b1 = 0x80 | (opcode & 0x0f) # FIN + opcode
     payload_len = buf.length
     if payload_len <= 125
@@ -170,7 +164,7 @@ Sec-WebSocket-Accept: %s\r
     return [header + buf, header.length, 0]
   end
 
-  def decode_hybi(buf, base64=false)
+  def decode_hybi(buf)
     f = {'fin'          => 0,
          'opcode'       => 0,
          'hlen'         => 2,
@@ -216,10 +210,6 @@ Sec-WebSocket-Accept: %s\r
       f['payload'] = buf[f['hlen']...full_len]
     end
 
-    if base64 and [1, 2].include?(f['opcode'])
-      f['payload'] = Base64.decode64(f['payload'])
-    end
-
     # close frame
     if f['opcode'] == 0x08
       if f['length'] >= 2
@@ -251,13 +241,8 @@ Sec-WebSocket-Accept: %s\r
       encbuf = ""
       bufs.each do |buf|
         if t[:version].start_with?("hybi")
-          if t[:base64]
-            encbuf, lenhead, lentail = encode_hybi(
-              buf, opcode=1, base64=true)
-          else
-            encbuf, lenhead, lentail = encode_hybi(
-              buf, opcode=2, base64=false)
-          end
+          encbuf, lenhead, lentail = encode_hybi(
+            buf, opcode=2)
         else
           encbuf, lenhead, lentail = encode_hixie(buf)
         end
@@ -302,7 +287,7 @@ Sec-WebSocket-Accept: %s\r
 
     while buf.length > 0
       if t[:version].start_with?("hybi")
-        frame = decode_hybi(buf, base64=t[:base64])
+        frame = decode_hybi(buf)
 
         if frame['payload'] == nil
           traffic "}."
@@ -359,7 +344,7 @@ Sec-WebSocket-Accept: %s\r
         msg = [reason.length, code].pack("na8")
       end
 
-      buf, lenh, lent = encode_hybi(msg, opcode=0x08, base64=false)
+      buf, lenh, lent = encode_hybi(msg, opcode=0x08)
       t[:client].write(buf)
     elsif t[:version] == "hixie-76"
       buf = "\xff\x00"
@@ -412,73 +397,29 @@ Sec-WebSocket-Accept: %s\r
     protocols = h.fetch("sec-websocket-protocol", h["websocket-protocol"])
     ver = h.fetch('sec-websocket-version', nil)
 
-    if ver
-      # HyBi/IETF vesrion of the protocol
+    # HyBi/IETF vesrion of the protocol
 
-      # HyBi 07 reports version 7
-      # HyBi 08 - 12 report version 8
-      # HyBi 13 and up report version 13
-      if ['7', '8', '13'].include?(ver)
-        t[:version] = "hybi-%02d" % [ver.to_i]
-      else
-        raise EClose, "Unsupported protocol version %s" % [ver]
-      end
-
-      # choose binary if client supports it
-      if protocols.include?('binary')
-        t[:base64] = false
-      elsif protocols.include?('base64')
-        t[:base64] = true
-      else
-        raise EClose, "Client must support 'binary' or 'base64' sub-protocol"
-      end
-
-      key = h['sec-websocket-key']
-
-      # Generate the hash value for the accpet header
-      accept = Base64.encode64(
-        Digest::SHA1.digest(key + @@GUID)).gsub(/\n/, '')
-
-      response = @@Server_handshake_hybi % [accept]
-
-      if t[:base64]
-        response += "Sec-WebSocket-Protocol: base64\r\n"
-      else
-        response += "Sec-WebSocket-Protocol: binary\r\n"
-      end
-      response += "\r\n"
-
+    # HyBi 07 reports version 7
+    # HyBi 08 - 12 report version 8
+    # HyBi 13 and up report version 13
+    if ['7', '8', '13'].include?(ver)
+      t[:version] = "hybi-%02d" % [ver.to_i]
     else
-      # Hixie vesrion of the protocol (75 or 76)
-      body = handshake.match(/\r\n\r\n(........)/)
-      if body
-        h['key3'] = body[1]
-        trailer = gen_md5(h)
-        pre = "Sec-"
-        t[:version] = "hixie-76"
-      else
-        trailer = ""
-        pre = ""
-        t[:version] = "hixie-75"
-      end
-      
-      # base64 required for Hixie since payload is only UTF-8
-      t[:base64] = true
-
-      response = @@Server_handshake_hixie % [pre, h['origin'], pre,
-        "ws", h['host'], t[:path]]
-
-      if protocols && protocols.include?('base64')
-        response += "%sWebSocket-Protocol: base64\r\n" % [pre]
-      else
-        msg "Warning: client does not report 'base64' protocol support"
-      end
-
-      response += "\r\n" + trailer
+      raise EClose, "Unsupported protocol version %s" % [ver]
     end
 
+    key = h['sec-websocket-key']
+
+    # Generate the hash value for the accpet header
+    accept = Base64.encode64(
+      Digest::SHA1.digest(key + @@GUID)).gsub(/\n/, '')
+
+    response = @@Server_handshake_hybi % [accept]
+
+    response += "\r\n"
+
     msg "%s WebSocket connection" % [stype]
-    msg "Version %s, base64: '%s'" % [t[:version], t[:base64]]
+    msg "Version %s" % [t[:version]]
     if t[:path] then msg "Path: '%s'" % [t[:path]] end
 
     #puts "sending reponse #{response.inspect}"
