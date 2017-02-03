@@ -37,8 +37,6 @@
     this._sQlen = 0;
     this._sQ = null;  // Send queue
 
-    this.maxBufferedAmount = 200;
-
     this._eventHandlers = {
         'message': function () {},
         'open': function () {},
@@ -179,24 +177,16 @@
                 Util.Debug("bufferedAmount: " + this._websocket.bufferedAmount);
             }
 
-            if (this._websocket.bufferedAmount < this.maxBufferedAmount) {
-                if (this._sQlen > 0 && this._websocket.readyState === WebSocket.OPEN) {
-                    this._websocket.send(this._encode_message());
-                    this._sQlen = 0;
-                }
-
-                return true;
-            } else {
-                Util.Info("Delaying send, bufferedAmount: " +
-                        this._websocket.bufferedAmount);
-                return false;
+            if (this._sQlen > 0 && this._websocket.readyState === WebSocket.OPEN) {
+                this._websocket.send(this._encode_message());
+                this._sQlen = 0;
             }
         },
 
         send: function (arr) {
             this._sQ.set(arr, this._sQlen);
             this._sQlen += arr.length;
-            return this.flush();
+            this.flush();
         },
 
         send_string: function (str) {

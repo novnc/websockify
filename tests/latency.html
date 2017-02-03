@@ -56,7 +56,7 @@
 
     <script>
 
-        var host = null, port = null, sendDelay = 0, actualSendDelay,
+        var host = null, port = null, sendDelay = 0,
             ws = null, send_ref = null,
             sent, received, latencies, ltotal, laverage, lrunning, lmin, lmax,
             run_length = 40,
@@ -153,19 +153,6 @@
 
         function sendMsg() {
             var arr = [];
-            if (! ws.flush() ) {
-                message("WebSocket not ready, backing off");
-                actualSendDelay = actualSendDelay * 2;
-                send_ref = setTimeout(sendMsg, actualSendDelay);
-                return false;
-            } else {
-                // Scale the delay down to the requested minimum
-                if (actualSendDelay > sendDelay) {
-                    message("WebSocket ready, increasing presure");
-                    actualSendDelay = Math.max(actualSendDelay / 2, sendDelay);
-                }
-            }
-
             timestamp = (new Date()).getTime();
             arr.pushStr("^" + send_seq + ":" + timestamp + ":" + payload + "$");
             send_seq ++;
@@ -173,7 +160,7 @@
             sent++;
 
             showStats();
-            send_ref = setTimeout(sendMsg, actualSendDelay);
+            send_ref = setTimeout(sendMsg, sendDelay);
         }
 
         function showStats() {
@@ -247,7 +234,6 @@
             lrunning  = 0;
             lmin      = 999999999;
             lmax      = 0;
-            actualSendDelay = sendDelay;
 
             $D('connectButton').value = "Stop";
             $D('connectButton').onclick = disconnect;
