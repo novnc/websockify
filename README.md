@@ -94,20 +94,14 @@ These are not necessary for the basic operation.
   wrapping the socket if the data starts with '\x16' or '\x80'
   (indicating SSL).
 
-* Flash security policy: websockify detects flash security policy
-  requests (again by sniffing the first packet) and answers with an
-  appropriate flash security policy response (and then closes the
-  port). This means no separate flash security policy server is needed
-  for supporting the flash WebSockets fallback emulator.
-
 * Session recording: This feature that allows recording of the traffic
   sent and received from the client to a file using the `--record`
   option.
 
 * Mini-webserver: websockify can detect and respond to normal web
-  requests on the same port as the WebSockets proxy and Flash security
-  policy. This functionality is activated with the `--web DIR` option
-  where DIR is the root of the web directory to serve.
+  requests on the same port as the WebSockets proxy. This functionality
+  is activated with the `--web DIR` option where DIR is the root of the
+  web directory to serve.
 
 * Wrap a program: see the "Wrap a Program" section below.
 

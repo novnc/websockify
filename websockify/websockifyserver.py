@@ -360,7 +360,6 @@ class WebSockifyServer(object):
         self.msg("WebSocket server settings:")
         self.msg("  - Listen on %s:%s",
                 self.listen_host, self.listen_port)
-        self.msg("  - Flash security policy server")
         if self.web:
             if self.file_only:
                 self.msg("  - Web server (no directory listings). Web root: %s", self.web)
@@ -489,8 +488,6 @@ class WebSockifyServer(object):
         """
         do_handshake does the following:
         - Peek at the first few bytes from the socket.
-        - If the connection is Flash policy request then answer it,
-          close the socket and return.
         - If the connection is an HTTPS/SSL/TLS connection then SSL
           wrap the socket.
         - Read from the (possibly wrapped) socket.
@@ -514,12 +511,6 @@ class WebSockifyServer(object):
 
         if not handshake:
             raise self.EClose("ignoring empty handshake")
-
-        elif handshake.startswith(s2b("<policy-file-request/>")):
-            # Answer Flash policy request
-            handshake = sock.recv(1024)
-            sock.send(s2b(self.policy_response))
-            raise self.EClose("Sending flash policy response")
 
         elif handshake[0] in ("\x16", "\x80", 22, 128):
             # SSL wrap the connection

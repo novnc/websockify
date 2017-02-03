@@ -5,8 +5,8 @@
 // Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 
 // Known to work with node 0.8.9
-// Requires node modules: ws, optimist and policyfile
-//     npm install ws optimist policyfile
+// Requires node modules: ws and optimist
+//     npm install ws optimist
 
 
 var argv = require('optimist').argv,
@@ -16,7 +16,6 @@ var argv = require('optimist').argv,
     url = require('url'),
     path = require('path'),
     fs = require('fs'),
-    policyfile = require('policyfile'),
 
     Buffer = require('buffer').Buffer,
     WebSocketServer = require('ws').Server,
@@ -166,6 +165,3 @@ webServer.listen(source_port, function() {
     wsServer = new WebSocketServer({server: webServer});
     wsServer.on('connection', new_client);
 });
-
-// Attach Flash policyfile answer service
-policyfile.createServer().listen(-1, webServer);

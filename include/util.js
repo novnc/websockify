@@ -362,18 +362,3 @@ if (Util.Engine.webkit) {
             return parseFloat(v, 10);
         })(Util.Engine.webkit);
 }
-
-Util.Flash = (function(){
-    var v, version;
-    try {
-        v = navigator.plugins['Shockwave Flash'].description;
-    } catch(err1) {
-        try {
-            v = new ActiveXObject('ShockwaveFlash.ShockwaveFlash').GetVariable('$version');
-        } catch(err2) {
-            v = '0 r0';
-        }
-    }
-    version = v.match(/\d+/g);
-    return {version: parseInt(version[0] || 0 + '.' + version[1], 10) || 0, build: parseInt(version[2], 10) || 0};
-}()); 

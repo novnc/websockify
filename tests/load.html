@@ -220,26 +220,8 @@
             console.log("<< disconnect");
         }
 
-
-        /* If no builtin websockets then load web_socket.js */
-        if (window.WebSocket) {
-            VNC_native_ws = true;
-        } else {
-            VNC_native_ws = false;
-            console.log("Loading web-socket-js flash bridge");
-            var extra = "<script src='include/web-socket-js/swfobject.js'><\/script>";
-            extra += "<script src='include/web-socket-js/FABridge.js'><\/script>";
-            extra += "<script src='include/web-socket-js/web_socket.js'><\/script>";
-            document.write(extra);
-        }
-
         window.onload = function() {
             console.log("onload");
-            if (!VNC_native_ws) {
-                console.log("initializing web-socket-js flash bridge");
-                WebSocket.__swfLocation = "include/web-socket-js/WebSocketMain.swf";
-                WebSocket.__initialize();
-            }
             var url = document.location.href;
             $D('host').value = (url.match(/host=([^&#]*)/) || ['',''])[1];
             $D('port').value = (url.match(/port=([^&#]*)/) || ['',''])[1];

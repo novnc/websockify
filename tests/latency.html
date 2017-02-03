@@ -274,11 +274,6 @@
 
         window.onload = function() {
             console.log("onload");
-            if (Websock_native) {
-                message("Using native WebSockets");
-            } else {
-                message("initializing web-socket-js flash bridge");
-            }
             var url = document.location.href;
             $D('host').value = (url.match(/host=([^&#]*)/) || ['',window.location.hostname])[1];
             $D('port').value = (url.match(/port=([^&#]*)/) || ['',window.location.port])[1];
