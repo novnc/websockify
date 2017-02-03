@@ -3,9 +3,8 @@
  * Copyright (C) 2012 Joel Martin
  * Licensed under MPL 2.0 (see LICENSE.txt)
  *
- * Websock is similar to the standard WebSocket object but Websock
- * enables communication with raw TCP sockets (i.e. the binary stream)
- * via websockify.
+ * Websock is similar to the standard WebSocket object but with extra
+ * buffer handling.
  *
  * Websock has built-in receive queue buffering; the message event
  * does not contain actual data but is simply a notification that
