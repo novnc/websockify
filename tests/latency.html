@@ -91,8 +91,8 @@
             now = (new Date()).getTime(); // Early as possible
 
             arr = ws.rQshiftBytes(ws.rQlen());
-            first = String.fromCharCode(arr.shift());
-            last = String.fromCharCode(arr.pop());
+            first = String.fromCharCode(arr[0]);
+            last = String.fromCharCode(arr[arr.length-1]);
 
             if (first != "^") {
                 message("Error: packet missing start char '^'");
@@ -104,9 +104,11 @@
                 disconnect();
                 return;
             }
-            arr = arr.map(function(num) {
-                    return String.fromCharCode(num); 
-                } ).join('').split(':');
+            text = ''
+            for (var i = 1; i < arr.length-1; i++) {
+                text += String.fromCharCode(arr[i]);
+            }
+            arr = text.split(':');
             seq       = arr[0];
             timestamp = parseInt(arr[1],10);
             rpayload  = arr[2];
