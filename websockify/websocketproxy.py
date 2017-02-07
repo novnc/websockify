@@ -419,8 +419,6 @@ def websockify_init():
     parser.add_option("--auth-source", default=None, metavar="ARG",
                       help="an argument to be passed to the auth plugin"
                            "on instantiation")
-    parser.add_option("--auto-pong", action="store_true",
-            help="Automatically respond to ping frames with a pong")
     parser.add_option("--heartbeat", type=int, default=0,
             help="send a ping to the client every HEARTBEAT seconds")
     parser.add_option("--log-file", metavar="FILE",
