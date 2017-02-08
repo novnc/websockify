@@ -41,6 +41,14 @@ if sys.platform == 'win32':
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 from websockify.websocketserver import WebSocketRequestHandler
 
+class CompatibleWebSocket(WebSocket):
+    def select_subprotocol(self, protocols):
+        # Handle old websockify clients that still specifiy a sub-protocol
+        if 'binary' in protocols:
+            return 'binary'
+        else:
+            return ''
+
 # HTTP handler with WebSocket upgrade support
 class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler):
     """
@@ -60,6 +68,8 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
     server_version = "WebSockify"
 
     protocol_version = "HTTP/1.1"
+
+    SocketClass = CompatibleWebSocket
 
     # An exception while the WebSocket client was connected
     class CClose(Exception):
