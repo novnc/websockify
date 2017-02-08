@@ -226,6 +226,14 @@ class WebSocket(object):
             if accept != expected:
                 raise Exception("Invalid Sec-WebSocket-Accept header");
 
+            self.protocol = headers.get('Sec-WebSocket-Protocol')
+            if len(protocols) == 0:
+                if self.protocol is not None:
+                    raise Exception("Unexpected Sec-WebSocket-Protocol header")
+            else:
+                if self.protocol not in protocols:
+                    raise Exception("Invalid protocol chosen by server")
+
             self._state = "done"
 
             return
@@ -282,6 +290,10 @@ class WebSocket(object):
             protocols = headers.get('Sec-WebSocket-Protocol', '').split(',')
             if protocols:
                 self.protocol = self.select_subprotocol(protocols)
+                # We are required to choose one of the protocols
+                # presented by the client
+                if self.protocol not in protocols:
+                    raise Exception('Invalid protocol selected')
 
             self._queue_str("HTTP/1.1 101 Switching Protocols\r\n")
             self._queue_str("Upgrade: websocket\r\n")
