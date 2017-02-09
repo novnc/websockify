@@ -34,9 +34,9 @@ class AcceptTestCase(unittest.TestCase):
                          'Sec-WebSocket-Version': '13',
                          'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q=='})
         self.assertEqual(sock.data[:13], b'HTTP/1.1 101 ')
-        self.assertIn(b'\r\nUpgrade: websocket\r\n', sock.data)
-        self.assertIn(b'\r\nConnection: Upgrade\r\n', sock.data)
-        self.assertIn(b'\r\nSec-WebSocket-Accept: pczpYSQsvE1vBpTQYjFQPcuoj6M=\r\n', sock.data)
+        self.assertTrue(b'\r\nUpgrade: websocket\r\n' in sock.data)
+        self.assertTrue(b'\r\nConnection: Upgrade\r\n' in sock.data)
+        self.assertTrue(b'\r\nSec-WebSocket-Accept: pczpYSQsvE1vBpTQYjFQPcuoj6M=\r\n' in sock.data)
 
     def test_bad_version(self):
         ws = websocket.WebSocket()
@@ -83,7 +83,7 @@ class AcceptTestCase(unittest.TestCase):
                          'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
                          'Sec-WebSocket-Protocol': 'foobar gazonk'})
         self.assertEqual(sock.data[:13], b'HTTP/1.1 101 ')
-        self.assertIn(b'\r\nSec-WebSocket-Protocol: gazonk\r\n', sock.data)
+        self.assertTrue(b'\r\nSec-WebSocket-Protocol: gazonk\r\n' in sock.data)
 
     def test_no_protocol(self):
         ws = websocket.WebSocket()
@@ -92,7 +92,7 @@ class AcceptTestCase(unittest.TestCase):
                          'Sec-WebSocket-Version': '13',
                          'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q=='})
         self.assertEqual(sock.data[:13], b'HTTP/1.1 101 ')
-        self.assertNotIn(b'\r\nSec-WebSocket-Protocol:', sock.data)
+        self.assertFalse(b'\r\nSec-WebSocket-Protocol:' in sock.data)
 
     def test_missing_protocol(self):
         ws = websocket.WebSocket()
