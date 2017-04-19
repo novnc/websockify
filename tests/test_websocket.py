@@ -116,6 +116,32 @@ class AcceptTestCase(unittest.TestCase):
                                  'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
                                  'Sec-WebSocket-Protocol': 'foobar gazonk'})
 
+class PingPongTest(unittest.TestCase):
+    def setUp(self):
+        self.ws = websocket.WebSocket()
+        self.sock = FakeSocket()
+        self.ws.accept(self.sock, {'upgrade': 'websocket',
+                                   'Sec-WebSocket-Version': '13',
+                                   'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q=='})
+        self.assertEqual(self.sock.data[:13], b'HTTP/1.1 101 ')
+        self.sock.data = b''
+
+    def test_ping(self):
+        self.ws.ping()
+        self.assertEqual(self.sock.data, b'\x89\x00')
+
+    def test_pong(self):
+        self.ws.pong()
+        self.assertEqual(self.sock.data, b'\x8a\x00')
+
+    def test_ping_data(self):
+        self.ws.ping(b'foo')
+        self.assertEqual(self.sock.data, b'\x89\x03foo')
+
+    def test_pong_data(self):
+        self.ws.pong(b'foo')
+        self.assertEqual(self.sock.data, b'\x8a\x03foo')
+
 class HyBiEncodeDecodeTestCase(unittest.TestCase):
     def test_decode_hybi_text(self):
         buf = b'\x81\x85\x37\xfa\x21\x3d\x7f\x9f\x4d\x51\x58'
