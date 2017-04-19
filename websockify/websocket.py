@@ -445,11 +445,11 @@ class WebSocket(object):
         self._flush()
         return len(msg)
 
-    def ping(self, data=None):
+    def ping(self, data=''.encode('ascii')):
         """Write a ping message to the WebSocket."""
         self._sendmsg(0x9, data)
 
-    def pong(self, data=None):
+    def pong(self, data=''.encode('ascii')):
         """Write a pong message to the WebSocket."""
         self._sendmsg(0xA, data)
 
