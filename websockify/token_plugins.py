@@ -34,9 +34,9 @@ class ReadOnlyTokenFile(BasePlugin):
         if self._targets is None:
             self._load_targets()
 
-        if token in self._targets:
+        try:
             return self._targets[token]
-        else:
+        except KeyError:
             return None
 
 
