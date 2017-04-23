@@ -44,6 +44,7 @@ typedef struct {
     SSL       *ssl;
     int        hixie;
     int        hybi;
+    int        binary;
     headers_t *headers;
     char      *cin_buf;
     char      *cout_buf;
