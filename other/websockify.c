@@ -32,7 +32,7 @@ Traffic Legend:\n\
 ";
 
 char USAGE[] = "Usage: [options] " \
-               "[source_addr:]source_port target_addr:target_port\n\n" \
+               "[source_addr:]source_port [target_addr:target_port]\n\n" \
                "  --verbose|-v       verbose messages and per frame traffic\n" \
                "  --daemon|-D        become a daemon (background process)\n" \
                "  --cert CERT        SSL certificate file\n" \
@@ -44,13 +44,14 @@ char USAGE[] = "Usage: [options] " \
     fprintf(stderr, fmt , ## args); \
     exit(1);
 
+int target_local;
 char target_host[256];
 int target_port;
 
 extern pipe_error;
 extern settings_t settings;
 
-void do_proxy(ws_ctx_t *ws_ctx, int target) {
+void do_proxy(ws_ctx_t *ws_ctx, int target_read, int target_write) {
     fd_set rlist, wlist, elist;
     struct timeval tv;
     int i, maxfd, client = ws_ctx->sockfd;
@@ -61,7 +62,8 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 
     tout_start = tout_end = cout_start = cout_end;
     tin_start = tin_end = 0;
-    maxfd = client > target ? client+1 : target+1;
+    maxfd = client > target_read ? client+1 : target_read+1;
+    maxfd = maxfd > target_write ? maxfd : target_write+1;
 
     while (1) {
         tv.tv_sec = 1;
@@ -72,18 +74,19 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         FD_ZERO(&elist);
 
         FD_SET(client, &elist);
-        FD_SET(target, &elist);
+        FD_SET(target_read, &elist);
+        if( target_write != target_read ) { FD_SET(target_write, &elist); }
 
         if (tout_end == tout_start) {
             // Nothing queued for target, so read from client
             FD_SET(client, &rlist);
         } else {
             // Data queued for target, so write to it
-            FD_SET(target, &wlist);
+            FD_SET(target_write, &wlist);
         }
         if (cout_end == cout_start) {
             // Nothing queued for client, so read from target
-            FD_SET(target, &rlist);
+            FD_SET(target_read, &rlist);
         } else {
             // Data queued for client, so write to it
             FD_SET(client, &wlist);
@@ -92,8 +95,12 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
         ret = select(maxfd, &rlist, &wlist, &elist, &tv);
         if (pipe_error) { break; }
 
-        if (FD_ISSET(target, &elist)) {
-            handler_emsg("target exception\n");
+        if (FD_ISSET(target_read, &elist)) {
+            handler_emsg("target read exception\n");
+            break;
+        }
+        if (FD_ISSET(target_write, &elist)) {
+            handler_emsg("target write exception\n");
             break;
         }
         if (FD_ISSET(client, &elist)) {
@@ -109,9 +116,10 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             continue;
         }
 
-        if (FD_ISSET(target, &wlist)) {
+        if (FD_ISSET(target_write, &wlist)) {
             len = tout_end-tout_start;
-            bytes = send(target, ws_ctx->tout_buf + tout_start, len, 0);
+            if( target_local ) { bytes = write(target_write, ws_ctx->tout_buf + tout_start, len); }
+            else { bytes = send(target_write, ws_ctx->tout_buf + tout_start, len, 0); }
             if (pipe_error) { break; }
             if (bytes < 0) {
                 handler_emsg("target connection error: %s\n",
@@ -145,8 +153,9 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             }
         }
 
-        if (FD_ISSET(target, &rlist)) {
-            bytes = recv(target, ws_ctx->cin_buf, DBUFSIZE , 0);
+        if (FD_ISSET(target_read, &rlist)) {
+            if( target_local ) { bytes = read(target_read, ws_ctx->cin_buf, DBUFSIZE); }
+            else { bytes = recv(target_read, ws_ctx->cin_buf, DBUFSIZE , 0); }
             if (pipe_error) { break; }
             if (bytes <= 0) {
                 handler_emsg("target closed connection\n");
@@ -236,39 +245,43 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
     int tsock = 0;
     struct sockaddr_in taddr;
 
-    handler_msg("connecting to: %s:%d\n", target_host, target_port);
+    if (target_local) {
+        do_proxy( ws_ctx, fileno(stdin), fileno(stdout) );
+    } else {
+        handler_msg("connecting to: %s:%d\n", target_host, target_port);
 
-    tsock = socket(AF_INET, SOCK_STREAM, 0);
-    if (tsock < 0) {
-        handler_emsg("Could not create target socket: %s\n",
-                     strerror(errno));
-        return;
-    }
-    bzero((char *) &taddr, sizeof(taddr));
-    taddr.sin_family = AF_INET;
-    taddr.sin_port = htons(target_port);
+        tsock = socket(AF_INET, SOCK_STREAM, 0);
+        if (tsock < 0) {
+            handler_emsg("Could not create target socket: %s\n",
+                        strerror(errno));
+            return;
+        }
+        bzero((char *) &taddr, sizeof(taddr));
+        taddr.sin_family = AF_INET;
+        taddr.sin_port = htons(target_port);
 
-    /* Resolve target address */
-    if (resolve_host(&taddr.sin_addr, target_host) < -1) {
-        handler_emsg("Could not resolve target address: %s\n",
-                     strerror(errno));
-    }
+        /* Resolve target address */
+        if (resolve_host(&taddr.sin_addr, target_host) < -1) {
+            handler_emsg("Could not resolve target address: %s\n",
+                        strerror(errno));
+        }
 
-    if (connect(tsock, (struct sockaddr *) &taddr, sizeof(taddr)) < 0) {
-        handler_emsg("Could not connect to target: %s\n",
-                     strerror(errno));
+        if (connect(tsock, (struct sockaddr *) &taddr, sizeof(taddr)) < 0) {
+            handler_emsg("Could not connect to target: %s\n",
+                        strerror(errno));
+            close(tsock);
+            return;
+        }
+
+        if ((settings.verbose) && (! settings.daemon)) {
+            printf("%s", traffic_legend);
+        }
+
+        do_proxy(ws_ctx, tsock, tsock);
+
+        shutdown(tsock, SHUT_RDWR);
         close(tsock);
-        return;
     }
-
-    if ((settings.verbose) && (! settings.daemon)) {
-        printf("%s", traffic_legend);
-    }
-
-    do_proxy(ws_ctx, tsock);
-
-    shutdown(tsock, SHUT_RDWR);
-    close(tsock);
 }
 
 int main(int argc, char *argv[])
@@ -336,7 +349,7 @@ int main(int argc, char *argv[])
     settings.daemon       = daemon;
     settings.run_once     = run_once;
 
-    if ((argc-optind) != 2) {
+    if((argc-optind) == 0 ) {
         usage("Invalid number of arguments\n");
     }
 
@@ -353,15 +366,24 @@ int main(int argc, char *argv[])
         usage("Could not parse listen_port\n");
     }
 
-    found = strstr(argv[optind], ":");
-    if (found) {
-        memcpy(target_host, argv[optind], found-argv[optind]);
-        target_port = strtol(found+1, NULL, 10);
+    if ((argc-optind) == 1) {
+        //Connect to target on a socket
+        target_local = 0;
+        found = strstr(argv[optind], ":");
+        if (found) {
+            memcpy(target_host, argv[optind], found-argv[optind]);
+            target_port = strtol(found+1, NULL, 10);
+        } else {
+            usage("Target argument must be host:port\n");
+        }
+        if (target_port == 0) {
+            usage("Could not parse target port\n");
+        }
+        settings.one_at_a_time = 0;
     } else {
-        usage("Target argument must be host:port\n");
-    }
-    if (target_port == 0) {
-        usage("Could not parse target port\n");
+        //Use normal io for target
+        target_local = 1;
+        settings.one_at_a_time = 1;
     }
 
     if (ssl_only) {
