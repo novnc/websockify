@@ -15,7 +15,10 @@ fs = require('fs');
 function urlTokenMatch(url, token, verbose=false) {
     let splitUrl = url.split("?")
     if (splitUrl.length !== 2) {
-        return ["", false];
+        if (verbose) {
+            console.log("Permission denied. No token provided.");
+        }
+        return false;
     }
     let qs = splitUrl[1];
     let qs_parsed = querystring.parse(qs);
