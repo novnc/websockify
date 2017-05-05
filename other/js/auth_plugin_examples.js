@@ -11,17 +11,34 @@
 
 const querystring = require('querystring');
 
+function urlTokenMatch(url, token, verbose=false) {
+    let splitUrl = url.split("?")
+    if (splitUrl.length !== 2) {
+        return ["", false];
+    }
+    let qs = splitUrl[1];
+    let qs_parsed = querystring.parse(qs);
+    let success = (qs_parsed.token === token);
+    if (verbose) {
+        if (!success) {
+            console.log("Permission denied for token: " + qs_parsed.token);
+        } else {
+            console.log("Permission granted for token: " + qs_parsed.token);
+        }
+    }
+    return success;
+}
+
 exports.tokenAuth = function tokenAuth(source) {
     return function(info) {
-        console.log(info.req.url);
-        let splitUrl = info.req.url.split("?")
-        if (splitUrl.length !== 2) {
-            return false;
-        }
-        let qs = splitUrl[1];
-        let qs_parsed = querystring.parse(qs)
-        console.log(qs_parsed)
-        return (qs_parsed.token === source);
+        let token = source;
+        return urlTokenMatch(info.req.url, token, true);
     }
 }
 
+exports.tokenAuthEnv = function tokenAuthEnv(source) {
+    return function(info) {
+        let token = process.env[source];
+        return urlTokenMatch(info.req.url, token, true);
+    }
+}
