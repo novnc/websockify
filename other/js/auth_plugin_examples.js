@@ -10,6 +10,7 @@
  */
 
 const querystring = require('querystring');
+fs = require('fs');
 
 function urlTokenMatch(url, token, verbose=false) {
     let splitUrl = url.split("?")
@@ -40,5 +41,20 @@ exports.tokenAuthEnv = function tokenAuthEnv(source) {
     return function(info) {
         let token = process.env[source];
         return urlTokenMatch(info.req.url, token, true);
+    }
+}
+
+exports.tokenAuthFile = function tokenEnvFile(source) {
+    return function(info, cb) {
+        fs.readFile(source, 'utf8', function(err, data) {
+            if (err) {
+                console.log(err);
+                cb(false);
+            } else {
+                let token = data.trim();
+                let success = urlTokenMatch(info.req.url, token, true);
+                cb(success);
+            }
+        });
     }
 }
