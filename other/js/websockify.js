@@ -22,6 +22,7 @@ var argv = require('optimist').argv,
 
     webServer, wsServer,
     source_host, source_port, target_host, target_port,
+    auth_plugin, websocket_server_opts,
     web_path = null;
 
 
@@ -92,7 +93,7 @@ http_request = function (request, response) {
 
     var uri = url.parse(request.url).pathname
         , filename = path.join(argv.web, uri);
-    
+
     fs.exists(filename, function(exists) {
         if(!exists) {
             return http_error(response, 404, "404 Not Found");
@@ -140,7 +141,7 @@ try {
         throw("illegal port");
     }
 } catch(e) {
-    console.error("websockify.js [--web web_dir] [--cert cert.pem [--key key.pem]] [source_addr:]source_port target_addr:target_port");
+    console.error("websockify.js [--web web_dir] [--cert cert.pem [--key key.pem]] [--auth-plugin module.plugin [--auth-source auth_source]] [source_addr:]source_port target_addr:target_port");
     process.exit(2);
 }
 
@@ -161,7 +162,23 @@ if (argv.cert) {
     console.log("    - Running in unencrypted HTTP (ws://) mode");
     webServer = http.createServer(http_request);
 }
+
+if (argv["auth-plugin"]) {
+    let auth_plugin_arg = argv["auth-plugin"].split(".")
+    let plugin_name = auth_plugin_arg.pop();
+    let module_path = auth_plugin_arg.join(".");
+
+    let auth_plugin = require(module_path)[plugin_name];
+    let auth_source = argv["auth-source"] || undefined;
+    websocket_server_opts = {
+        server: webServer,
+        verifyClient: auth_plugin(auth_source)
+    };
+} else {
+    websocket_server_opts = {server: webServer};
+}
+
 webServer.listen(source_port, function() {
-    wsServer = new WebSocketServer({server: webServer});
+    wsServer = new WebSocketServer(websocket_server_opts);
     wsServer.on('connection', new_client);
 });
