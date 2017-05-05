@@ -47,8 +47,8 @@ function urlTokenMatch(url, token, verbose=false) {
 exports.tokenAuth = function tokenAuth(source) {
     /**
      * Authorisation plugin which validates the token query parameter against
-     * a token provided as the argument to the --auth-source command line
-     * argument
+     * a token provided as the argument to the `--auth-source` command line
+     * argument.
      */
     return function(info) {
         let token = source;
@@ -61,7 +61,7 @@ exports.tokenAuthEnv = function tokenAuthEnv(source) {
      * Authorisation plugin which validates the token query parameter against
      * a token which is the value of an environment variable. The name of this
      * environment variable is specified as the argument to the command line
-     * argument --auth-source
+     * argument `--auth-source`
      */
     return function(info) {
         let token = process.env[source];
@@ -73,7 +73,7 @@ exports.tokenAuthFile = function tokenEnvFile(source) {
     /**
      * Authorisation plugin which validates the token query parameter against a
      * token which is contained in a text file, the path to which is specified
-     * as the value of the --auth-source command line argument
+     * as the value of the `--auth-source` command line argument
      */
     return function(info, cb) {
         fs.readFile(source, 'utf8', function(err, data) {
