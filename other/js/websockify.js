@@ -26,9 +26,9 @@ var argv = require('optimist').argv,
 
 
 // Handle new WebSocket client
-new_client = function(client) {
+new_client = function(client, req) {
     var clientAddr = client._socket.remoteAddress, log;
-    console.log(client.upgradeReq.url);
+    console.log(req.url);
     log = function (msg) {
         console.log(' ' + clientAddr + ': '+ msg);
     };
@@ -92,7 +92,7 @@ http_request = function (request, response) {
 
     var uri = url.parse(request.url).pathname
         , filename = path.join(argv.web, uri);
-    
+
     fs.exists(filename, function(exists) {
         if(!exists) {
             return http_error(response, 404, "404 Not Found");
