@@ -67,11 +67,17 @@ new_client = function(client, req) {
     target.on('end', function() {
         log('target disconnected');
         client.close();
+        if (rs) {
+          rs.end('\'EOF\'];\n');
+        }
     });
     target.on('error', function() {
         log('target connection error');
         target.end();
         client.close();
+        if (rs) {
+          rs.end('\'EOF\'];\n');
+        }
     });
 
     client.on('message', function(msg) {
