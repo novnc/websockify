@@ -52,7 +52,7 @@ new_client = function(client, req) {
 
         if (rs) {
           var tdelta = Math.floor(new Date().getTime()) - start_time;
-          var rsdata = '\'{' + tdelta + '{' + decodeBuffer(data) + '\\n\',\n';
+          var rsdata = '\'{' + tdelta + '{' + decodeBuffer(data) + '\',\n';
           rs.write(rsdata);
         }
 
@@ -84,7 +84,7 @@ new_client = function(client, req) {
 
         if (rs) {
           var rdelta = Math.floor(new Date().getTime()) - start_time;
-          var rsdata = ('\'}' + rdelta + '}' + decodeBuffer(msg) + '\\n\',\n');
+          var rsdata = ('\'}' + rdelta + '}' + decodeBuffer(msg) + '\',\n');
 ~         rs.write(rsdata);
         }
 
