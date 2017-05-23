@@ -39,7 +39,6 @@ new_client = function(client, req) {
 
     if (argv.dir) {
       var rs = fs.createWriteStream(argv.dir + '/' + new Date().toISOString());
-      rs.write('var VNC_frame_encoding = \'binary\';\n');
       rs.write('var VNC_frame_data = [\n');
     } else {
       var rs = null;
