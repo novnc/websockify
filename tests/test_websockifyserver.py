@@ -80,6 +80,12 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
         self.stubs.Set(BaseHTTPRequestHandler, 'send_response',
                        lambda *args, **kwargs: None)
 
+        def fake_send_error(self, code, message=None, explain=None):
+            self.last_code = code
+
+        self.stubs.Set(BaseHTTPRequestHandler, 'send_error',
+                       fake_send_error)
+
     def tearDown(self):
         """Called automatically after each test."""
         self.stubs.UnsetAll()
