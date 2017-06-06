@@ -1,5 +1,5 @@
 /*
- * An auth plugin must be a function which returns a function conforing to the
+ * An auth plugin must be a function which returns a function conforming to the
  * requirements of the `verifyClients` option on ws.WebSocket.Server.
  *
  * See: https://github.com/websockets/ws/blob/master/doc/ws.md
