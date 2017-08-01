@@ -676,6 +676,10 @@ class WebSockifyServer(object):
 
         if self.listen_fd != None:
             lsock = socket.fromfd(self.listen_fd, socket.AF_INET, socket.SOCK_STREAM)
+            if sys.hexversion < 0x3000000:
+                # For python 2 we have to wrap the "raw" socket into a socket object,
+                # otherwise ssl wrap_socket doesn't work.
+                lsock = socket.socket(_sock=lsock)
         else:
             lsock = self.socket(self.listen_host, self.listen_port, False,
                                 self.prefer_ipv6,
