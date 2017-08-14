@@ -689,7 +689,7 @@ class WebSockifyServer(object):
             signal.SIGTERM: signal.getsignal(signal.SIGTERM),
         }
         if getattr(signal, 'SIGCHLD', None) is not None:
-            original_signals[signal.SIGCHLD] = signal.getsignal(signal.SIGCHLD),
+            original_signals[signal.SIGCHLD] = signal.getsignal(signal.SIGCHLD)
         signal.signal(signal.SIGINT, self.do_SIGINT)
         signal.signal(signal.SIGTERM, self.do_SIGTERM)
         # make sure that _cleanup is called when children die
