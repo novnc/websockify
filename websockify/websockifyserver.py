@@ -316,8 +316,8 @@ class WebSockifyServer(object):
     class Terminate(Exception):
         pass
 
-    def __init__(self, RequestHandlerClass, listen_host='',
-                 listen_port=None, source_is_ipv6=False,
+    def __init__(self, RequestHandlerClass, listen_fd=None,
+            listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             daemon=False, record='', web='',
             file_only=False,
@@ -328,6 +328,7 @@ class WebSockifyServer(object):
         # settings
         self.RequestHandlerClass = RequestHandlerClass
         self.verbose        = verbose
+        self.listen_fd      = listen_fd
         self.listen_host    = listen_host
         self.listen_port    = listen_port
         self.prefer_ipv6    = source_is_ipv6
@@ -371,8 +372,11 @@ class WebSockifyServer(object):
 
         # Show configuration
         self.msg("WebSocket server settings:")
-        self.msg("  - Listen on %s:%s",
-                self.listen_host, self.listen_port)
+        if self.listen_fd != None:
+            self.msg("  - Listen for inetd connections")
+        else:
+            self.msg("  - Listen on %s:%s",
+                    self.listen_host, self.listen_port)
         if self.web:
             if self.file_only:
                 self.msg("  - Web server (no directory listings). Web root: %s", self.web)
@@ -669,12 +673,20 @@ class WebSockifyServer(object):
         is a WebSockets client then call new_websocket_client() method (which must
         be overridden) for each new client connection.
         """
-        lsock = self.socket(self.listen_host, self.listen_port, False,
-                            self.prefer_ipv6,
-                            tcp_keepalive=self.tcp_keepalive,
-                            tcp_keepcnt=self.tcp_keepcnt,
-                            tcp_keepidle=self.tcp_keepidle,
-                            tcp_keepintvl=self.tcp_keepintvl)
+
+        if self.listen_fd != None:
+            lsock = socket.fromfd(self.listen_fd, socket.AF_INET, socket.SOCK_STREAM)
+            if sys.hexversion < 0x3000000:
+                # For python 2 we have to wrap the "raw" socket into a socket object,
+                # otherwise ssl wrap_socket doesn't work.
+                lsock = socket.socket(_sock=lsock)
+        else:
+            lsock = self.socket(self.listen_host, self.listen_port, False,
+                                self.prefer_ipv6,
+                                tcp_keepalive=self.tcp_keepalive,
+                                tcp_keepcnt=self.tcp_keepcnt,
+                                tcp_keepidle=self.tcp_keepidle,
+                                tcp_keepintvl=self.tcp_keepintvl)
 
         if self.daemon:
             keepfd = self.get_log_fd()
