@@ -81,3 +81,23 @@ class ExpectOrigin(object):
         origin = headers.get('Origin', None)
         if origin is None or origin not in self.source:
             raise InvalidOriginError(expected=self.source, actual=origin)
+            
+class ClientCertAuth(object):
+    """Verifies client by SSL certificate. Specify src as whitespace separated list of common names."""
+
+    def __init__(self, src=None):
+        if src is None:
+            self.source = []
+        else:
+            self.source = src.split()
+
+    def authenticate(self, headers, target_host, target_port):
+        try:
+            if (headers.get('SSL_CLIENT_S_DN_CN') not in self.source):
+                raise AuthenticationError(response_code=403)
+        except AuthenticationError:
+            # re-raise AuthenticationError (raised by common name not in configured source list)
+            raise
+        except:
+            # deny access in case any error occurs (i.e. no data provided)
+            raise AuthenticationError(response_code=403)
