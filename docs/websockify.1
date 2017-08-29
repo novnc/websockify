@@ -89,12 +89,25 @@ Here is an example of using websockify to wrap the vncserver command (which back
 
 `./websockify 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
-Here is an example of wrapping telnetd (from krb5-telnetd).telnetd exits after the connection closes so the wrap mode is set to respawn the command:
+Here is an example of wrapping telnetd (from krb5-telnetd). telnetd exits after the connection closes so the wrap mode is set to respawn the command:
 
 `sudo ./websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
 The wstelnet.html page demonstrates a simple WebSockets based telnet client.
 
+.SS Use client certificate verification
+
+The --verify-client makes the server ask the client for a SSL certificate. Presenting a valid (not expired and trusted by any supplied certificate authority) certificate is required for the client connection. With -auth-plugin=ClientCertAuth, the client certificate can be checked against a list of authorised certificate users. Non-encrypted connection attempts always fail during authentication.
+
+Here is an example of a vncsevrer with password-less, certificate-driven authentication:
+
+`./websockify 5901 --cert=fullchain.pem --key=privkey.pem --ssl-only --verify-client --cafile=ca-certificates.crt --auth-plugin=ClientCertAuth --auth-source='jane@example.com Joe User9824510' --web=noVNC/ --wrap-mode=ignore -- vncserver :1 -geometry 1024x768 -SecurityTypes=None`
+
+The --auth-source option takes a white-space separated list of common names. Depending on your clients certificates they can be verified email addresses, user-names or any other string used for identification.
+
+The --cafile option selects a file containing concatenated certificates of authorities trusted for validating clients. If this option is omitted, system default list of CAs is used. Upon connect, the client should supply the whole certificate chain. If your clients are known not to send intermediate certificates, they can be appended to the ca-file as well.
+            
+Note: Most browsers ask the user to select a certificate only while connecting via HTTPS, not WebSockets. Connecting directly to the SSL secured WebSocket may cause the browser to abort the connection. If you want to connect via noVNC, the --web option should point to a copy of noVNC, so it is loaded from the same host.
 
 .SH AUTHOR
 Joel Martin (github@martintribe.org)
