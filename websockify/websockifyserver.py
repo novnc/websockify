@@ -319,6 +319,7 @@ class WebSockifyServer(object):
     def __init__(self, RequestHandlerClass, listen_fd=None,
             listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
+            verify_client=False, cafile=None,
             daemon=False, record='', web='',
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
@@ -333,6 +334,7 @@ class WebSockifyServer(object):
         self.listen_port    = listen_port
         self.prefer_ipv6    = source_is_ipv6
         self.ssl_only       = ssl_only
+        self.verify_client  = verify_client
         self.daemon         = daemon
         self.run_once       = run_once
         self.timeout        = timeout
@@ -352,13 +354,15 @@ class WebSockifyServer(object):
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
-        self.key = self.web = self.record = ''
+        self.key = self.web = self.record = self.cafile = ''
         if key:
             self.key = os.path.abspath(key)
         if web:
             self.web = os.path.abspath(web)
         if record:
             self.record = os.path.abspath(record)
+        if cafile:
+            self.cafile = os.path.abspath(cafile)
 
         if self.web:
             os.chdir(self.web)
@@ -518,7 +522,6 @@ class WebSockifyServer(object):
         """
         ready = select.select([sock], [], [], 3)[0]
 
-
         if not ready:
             raise self.EClose("ignoring socket not ready")
         # Peek, but do not read the data so that we have a opportunity
@@ -538,11 +541,29 @@ class WebSockifyServer(object):
                                   % self.cert)
             retsock = None
             try:
-                retsock = ssl.wrap_socket(
-                        sock,
-                        server_side=True,
-                        certfile=self.cert,
-                        keyfile=self.key)
+                if (hasattr(ssl, 'create_default_context') 
+                    and callable(ssl.create_default_context)):
+                    # create new-style SSL wrapping for extended features
+                    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    context.load_cert_chain(certfile=self.cert, keyfile=self.key)
+                    if self.verify_client:
+                        context.verify_mode = ssl.CERT_REQUIRED
+                        if self.cafile:
+                            context.load_verify_locations(cafile=self.cafile)
+                        else:
+                            context.set_default_verify_paths()
+                    retsock = context.wrap_socket(
+                            sock,
+                            server_side=True)
+                else:
+                    if self.verify_client:
+                        raise self.EClose("Client certificate verification requested, but this Python is too old.")
+                    # new-style SSL wrapping is not needed, using to old style
+                    retsock = ssl.wrap_socket(
+                            sock,
+                            server_side=True,
+                            certfile=self.cert,
+                            keyfile=self.key)
             except ssl.SSLError:
                 _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
