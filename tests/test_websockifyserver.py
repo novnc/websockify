@@ -257,10 +257,36 @@ class WebSockifyServerTestCase(unittest.TestCase):
             sock, '127.0.0.1')
 
     def test_do_handshake_ssl_error_eof_raises_close_error(self):
-        # TODO: re-implement this test.
-        # Test was incompatible with new style socket wrapping offered by
-        # ssl.create_default_context.
-        pass
+        server = self._get_server(daemon=True, ssl_only=0, idle_timeout=1)
+
+        sock = FakeSocket("\x16some ssl data")
+
+        def fake_select(rlist, wlist, xlist, timeout=None):
+            return ([sock], [], [])
+
+        def fake_wrap_socket(*args, **kwargs):
+            raise ssl.SSLError(ssl.SSL_ERROR_EOF)
+
+        class fake_create_default_context():
+            def __init__(self, purpose):
+                self.verify_mode = None
+            def load_cert_chain(self, certfile, keyfile):
+                pass
+            def set_default_verify_paths(self):
+                pass
+            def load_verify_locations(self, cafile):
+                pass
+            def wrap_socket(self, *args, **kwargs):
+                raise ssl.SSLError(ssl.SSL_ERROR_EOF)
+
+        self.stubs.Set(select, 'select', fake_select)
+        # for recent versions of python
+        self.stubs.Set(ssl, 'create_default_context', fake_create_default_context)
+        # for fallback for old versions of python
+        self.stubs.Set(ssl, 'wrap_socket', fake_wrap_socket)
+        self.assertRaises(
+            websockifyserver.WebSockifyServer.EClose, server.do_handshake,
+            sock, '127.0.0.1')
 
     def test_fallback_sigchld_handler(self):
         # TODO(directxman12): implement this
