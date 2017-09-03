@@ -280,10 +280,12 @@ class WebSockifyServerTestCase(unittest.TestCase):
                 raise ssl.SSLError(ssl.SSL_ERROR_EOF)
 
         self.stubs.Set(select, 'select', fake_select)
-        # for recent versions of python
-        self.stubs.Set(ssl, 'create_default_context', fake_create_default_context)
-        # for fallback for old versions of python
-        self.stubs.Set(ssl, 'wrap_socket', fake_wrap_socket)
+        if (hasattr(ssl, 'create_default_context')):
+            # for recent versions of python
+            self.stubs.Set(ssl, 'create_default_context', fake_create_default_context)
+        else:
+            # for fallback for old versions of python
+            self.stubs.Set(ssl, 'wrap_socket', fake_wrap_socket)
         self.assertRaises(
             websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
