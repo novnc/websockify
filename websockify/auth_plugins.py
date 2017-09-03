@@ -82,7 +82,7 @@ class ExpectOrigin(object):
         if origin is None or origin not in self.source:
             raise InvalidOriginError(expected=self.source, actual=origin)
             
-class ClientCertAuth(object):
+class ClientCertCNAuth(object):
     """Verifies client by SSL certificate. Specify src as whitespace separated list of common names."""
 
     def __init__(self, src=None):

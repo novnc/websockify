@@ -407,7 +407,8 @@ def websockify_init():
     parser.add_option("--ssl-target", action="store_true",
             help="connect to SSL target as SSL client")
     parser.add_option("--verify-client", action="store_true",
-            help="require encrypted client to present a valid certificate")
+            help="require encrypted client to present a valid certificate "
+            "(needs Python 2.7.9 or newer or Python 3.4 or newer)")
     parser.add_option("--cafile", metavar="FILE",
             help="file of concatenated certificates of authorities trusted "
             "for validating clients (only effective with --verify-client). "
