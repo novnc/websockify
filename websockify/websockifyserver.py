@@ -541,16 +541,31 @@ class WebSockifyServer(object):
                                   % self.cert)
             retsock = None
             try:
-                context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
-                context.load_cert_chain(certfile=self.cert, keyfile=self.key)
-                if self.verify_client:
-                    context.verify_mode = ssl.CERT_REQUIRED
-                    context.set_default_verify_paths()
-                    if self.cafile:
-                        context.load_verify_locations(cafile=self.cafile)
-                retsock = context.wrap_socket(
-                        sock,
-                        server_side=True)
+                try:
+                    # try creating new-style SSL wrapping for extended features
+                    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    context.load_cert_chain(certfile=self.cert, keyfile=self.key)
+                    if self.verify_client:
+                        context.verify_mode = ssl.CERT_REQUIRED
+                        context.set_default_verify_paths()
+                        if self.cafile:
+                            context.load_verify_locations(cafile=self.cafile)
+                    retsock = context.wrap_socket(
+                            sock,
+                            server_side=True)
+                except AttributeError as ae:
+                    if str(ae) != "'module' object has no attribute 'create_default_context'":
+                        # this exception is not caused by create_default_context not existing in old version. re-raise exception to be handled somewhere elese.
+                        raise
+                    elif self.verify_client:
+                        raise self.EClose("Client certificate verification requested, but not Python is too old.")
+                    else:
+                        # new-style SSL wrapping is not needed, falling back to old style
+                        retsock = ssl.wrap_socket(
+                                sock,
+                                server_side=True,
+                                certfile=self.cert,
+                                keyfile=self.key)
             except ssl.SSLError:
                 _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
