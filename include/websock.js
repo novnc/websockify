@@ -218,7 +218,14 @@
             var ws_schema = uri.match(/^([a-z]+):\/\//)[1];
             this.init();
 
-            this._websocket = new WebSocket(uri, protocols);
+            // IE, Edge and Firefox misbehave when protocols is
+            // undefined, converting it to a string rather than
+            // treating it as if it wasn't specified
+            if (protocols) {
+                this._websocket = new WebSocket(uri, protocols);
+            } else {
+                this._websocket = new WebSocket(uri);
+            }
             this._websocket.binaryType = 'arraybuffer';
 
             this._websocket.onmessage = this._recv_message.bind(this);
