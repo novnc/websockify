@@ -1,4 +1,5 @@
 import os
+import sys
 
 class BasePlugin(object):
     def __init__(self, src):
@@ -24,11 +25,16 @@ class ReadOnlyTokenFile(BasePlugin):
             cfg_files = [self.source]
 
         self._targets = {}
+        index = 1
         for f in cfg_files:
             for line in [l.strip() for l in open(f).readlines()]:
                 if line and not line.startswith('#'):
-                    tok, target = line.split(': ')
-                    self._targets[tok] = target.strip().rsplit(':', 1)
+                    try:
+                        tok, target = line.split(': ')
+                        self._targets[tok] = target.strip().rsplit(':', 1)
+                    except:
+                        print >>sys.stderr, "Syntax error in %s on line %d" % (self.source, index)
+                index += 1
 
     def lookup(self, token):
         if self._targets is None:
