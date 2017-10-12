@@ -16,6 +16,7 @@ var argv = require('optimist').argv,
     url = require('url'),
     path = require('path'),
     fs = require('fs'),
+    mime = require('mime-types'),
 
     Buffer = require('buffer').Buffer,
     WebSocketServer = require('ws').Server,
@@ -107,7 +108,13 @@ http_request = function (request, response) {
                 return http_error(response, 500, err);
             }
 
-            response.writeHead(200);
+            var headers = {};
+            var contentType = mime.contentType(path.extname(filename));
+            if (contentType !== false) {
+              headers['Content-Type'] = contentType;
+            }
+
+            response.writeHead(200, headers);
             response.write(file, "binary");
             response.end();
         });
