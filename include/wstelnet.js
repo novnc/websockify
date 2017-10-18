@@ -294,6 +294,8 @@ function constructor() {
                 str = '\n'; break;
             case 65288: // Backspace
                 str = '\b'; break;
+            case 65289: // Tab
+                str = '\t'; break;
             case 65307: // Escape
                 str = '\x1b'; break;
             case 65361: // Left arrow 
