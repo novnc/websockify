@@ -29,6 +29,8 @@ var argv = require('optimist').argv,
 // Handle new WebSocket client
 new_client = function(client, req) {
     var clientAddr = client._socket.remoteAddress, log;
+    var start_time = new Date().getTime();
+
     console.log(req ? req.url : client.upgradeReq.url);
     log = function (msg) {
         console.log(' ' + clientAddr + ': '+ msg);
@@ -36,11 +38,25 @@ new_client = function(client, req) {
     log('WebSocket connection');
     log('Version ' + client.protocolVersion + ', subprotocol: ' + client.protocol);
 
+    if (argv.dir) {
+      var rs = fs.createWriteStream(argv.dir + '/' + new Date().toISOString());
+      rs.write('var VNC_frame_data = [\n');
+    } else {
+      var rs = null;
+    }
+
     var target = net.createConnection(target_port,target_host, function() {
         log('connected to target');
     });
     target.on('data', function(data) {
         //log("sending message: " + data);
+
+        if (rs) {
+          var tdelta = Math.floor(new Date().getTime()) - start_time;
+          var rsdata = '\'{' + tdelta + '{' + decodeBuffer(data) + '\',\n';
+          rs.write(rsdata);
+        }
+
         try {
             client.send(data);
         } catch(e) {
@@ -51,15 +67,28 @@ new_client = function(client, req) {
     target.on('end', function() {
         log('target disconnected');
         client.close();
+        if (rs) {
+          rs.end('\'EOF\'];\n');
+        }
     });
     target.on('error', function() {
         log('target connection error');
         target.end();
         client.close();
+        if (rs) {
+          rs.end('\'EOF\'];\n');
+        }
     });
 
     client.on('message', function(msg) {
         //log('got message: ' + msg);
+
+        if (rs) {
+          var rdelta = Math.floor(new Date().getTime()) - start_time;
+          var rsdata = ('\'}' + rdelta + '}' + decodeBuffer(msg) + '\',\n');
+~         rs.write(rsdata);
+        }
+
         target.write(msg);
     });
     client.on('close', function(code, reason) {
@@ -72,6 +101,28 @@ new_client = function(client, req) {
     });
 };
 
+function decodeBuffer(buf) {
+  var returnString = '';
+  for (var i = 0; i < buf.length; i++) {
+    if (buf[i] >= 48 && buf[i] <= 90) {
+      returnString += String.fromCharCode(buf[i]);
+    } else if (buf[i] === 95) {
+      returnString += String.fromCharCode(buf[i]);
+    } else if (buf[i] >= 97 && buf[i] <= 122) {
+      returnString += String.fromCharCode(buf[i]);
+    } else {
+      var charToConvert = buf[i].toString(16);
+      if (charToConvert.length === 0) {
+        returnString += '\\x00';
+      } else if (charToConvert.length === 1) {
+        returnString += '\\x0' + charToConvert;
+      } else {
+        returnString += '\\x' + charToConvert;
+      }
+    }
+  }
+  return returnString;
+}
 
 // Send an HTTP error response
 http_error = function (response, code, msg) {
@@ -147,7 +198,7 @@ try {
         throw("illegal port");
     }
 } catch(e) {
-    console.error("websockify.js [--web web_dir] [--cert cert.pem [--key key.pem]] [source_addr:]source_port target_addr:target_port");
+    console.error("websockify.js [--web web_dir] [--cert cert.pem [--key key.pem]] [--record-dir dir] [source_addr:]source_port target_addr:target_port");
     process.exit(2);
 }
 
