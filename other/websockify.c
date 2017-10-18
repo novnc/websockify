@@ -50,7 +50,7 @@ char USAGE[] = "Usage: [options] " \
 char target_host[256];
 int target_port;
 
-extern pipe_error;
+extern int pipe_error;
 extern settings_t settings;
 
 void do_proxy(ws_ctx_t *ws_ctx, int target) {

@@ -668,7 +668,7 @@ ws_ctx_t *do_handshake(int sock) {
     return ws_ctx;
 }
 
-void signal_handler(sig) {
+void signal_handler(int sig) {
     switch (sig) {
         case SIGHUP: break; // ignore for now
         case SIGPIPE: pipe_error = 1; break; // handle inline
