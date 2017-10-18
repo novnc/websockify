@@ -14,6 +14,7 @@
 #include <strings.h>
 #include <sys/types.h> 
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -36,7 +37,7 @@ int pipe_error = 0;
 settings_t settings;
 
 
-void traffic(char * token) {
+void traffic(const char * token) {
     if ((settings.verbose) && (! settings.daemon)) {
         fprintf(stdout, "%s", token);
         fflush(stdout);
@@ -120,7 +121,7 @@ ws_ctx_t *alloc_ws_ctx() {
     return ctx;
 }
 
-int free_ws_ctx(ws_ctx_t *ctx) {
+void free_ws_ctx(ws_ctx_t *ctx) {
     free(ctx->cin_buf);
     free(ctx->cout_buf);
     free(ctx->tin_buf);
@@ -130,6 +131,7 @@ int free_ws_ctx(ws_ctx_t *ctx) {
 
 ws_ctx_t *ws_socket(ws_ctx_t *ctx, int socket) {
     ctx->sockfd = socket;
+    return ctx;
 }
 
 ws_ctx_t *ws_socket_ssl(ws_ctx_t *ctx, int socket, char * certfile, char * keyfile) {
@@ -191,7 +193,7 @@ ws_ctx_t *ws_socket_ssl(ws_ctx_t *ctx, int socket, char * certfile, char * keyfi
     return ctx;
 }
 
-int ws_socket_free(ws_ctx_t *ctx) {
+void ws_socket_free(ws_ctx_t *ctx) {
     if (ctx->ssl) {
         SSL_free(ctx->ssl);
         ctx->ssl = NULL;
@@ -268,7 +270,8 @@ int decode_hixie(char *src, size_t srclength,
 int encode_hybi(u_char const *src, size_t srclength,
                 char *target, size_t targsize, unsigned int opcode)
 {
-    unsigned long long b64_sz, len_offset = 1, payload_offset = 2, len = 0;
+    unsigned long long b64_sz, len_offset = 1, payload_offset = 2;
+    int len = 0;
     
     if ((int)srclength <= 0)
     {
@@ -277,7 +280,7 @@ int encode_hybi(u_char const *src, size_t srclength,
 
     b64_sz = ((srclength - 1) / 3) * 4 + 4;
 
-    target[0] = (char)(opcode & 0x0F | 0x80);
+    target[0] = (char)((opcode & 0x0F) | 0x80);
 
     if (b64_sz <= 125) {
         target[1] = (char) b64_sz;
@@ -307,7 +310,8 @@ int decode_hybi(unsigned char *src, size_t srclength,
                 u_char *target, size_t targsize,
                 unsigned int *opcode, unsigned int *left)
 {
-    unsigned char *frame, *mask, *payload, save_char, cntstr[4];;
+    unsigned char *frame, *mask, *payload, save_char;
+    char cntstr[4];
     int masked = 0;
     int i = 0, len, framecount = 0;
     size_t remaining;
@@ -708,8 +712,9 @@ void daemonize(int keepfd) {
 
 
 void start_server() {
-    int lsock, csock, pid, clilen, sopt = 1, i;
+    int lsock, csock, pid, sopt = 1, i;
     struct sockaddr_in serv_addr, cli_addr;
+    socklen_t clilen;
     ws_ctx_t *ws_ctx;
 
 
