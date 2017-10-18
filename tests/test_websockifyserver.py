@@ -267,8 +267,25 @@ class WebSockifyServerTestCase(unittest.TestCase):
         def fake_wrap_socket(*args, **kwargs):
             raise ssl.SSLError(ssl.SSL_ERROR_EOF)
 
+        class fake_create_default_context():
+            def __init__(self, purpose):
+                self.verify_mode = None
+            def load_cert_chain(self, certfile, keyfile):
+                pass
+            def set_default_verify_paths(self):
+                pass
+            def load_verify_locations(self, cafile):
+                pass
+            def wrap_socket(self, *args, **kwargs):
+                raise ssl.SSLError(ssl.SSL_ERROR_EOF)
+
         self.stubs.Set(select, 'select', fake_select)
-        self.stubs.Set(ssl, 'wrap_socket', fake_wrap_socket)
+        if (hasattr(ssl, 'create_default_context')):
+            # for recent versions of python
+            self.stubs.Set(ssl, 'create_default_context', fake_create_default_context)
+        else:
+            # for fallback for old versions of python
+            self.stubs.Set(ssl, 'wrap_socket', fake_wrap_socket)
         self.assertRaises(
             websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')

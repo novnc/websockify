@@ -60,6 +60,20 @@ Traffic Legend:
                 self.server.target_port = port
 
         if self.server.auth_plugin:
+            
+            try:
+                # get client certificate data
+                client_cert_data = self.request.getpeercert()
+                # extract subject information
+                client_cert_subject = client_cert_data['subject']
+                # flatten data structure
+                client_cert_subject = dict([x[0] for x in client_cert_subject])
+                # add common name to headers (apache +StdEnvVars style)
+                self.headers['SSL_CLIENT_S_DN_CN'] = client_cert_subject['commonName']
+            except:
+                # not a SSL connection or client presented no certificate with valid data
+                pass
+                
             try:
                 self.server.auth_plugin.authenticate(
                     headers=self.headers, target_host=self.server.target_host,
@@ -392,6 +406,13 @@ def websockify_init():
             help="disallow non-encrypted client connections")
     parser.add_option("--ssl-target", action="store_true",
             help="connect to SSL target as SSL client")
+    parser.add_option("--verify-client", action="store_true",
+            help="require encrypted client to present a valid certificate "
+            "(needs Python 2.7.9 or newer or Python 3.4 or newer)")
+    parser.add_option("--cafile", metavar="FILE",
+            help="file of concatenated certificates of authorities trusted "
+            "for validating clients (only effective with --verify-client). "
+            "If omitted, system default list of CAs is used.")
     parser.add_option("--unix-target",
             help="connect to unix socket target", metavar="FILE")
     parser.add_option("--inetd",
