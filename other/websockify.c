@@ -11,6 +11,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <getopt.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
