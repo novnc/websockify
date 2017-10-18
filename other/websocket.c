@@ -21,10 +21,12 @@
 #include <fcntl.h>  // daemonizing
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <resolv.h>      /* base64 encode/decode */
 #include <openssl/md5.h> /* md5 hash */
 #include <openssl/sha.h> /* sha1 hash */
 #include "websocket.h"
+
+int ws_b64_ntop(u_char const *src, size_t srclength, char *target, size_t targsize);
+int ws_b64_pton(char const *src, u_char *target, size_t targsize);
 
 /*
  * Global state
@@ -214,7 +216,7 @@ int encode_hixie(u_char const *src, size_t srclength,
                  char *target, size_t targsize) {
     int sz = 0, len = 0;
     target[sz++] = '\x00';
-    len = b64_ntop(src, srclength, target+sz, targsize-sz);
+    len = ws_b64_ntop(src, srclength, target+sz, targsize-sz);
     if (len < 0) {
         return len;
     }
@@ -249,7 +251,7 @@ int decode_hixie(char *src, size_t srclength,
         /* We may have more than one frame */
         end = (char *)memchr(start, '\xff', srclength);
         *end = '\x00';
-        len = b64_pton(start, target+retlen, targsize-retlen);
+        len = ws_b64_pton(start, target+retlen, targsize-retlen);
         if (len < 0) {
             return len;
         }
@@ -269,22 +271,30 @@ int encode_hybi(u_char const *src, size_t srclength,
                 char *target, size_t targsize, unsigned int opcode)
 {
     unsigned long long b64_sz, len_offset = 1, payload_offset = 2, len = 0;
-    
-    if ((int)srclength <= 0)
-    {
-        return 0;
-    }
 
-    b64_sz = ((srclength - 1) / 3) * 4 + 4;
+    if (opcode != OPCODE_TEXT && opcode != OPCODE_BINARY) {
+        handler_emsg("Invalid opcode. Opcode must be 0x01 for text mode, or 0x02 for binary mode.\n");
+        return -1;
+    }
 
     target[0] = (char)(opcode & 0x0F | 0x80);
 
-    if (b64_sz <= 125) {
-        target[1] = (char) b64_sz;
+    if ((int)srclength <= 0) {
+        return 0;
+    }
+
+    if (opcode & OPCODE_TEXT) {
+        len = ((srclength - 1) / 3) * 4 + 4;
+    } else {
+        len = srclength;
+    }
+
+    if (len <= 125) {
+        target[1] = (char) len;
         payload_offset = 2;
-    } else if ((b64_sz > 125) && (b64_sz < 65536)) {
+    } else if ((len > 125) && (len < 65536)) {
         target[1] = (char) 126;
-        *(u_short*)&(target[2]) = htons(b64_sz);
+        *(u_short*)&(target[2]) = htons(len);
         payload_offset = 4;
     } else {
         handler_emsg("Sending frames larger than 65535 bytes not supported\n");
@@ -294,8 +304,13 @@ int encode_hybi(u_char const *src, size_t srclength,
         //payload_offset = 10;
     }
 
-    len = b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
-    
+    if (opcode & OPCODE_TEXT) {
+        len = ws_b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+    } else {
+        memcpy(target+payload_offset, src, srclength);
+        len = srclength;
+    }
+
     if (len < 0) {
         return len;
     }
@@ -364,7 +379,7 @@ int decode_hybi(unsigned char *src, size_t srclength,
         //printf("    payload_length: %u, raw remaining: %u\n", payload_length, remaining);
         payload = frame + hdr_length + 4*masked;
 
-        if (*opcode != 1 && *opcode != 2) {
+        if (*opcode != OPCODE_TEXT && *opcode != OPCODE_BINARY) {
             handler_msg("Ignoring non-data frame, opcode 0x%x\n", *opcode);
             continue;
         }
@@ -389,8 +404,13 @@ int decode_hybi(unsigned char *src, size_t srclength,
             payload[i] ^= mask[i%4];
         }
 
-        // base64 decode the data
-        len = b64_pton((const char*)payload, target+target_offset, targsize);
+        if (*opcode & OPCODE_TEXT) {
+            // base64 decode the data
+            len = ws_b64_pton((const char*)payload, target+target_offset, targsize);
+        } else {
+            memcpy(target+target_offset, payload, payload_length);
+            len = payload_length;
+        }
 
         // Restore the first character of the next frame
         payload[payload_length] = save_char;
@@ -560,7 +580,7 @@ static void gen_sha1(headers_t *headers, char *target) {
     SHA1_Update(&c, HYBI_GUID, 36);
     SHA1_Final(hash, &c);
 
-    r = b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
+    r = ws_b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
     //assert(r == HYBI10_ACCEPTHDRLEN - 1);
 }
 
@@ -571,6 +591,7 @@ ws_ctx_t *do_handshake(int sock) {
     headers_t *headers;
     int len, ret, i, offset;
     ws_ctx_t * ws_ctx;
+    char *response_protocol;
 
     // Peek, but don't read the data
     len = recv(sock, handshake, 1024, MSG_PEEK);
@@ -640,10 +661,23 @@ ws_ctx_t *do_handshake(int sock) {
     }
 
     headers = ws_ctx->headers;
+
+    if (strstr(headers->protocols, "binary")) {
+      ws_ctx->opcode = OPCODE_BINARY;
+      response_protocol = "binary";
+    } else if (strstr(headers->protocols, "base64")) {
+      ws_ctx->opcode = OPCODE_TEXT;
+      response_protocol = "base64";
+    } else {
+      handler_emsg("Invalid protocol '%s', expecting 'binary' or 'base64'\n",
+          headers->protocols);
+      return NULL;
+    }
+
     if (ws_ctx->hybi > 0) {
         handler_msg("using protocol HyBi/IETF 6455 %d\n", ws_ctx->hybi);
         gen_sha1(headers, sha1);
-        sprintf(response, SERVER_HANDSHAKE_HYBI, sha1, "base64");
+        sprintf(response, SERVER_HANDSHAKE_HYBI, sha1, response_protocol);
     } else {
         if (ws_ctx->hixie == 76) {
             handler_msg("using protocol Hixie 76\n");
@@ -666,9 +700,16 @@ ws_ctx_t *do_handshake(int sock) {
 
 void signal_handler(sig) {
     switch (sig) {
-        case SIGHUP: break; // ignore for now
+        case SIGHUP:
+            if (settings.whitelist != NULL) {
+              load_whitelist();
+            }
+            break;
         case SIGPIPE: pipe_error = 1; break; // handle inline
-        case SIGTERM: exit(0); break;
+        case SIGTERM:
+            remove(settings.pid);
+            exit(0);
+            break;
     }
 }
 
@@ -687,7 +728,17 @@ void daemonize(int keepfd) {
     setsid();                // Obtain new process group
     pid = fork();
     if (pid<0) { fatal("fork error"); }
-    if (pid>0) { exit(0); }  // parent exits
+    if (pid>0) {
+      // parent exits
+      FILE *pidf = fopen(settings.pid, "w");
+      if (pidf) {
+        fprintf(pidf, "%d", pid);
+        fclose(pidf);
+      } else {
+        fprintf(stderr, "Could not write daemon PID file '%s': %s\n", settings.pid, strerror(errno));
+      }
+      exit(0);
+    }
 
     /* Signal handling */
     signal(SIGHUP, signal_handler);   // catch HUP

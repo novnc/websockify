@@ -18,6 +18,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <signal.h>
 #include "websocket.h"
 
 char traffic_legend[] = "\n\
@@ -33,20 +34,27 @@ Traffic Legend:\n\
 ";
 
 char USAGE[] = "Usage: [options] " \
-               "[source_addr:]source_port target_addr:target_port\n\n" \
-               "  --verbose|-v       verbose messages and per frame traffic\n" \
-               "  --daemon|-D        become a daemon (background process)\n" \
-               "  --cert CERT        SSL certificate file\n" \
-               "  --key KEY          SSL key file (if separate from cert)\n" \
-               "  --ssl-only         disallow non-encrypted connections";
+               "[source_addr:]source_port target_addr{:target_port}\n\n" \
+               "  --verbose|-v         verbose messages and per frame traffic\n" \
+               "  --daemon|-D          become a daemon (background process)\n" \
+               "  --cert CERT          SSL certificate file\n" \
+               "  --key KEY            SSL key file (if separate from cert)\n" \
+               "  --ssl-only           disallow non-encrypted connections\n" \
+               "  --whitelist|-w LIST  new-line separated target port whitelist file\n" \
+               "                       (target_port is not required only with this option)\n" \
+               "  --pattern|-P         target port request pattern. Default: '/%d'\n" \
+               "  --pid|-p             desired path of pid file. Default: '/var/run/websockify.pid'";
 
 #define usage(fmt, args...) \
-    fprintf(stderr, "%s\n\n", USAGE); \
-    fprintf(stderr, fmt , ## args); \
-    exit(1);
+    do { \
+        fprintf(stderr, "%s\n\n", USAGE); \
+        fprintf(stderr, fmt , ## args); \
+        exit(1); \
+    } while(0)
 
 char target_host[256];
 int target_port;
+int *target_ports;
 
 extern pipe_error;
 extern settings_t settings;
@@ -156,7 +164,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             cout_start = 0;
             if (ws_ctx->hybi) {
                 cout_end = encode_hybi(ws_ctx->cin_buf, bytes,
-                                   ws_ctx->cout_buf, BUFSIZE, 1);
+                                   ws_ctx->cout_buf, BUFSIZE, ws_ctx->opcode);
             } else {
                 cout_end = encode_hixie(ws_ctx->cin_buf, bytes,
                                     ws_ctx->cout_buf, BUFSIZE);
@@ -203,7 +211,7 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
             }
 
             if (opcode == 8) {
-                handler_emsg("client sent orderly close frame\n");
+                handler_msg("client sent orderly close frame\n");
                 break;
             }
 
@@ -236,6 +244,27 @@ void do_proxy(ws_ctx_t *ws_ctx, int target) {
 void proxy_handler(ws_ctx_t *ws_ctx) {
     int tsock = 0;
     struct sockaddr_in taddr;
+
+    if (target_ports != NULL) {
+        if (sscanf(ws_ctx->headers->path, settings.pattern, &target_port) != 1) {
+        handler_emsg("Could not match pattern '%s' to request path '%s'\n",
+                     settings.pattern, ws_ctx->headers->path);
+        return;
+        }
+        int *p;
+        int found = 0;
+        for (p = target_ports; *p; p++) {
+            if (*p == target_port) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found) {
+            handler_emsg("Rejecting connection to non-whitelisted port: '%d'\n",
+                         target_port);
+            return;
+        }
+    }
 
     handler_msg("connecting to: %s:%d\n", target_host, target_port);
 
@@ -272,19 +301,77 @@ void proxy_handler(ws_ctx_t *ws_ctx) {
     close(tsock);
 }
 
+int load_whitelist() {
+  printf("loading port whitelist '%s'\n", settings.whitelist);
+  FILE *whitelist = fopen(settings.whitelist, "r");
+  if (whitelist == NULL) {
+    fprintf(stderr, "Error opening whitelist file '%s':\n\t%s\n",
+          settings.whitelist, strerror(errno));
+    return -1;
+  }
+
+  const int tplen_grow = 512;
+  int tplen = tplen_grow, tpcount = 0;
+  target_ports = (int*)malloc(tplen*sizeof(int));
+  if (target_ports == NULL) {
+    fprintf(stderr, "Whitelist port malloc error");
+    return -2;
+  }
+
+  char *line = NULL;
+  ssize_t n = 0, nread = 0;
+  while ((nread = getline(&line, &n, whitelist)) > 0) {
+      if (line[0] == '\n') continue;
+      line[nread-1] = '\x00';
+      long int port = strtol(line, NULL, 10);
+      if (port < 1 || port > 65535) {
+          fprintf(stderr,
+            "Whitelist port '%s' is not between valid range 1 and 65535", line);
+          return -3;
+      }
+      tpcount++;
+      if (tpcount >= tplen) {
+          tplen += tplen_grow;
+          target_ports = (int*)realloc(target_ports, tplen*sizeof(int));
+          if (target_ports == NULL) {
+              fprintf(stderr, "Whitelist port realloc error");
+              return -2;
+          }
+      }
+      target_ports[tpcount-1] = port;
+  }
+  if (line != NULL) free(line);
+
+  if (tpcount == 0) {
+      fprintf(stderr, "0 ports read from whitelist file '%s'\n",
+                      settings.whitelist);
+      return -4;
+  }
+
+  target_ports = (int*)realloc(target_ports, (tpcount + 1)*sizeof(int));
+  if (target_ports == NULL) {
+      fprintf(stderr, "Whitelist port realloc error");
+      return -2;
+  }
+  target_ports[tpcount] = 0;
+  return 0;
+}
+
 int main(int argc, char *argv[])
 {
     int fd, c, option_index = 0;
-    static int ssl_only = 0, daemon = 0, run_once = 0, verbose = 0;
     char *found;
     static struct option long_options[] = {
-        {"verbose",    no_argument,       &verbose,    'v'},
-        {"ssl-only",   no_argument,       &ssl_only,    1 },
-        {"daemon",     no_argument,       &daemon,     'D'},
+        {"verbose",   no_argument,       0,                 'v'},
+        {"ssl-only",  no_argument,       &settings.ssl_only, 1 },
+        {"daemon",    no_argument,       0,                 'D'},
         /* ---- */
-        {"run-once",   no_argument,       0,           'r'},
-        {"cert",       required_argument, 0,           'c'},
-        {"key",        required_argument, 0,           'k'},
+        {"run-once",  no_argument,       0,                 'r'},
+        {"cert",      required_argument, 0,                 'c'},
+        {"key",       required_argument, 0,                 'k'},
+        {"whitelist", required_argument, 0,                 'w'},
+        {"pattern",   required_argument, 0,                 'P'},
+        {"pid",       required_argument, 0,                 'p'},
         {0, 0, 0, 0}
     };
 
@@ -294,13 +381,15 @@ int main(int argc, char *argv[])
         settings.cert = "self.pem";
     }
     settings.key = "";
+    settings.pattern = "/%d";
+    settings.pid = "/var/run/websockify.pid";
 
     while (1) {
-        c = getopt_long (argc, argv, "vDrc:k:",
+        c = getopt_long (argc, argv, "vDrc:k:w:p:P:",
                          long_options, &option_index);
 
         /* Detect the end */
-        if (c == -1) { break; }
+        if (c == -1) break;
 
         switch (c) {
             case 0:
@@ -308,13 +397,13 @@ int main(int argc, char *argv[])
             case 1:
                 break; // ignore
             case 'v':
-                verbose = 1;
+                settings.verbose = 1;
                 break;
             case 'D':
-                daemon = 1;
+                settings.daemon = 1;
                 break;
             case 'r':
-                run_once = 1;
+                settings.run_once = 1;
                 break;
             case 'c':
                 settings.cert = realpath(optarg, NULL);
@@ -328,14 +417,22 @@ int main(int argc, char *argv[])
                     usage("No key file at %s\n", optarg);
                 }
                 break;
+            case 'w':
+                settings.whitelist = realpath(optarg, NULL);
+                if (! settings.whitelist) {
+                    usage("No whitelist file at %s\n", optarg);
+                }
+                break;
+            case 'P':
+                settings.pattern = optarg;
+                break;
+            case 'p':
+                settings.pid = optarg;
+                break;
             default:
-                usage("");
+                usage(" ");
         }
     }
-    settings.verbose      = verbose;
-    settings.ssl_only     = ssl_only;
-    settings.daemon       = daemon;
-    settings.run_once     = run_once;
 
     if ((argc-optind) != 2) {
         usage("Invalid number of arguments\n");
@@ -355,17 +452,25 @@ int main(int argc, char *argv[])
     }
 
     found = strstr(argv[optind], ":");
-    if (found) {
+    if (found && settings.whitelist == NULL) {
         memcpy(target_host, argv[optind], found-argv[optind]);
         target_port = strtol(found+1, NULL, 10);
+        target_ports = NULL;
+    } else if (!found && settings.whitelist != NULL) {
+        if (load_whitelist()) {
+          usage("Whitelist error.");
+        }
+        memcpy(target_host, argv[optind], strlen(argv[optind]));
+        target_port = -1;
+
     } else {
-        usage("Target argument must be host:port\n");
+        usage("Target argument must be host:port or provide host and a port whitelist\n");
     }
     if (target_port == 0) {
         usage("Could not parse target port\n");
     }
 
-    if (ssl_only) {
+    if (settings.ssl_only) {
         if (access(settings.cert, R_OK) != 0) {
             usage("SSL only and cert file '%s' not found\n", settings.cert);
         }
@@ -380,7 +485,7 @@ int main(int argc, char *argv[])
     //printf("  cert: %s\n",      settings.cert);
     //printf("  key: %s\n",       settings.key);
 
-    settings.handler = proxy_handler; 
+    settings.handler = proxy_handler;
     start_server();
 
 }
