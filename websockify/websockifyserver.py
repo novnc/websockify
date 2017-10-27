@@ -343,6 +343,7 @@ class WebSockifyServer(object):
         self.launch_time    = time.time()
         self.ws_connection  = False
         self.handler_id     = 1
+        self.terminating    = False
 
         self.logger         = self.get_logger()
         self.tcp_keepalive  = tcp_keepalive
@@ -600,7 +601,9 @@ class WebSockifyServer(object):
         pass
 
     def terminate(self):
-        raise self.Terminate()
+        if not self.terminating:
+            self.terminating = True
+            raise self.Terminate()
 
     def multiprocessing_SIGCHLD(self, sig, stack):
         # TODO: figure out a way to actually log this information without
