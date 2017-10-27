@@ -520,14 +520,14 @@ class WebSockifyServer(object):
 
 
         if not ready:
-            raise self.EClose("ignoring socket not ready")
+            raise self.EClose("")
         # Peek, but do not read the data so that we have a opportunity
         # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
         #self.msg("Handshake [%s]" % handshake)
 
         if not handshake:
-            raise self.EClose("ignoring empty handshake")
+            raise self.EClose("")
 
         elif handshake[0] in ("\x16", "\x80", 22, 128):
             # SSL wrap the connection
