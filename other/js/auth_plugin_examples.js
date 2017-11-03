@@ -50,10 +50,29 @@ exports.tokenAuth = function tokenAuth(source) {
      * a token provided as the argument to the `--auth-source` command line
      * argument.
      */
-    return function(info) {
-        let token = source;
+    return {
+        authenticate(info) {
+            const token = source;
+            return urlTokenMatch(info.req.url, token, true);
+        }
+    }
+}
+
+exports.TokenAuthClass = class TokenAuthClass {
+    /**
+     * Class-based equivalent of tokenAuth
+     */
+
+    constructor(source) {
+        this.source = source;
+    }
+
+    authenticate(info) {
+        const token = this.source;
+        console.log(token)
         return urlTokenMatch(info.req.url, token, true);
     }
+
 }
 
 exports.tokenAuthEnv = function tokenAuthEnv(source) {

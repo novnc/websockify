@@ -20,6 +20,8 @@ var argv = require('optimist').argv,
     Buffer = require('buffer').Buffer,
     WebSocketServer = require('ws').Server,
 
+    utils = require('./utils'),
+
     webServer, wsServer,
     source_host, source_port, target_host, target_port,
     auth_plugin, websocket_server_opts,
@@ -27,9 +29,9 @@ var argv = require('optimist').argv,
 
 
 // Handle new WebSocket client
-new_client = function(client) {
+new_client = function(client, upgradeReq) {
     var clientAddr = client._socket.remoteAddress, log;
-    console.log(client.upgradeReq.url);
+    console.log(upgradeReq ? upgradeReq.url : client.upgradeReq.url);
     log = function (msg) {
         console.log(' ' + clientAddr + ': '+ msg);
     };
@@ -164,15 +166,18 @@ if (argv.cert) {
 }
 
 if (argv["auth-plugin"]) {
-    let auth_plugin_arg = argv["auth-plugin"].split(".")
-    let plugin_name = auth_plugin_arg.pop();
-    let module_path = auth_plugin_arg.join(".");
+    const auth_plugin_arg = argv["auth-plugin"].split(".")
+    const plugin_name = auth_plugin_arg.pop();
+    const module_path = auth_plugin_arg.join(".");
 
-    let auth_plugin = require(module_path)[plugin_name];
-    let auth_source = argv["auth-source"] || undefined;
+    const auth_source = argv["auth-source"] || undefined;
+    const auth_plugin = utils.factorify(
+        require(module_path)[plugin_name]
+    )(auth_source);
+
     websocket_server_opts = {
         server: webServer,
-        verifyClient: auth_plugin(auth_source)
+        verifyClient: auth_plugin.authenticate.bind(auth_plugin)
     };
 } else {
     websocket_server_opts = {server: webServer};

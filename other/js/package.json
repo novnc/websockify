@@ -8,7 +8,10 @@
     "type": "git",
     "url": "git://github.com/kanaka/websockify.git"
   },
-  "files": ["../../docs/LICENSE.LGPL-3","websockify.js"],
+  "files": [
+    "../../docs/LICENSE.LGPL-3",
+    "websockify.js"
+  ],
   "bin": {
     "websockify": "./websockify.js"
   },
