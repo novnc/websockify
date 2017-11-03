@@ -29,7 +29,7 @@ var argv = require('optimist').argv,
 
 
 // Handle new WebSocket client
-new_client = function(client, req) {
+const new_client = function(client, req) {
     var clientAddr = client._socket.remoteAddress, log;
     console.log(req ? req.url : client.upgradeReq.url);
     log = function (msg) {
@@ -76,7 +76,7 @@ new_client = function(client, req) {
 
 
 // Send an HTTP error response
-http_error = function (response, code, msg) {
+const http_error = function (response, code, msg) {
     response.writeHead(code, {"Content-Type": "text/plain"});
     response.write(msg + "\n");
     response.end();
@@ -84,7 +84,7 @@ http_error = function (response, code, msg) {
 }
 
 // Process an HTTP static file request
-http_request = function (request, response) {
+const http_request = function (request, response) {
 //    console.log("pathname: " + url.parse(req.url).pathname);
 //    res.writeHead(200, {'Content-Type': 'text/plain'});
 //    res.end('okay');
@@ -183,7 +183,7 @@ if (argv["auth-plugin"]) {
 
     const auth_source = argv["auth-source"] || undefined;
 
-    const auth_plugin = plugin_factory(auth_source);
+    auth_plugin = plugin_factory(auth_source);
 
     websocket_server_opts = {
         server: webServer,
