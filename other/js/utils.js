@@ -10,6 +10,14 @@
  * @param  {function} function_or_class
  */
 exports.factorify = function factorify(function_or_class) {
+    // Must be callable
+    if (typeof function_or_class !== "function") {
+        console.log(function_or_class)
+        throw new TypeError(
+            "must be called with a function or class constructor"
+        );
+    }
+
     return (...args) => {
         try {
             return function_or_class(...args);

@@ -166,14 +166,24 @@ if (argv.cert) {
 }
 
 if (argv["auth-plugin"]) {
-    const auth_plugin_arg = argv["auth-plugin"].split(".")
-    const plugin_name = auth_plugin_arg.pop();
-    const module_path = auth_plugin_arg.join(".");
+
+    // Extract the plugin module, and any exported item from that module
+    const [ module_path, plugin_name ] =
+        argv["auth-plugin"]
+        .replace(/\.([A-z])/, "@$1")
+        .split("@");
+
+    // If an exported item is specified as the plugin, get it, otherwise
+    // use the default export
+    const plugin_factory = utils.factorify(
+        plugin_name
+            ? require(module_path)[plugin_name]
+            : require(module_path)
+    );
 
     const auth_source = argv["auth-source"] || undefined;
-    const auth_plugin = utils.factorify(
-        require(module_path)[plugin_name]
-    )(auth_source);
+
+    const auth_plugin = plugin_factory(auth_source);
 
     websocket_server_opts = {
         server: webServer,
