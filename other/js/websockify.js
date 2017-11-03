@@ -29,9 +29,9 @@ var argv = require('optimist').argv,
 
 
 // Handle new WebSocket client
-new_client = function(client, upgradeReq) {
+new_client = function(client, req) {
     var clientAddr = client._socket.remoteAddress, log;
-    console.log(upgradeReq ? upgradeReq.url : client.upgradeReq.url);
+    console.log(req ? req.url : client.req.url);
     log = function (msg) {
         console.log(' ' + clientAddr + ': '+ msg);
     };
