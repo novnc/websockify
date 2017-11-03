@@ -9,20 +9,20 @@
 //     npm install ws optimist
 
 
-var argv = require('optimist').argv,
-    net = require('net'),
-    http = require('http'),
-    https = require('https'),
-    url = require('url'),
-    path = require('path'),
-    fs = require('fs'),
+const argv = require('optimist').argv,
+      net = require('net'),
+      http = require('http'),
+      https = require('https'),
+      url = require('url'),
+      path = require('path'),
+      fs = require('fs'),
 
-    Buffer = require('buffer').Buffer,
-    WebSocketServer = require('ws').Server,
+      Buffer = require('buffer').Buffer,
+      WebSocketServer = require('ws').Server,
 
-    utils = require('./utils'),
+      utils = require('./utils');
 
-    webServer, wsServer,
+let webServer, wsServer,
     source_host, source_port, target_host, target_port,
     auth_plugin, websocket_server_opts,
     web_path = null;
@@ -30,15 +30,18 @@ var argv = require('optimist').argv,
 
 // Handle new WebSocket client
 const new_client = function(client, req) {
-    var clientAddr = client._socket.remoteAddress, log;
+
     console.log(req ? req.url : client.upgradeReq.url);
-    log = function (msg) {
+
+    const clientAddr = client._socket.remoteAddress;
+    const log = function (msg) {
         console.log(' ' + clientAddr + ': '+ msg);
     };
+
     log('WebSocket connection');
     log('Version ' + client.protocolVersion + ', subprotocol: ' + client.protocol);
 
-    var target = net.createConnection(target_port,target_host, function() {
+    const target = net.createConnection(target_port,target_host, function() {
         log('connected to target');
     });
     target.on('data', function(data) {
@@ -119,10 +122,10 @@ const http_request = function (request, response) {
 
 // parse source and target arguments into parts
 try {
-    source_arg = argv._[0].toString();
-    target_arg = argv._[1].toString();
+    const source_arg = argv._[0].toString();
+    const target_arg = argv._[1].toString();
 
-    var idx;
+    let idx;
     idx = source_arg.indexOf(":");
     if (idx >= 0) {
         source_host = source_arg.slice(0, idx);
