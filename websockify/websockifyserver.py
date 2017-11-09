@@ -353,9 +353,12 @@ class WebSockifyServer(object):
         self.tcp_keepidle   = tcp_keepidle
         self.tcp_keepintvl  = tcp_keepintvl
 
+        # keyfile path must be None if not specified
+        self.key = None
+
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
-        self.key = self.web = self.record = self.cafile = ''
+        self.web = self.record = self.cafile = ''
         if key:
             self.key = os.path.abspath(key)
         if web:
