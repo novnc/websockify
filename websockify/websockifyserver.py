@@ -178,7 +178,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
                 self.print_traffic("}.")
                 break
 
-            if len(buf) == 0:
+            if buf is None:
                 closed = {'code': self.request.close_code,
                           'reason': self.request.close_reason}
                 return bufs, closed

@@ -343,9 +343,9 @@ class WebSocket(object):
         """Read data from the WebSocket.
 
         This will return any available data on the socket. If the
-        socket is closed then an empty buffer will be returned. The
-        reason for the close is found in the 'close_code' and
-        'close_reason' properties.
+        socket is closed then None will be returned. The reason for
+        the close is found in the 'close_code' and 'close_reason'
+        properties.
 
         Unlike recvmsg() this method may return data from more than one
         WebSocket message. It is however not guaranteed to return all
@@ -361,8 +361,8 @@ class WebSocket(object):
         """Read a single message from the WebSocket.
 
         This will return a single WebSocket message from the socket.
-        If the socket is closed then an empty buffer will be returned.
-        The reason for the close is found in the 'close_code' and
+        If the socket is closed then None will be returned.  The
+        reason for the close is found in the 'close_code' and
         'close_reason' properties.
 
         Unlike recv() this method will not return data from more than
@@ -375,30 +375,22 @@ class WebSocket(object):
         # May have been called to flush out a close
         if self._received_close:
             self._flush()
-            return ''.encode("ascii")
+            return None
 
         # Anything already queued?
         if self.pending():
-            msg = self._recvmsg()
-            if msg is not None:
-                return msg
-
-            # Note: We cannot proceed to self._recv() here as we may
+            return self._recvmsg()
+            # Note: If self._recvmsg() raised WebSocketWantReadError,
+            #       we cannot proceed to self._recv() here as we may
             #       have already called it once as part of the caller's
             #       "while websock.pending():" loop
-            raise WebSocketWantReadError
 
         # Nope, let's try to read a bit
         if not self._recv_frames():
-            return ''.encode("ascii")
+            return None
 
         # Anything queued now?
-        msg = self._recvmsg()
-        if msg is not None:
-            return msg
-
-        # Still nope
-        raise WebSocketWantReadError
+        return self._recvmsg()
 
     def pending(self):
         """Check if any WebSocket data is pending.
@@ -592,7 +584,7 @@ class WebSocket(object):
 
                 if self._sent_close:
                     self._close()
-                    return ''.encode("ascii")
+                    return None
 
                 if not frame["fin"]:
                     self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Fragmented close")
@@ -619,7 +611,7 @@ class WebSocket(object):
                         self.close_reason = reason
 
                 self.shutdown(code, reason)
-                return ''.encode("ascii")
+                return None
             elif frame["opcode"] == 0x9:
                 if not frame["fin"]:
                     self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Fragmented ping")
@@ -635,7 +627,7 @@ class WebSocket(object):
             else:
                 self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Unknown opcode 0x%02x" % frame["opcode"])
 
-        return None
+        raise WebSocketWantReadError
 
     def _flush(self):
         # Writes pending data to the socket
