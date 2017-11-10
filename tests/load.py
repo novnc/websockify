@@ -105,7 +105,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
                 cnt    = int(cnt)
                 length = int(length)
                 chksum = int(chksum)
-            except:
+            except ValueError:
                 print "\n<BOF>" + repr(data) + "<EOF>"
                 err += "Invalid data format\n"
                 continue
@@ -148,16 +148,16 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
 
     try:
-        if len(args) != 1: raise
+        if len(args) != 1: raise ValueError
         opts.listen_port = int(args[0])
 
-        if len(args) not in [1,2]: raise
+        if len(args) not in [1,2]: raise ValueError
         opts.listen_port = int(args[0])
         if len(args) == 2:
             opts.delay = int(args[1])
         else:
             opts.delay = 10
-    except:
+    except ValueError:
         parser.error("Invalid arguments")
 
     logging.basicConfig(level=logging.INFO)

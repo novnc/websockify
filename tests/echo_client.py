@@ -12,10 +12,9 @@ from websockify.websocket import WebSocket, \
 parser = optparse.OptionParser(usage="%prog URL")
 (opts, args) = parser.parse_args()
 
-try:
-    if len(args) != 1: raise
+if len(args) == 1:
     URL = args[0]
-except:
+else:
     parser.error("Invalid arguments")
 
 sock = WebSocket()

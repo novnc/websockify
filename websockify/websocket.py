@@ -31,8 +31,10 @@ except ImportError:
     numpy = None
 
 # python 3.0 differences
-try:    from urllib.parse import urlparse
-except: from urlparse import urlparse
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 # SSLWant*Error is 2.7.9+
 try:
@@ -40,7 +42,7 @@ try:
         pass
     class WebSocketWantWriteError(ssl.SSLWantWriteError):
         pass
-except:
+except AttributeError:
     class WebSocketWantReadError(OSError):
         def __init__(self):
             OSError.__init__(self, errno.EWOULDBLOCK)

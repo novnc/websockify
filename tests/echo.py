@@ -63,9 +63,9 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
 
     try:
-        if len(args) != 1: raise
+        if len(args) != 1: raise ValueError
         opts.listen_port = int(args[0])
-    except:
+    except ValueError:
         parser.error("Invalid arguments")
 
     logging.basicConfig(level=logging.INFO)

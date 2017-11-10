@@ -12,16 +12,22 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import signal, socket, optparse, time, os, sys, subprocess, logging, errno
-try:    from socketserver import ForkingMixIn
-except: from SocketServer import ForkingMixIn
-try:    from http.server import HTTPServer
-except: from BaseHTTPServer import HTTPServer
+try:
+    from socketserver import ForkingMixIn
+except ImportError:
+    from SocketServer import ForkingMixIn
+
+try:
+    from http.server import HTTPServer
+except ImportError:
+    from BaseHTTPServer import HTTPServer
+
 import select
 from websockify import websockifyserver
 from websockify import auth_plugins as auth
 try:
     from urllib.parse import parse_qs, urlparse
-except:
+except ImportError:
     from cgi import parse_qs
     from urlparse import urlparse
 
@@ -70,7 +76,7 @@ Traffic Legend:
                 client_cert_subject = dict([x[0] for x in client_cert_subject])
                 # add common name to headers (apache +StdEnvVars style)
                 self.headers['SSL_CLIENT_S_DN_CN'] = client_cert_subject['commonName']
-            except:
+            except (TypeError, AttributeError, KeyError):
                 # not a SSL connection or client presented no certificate with valid data
                 pass
                 
@@ -117,14 +123,13 @@ Traffic Legend:
         # Start proxying
         try:
             self.do_proxy(tsock)
-        except:
+        finally:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
                 if self.verbose:
                     self.log_message("%s:%s: Closed target",
                             self.server.target_host, self.server.target_port)
-            raise
 
     def get_target(self, target_plugin, path):
         """
@@ -509,8 +514,10 @@ def websockify_init():
         else:
             opts.listen_host, opts.listen_port = '', arg
 
-        try:    opts.listen_port = int(opts.listen_port)
-        except: parser.error("Error parsing listen port")
+        try:
+            opts.listen_port = int(opts.listen_port)
+        except ValueError:
+            parser.error("Error parsing listen port")
 
     del opts.inetd
 
@@ -526,8 +533,11 @@ def websockify_init():
             opts.target_host = opts.target_host.strip('[]')
         else:
             parser.error("Error parsing target")
-        try:    opts.target_port = int(opts.target_port)
-        except: parser.error("Error parsing target port")
+
+        try:
+            opts.target_port = int(opts.target_port)
+        except ValueError:
+            parser.error("Error parsing target port")
 
     if len(args) > 0 and opts.wrap_cmd == None:
         parser.error("Too many arguments")

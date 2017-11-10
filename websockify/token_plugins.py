@@ -32,7 +32,7 @@ class ReadOnlyTokenFile(BasePlugin):
                     try:
                         tok, target = line.split(': ')
                         self._targets[tok] = target.strip().rsplit(':', 1)
-                    except:
+                    except ValueError:
                         print >>sys.stderr, "Syntax error in %s on line %d" % (self.source, index)
                 index += 1
 

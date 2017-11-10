@@ -22,8 +22,11 @@ if sys.hexversion > 0x3000000:
     s2b = lambda s: s.encode('latin_1')
 else:
     s2b = lambda s: s      # No-op
-try:    from http.server import SimpleHTTPRequestHandler
-except: from SimpleHTTPServer import SimpleHTTPRequestHandler
+
+try:
+    from http.server import SimpleHTTPRequestHandler
+except ImportError:
+    from SimpleHTTPServer import SimpleHTTPRequestHandler
 
 # Degraded functionality if these imports are missing
 for mod, msg in [('ssl', 'TLS/SSL/wss is disabled'),

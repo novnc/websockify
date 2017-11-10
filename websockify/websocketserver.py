@@ -10,8 +10,10 @@ Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 import sys
 
 # python 3.0 differences
-try:    from http.server import BaseHTTPRequestHandler, HTTPServer
-except: from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+try:
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+except ImportError:
+    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 

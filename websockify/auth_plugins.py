@@ -92,12 +92,5 @@ class ClientCertCNAuth(object):
             self.source = src.split()
 
     def authenticate(self, headers, target_host, target_port):
-        try:
-            if (headers.get('SSL_CLIENT_S_DN_CN') not in self.source):
-                raise AuthenticationError(response_code=403)
-        except AuthenticationError:
-            # re-raise AuthenticationError (raised by common name not in configured source list)
-            raise
-        except:
-            # deny access in case any error occurs (i.e. no data provided)
+        if headers.get('SSL_CLIENT_S_DN_CN', None) not in self.source:
             raise AuthenticationError(response_code=403)
