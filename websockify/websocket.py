@@ -342,10 +342,11 @@ class WebSocket(object):
     def recv(self):
         """Read data from the WebSocket.
 
-        This will return any available data on the socket. If the
-        socket is closed then None will be returned. The reason for
-        the close is found in the 'close_code' and 'close_reason'
-        properties.
+        This will return any available data on the socket (which may
+        be the empty string if the peer sent an empty message or
+        messages). If the socket is closed then None will be
+        returned. The reason for the close is found in the
+        'close_code' and 'close_reason' properties.
 
         Unlike recvmsg() this method may return data from more than one
         WebSocket message. It is however not guaranteed to return all
@@ -360,10 +361,11 @@ class WebSocket(object):
     def recvmsg(self):
         """Read a single message from the WebSocket.
 
-        This will return a single WebSocket message from the socket.
-        If the socket is closed then None will be returned.  The
-        reason for the close is found in the 'close_code' and
-        'close_reason' properties.
+        This will return a single WebSocket message from the socket
+        (which will be the empty string if the peer sent an empty
+        message). If the socket is closed then None will be
+        returned. The reason for the close is found in the
+        'close_code' and 'close_reason' properties.
 
         Unlike recv() this method will not return data from more than
         one WebSocket message. Callers should continue calling
