@@ -380,7 +380,16 @@ class WebSockifyServer(object):
             raise Exception("No 'ssl' module and SSL-only specified")
         if self.daemon and not resource:
             raise Exception("Module 'resource' required to daemonize")
-
+        # Systemd or upstart socket detection
+        if os.environ.get('LISTEN_PID', None) == str(os.getpid()):
+            self.listen_host = "socketfromfd"
+            self.listen_port = 3
+            self.msg("Detected systemd socket activation, listening fd %s", self.listen_port)
+        elif os.environ.get('UPSTART_EVENTS', None) == "socket":
+            self.listen_host = "socketfromfd"
+            self.listen_port = int(os.environ.get('UPSTART_FDS'))
+            self.msg("Detected upstart socket activation, listening fd %s", self.listen_port)
+            
         # Show configuration
         self.msg("WebSocket server settings:")
         if self.listen_fd != None:
@@ -436,8 +445,13 @@ class WebSockifyServer(object):
             raise Exception("SSL only supported in connect mode (for now)")
         if not connect:
             flags = flags | socket.AI_PASSIVE
-
-        if not unix_socket:
+        
+        # Starting systemd or upstart socket
+        if host == "socketfromfd":
+            sock = socket.fromfd(port, socket.AF_INET, socket.SOCK_STREAM)
+            if sys.version_info.major == 2:
+                sock = socket.socket(_sock=sock)
+        elif not unix_socket:
             addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
                     socket.IPPROTO_TCP, flags)
             if not addrs:
