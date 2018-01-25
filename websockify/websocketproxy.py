@@ -231,7 +231,7 @@ Traffic Legend:
             if target in ins:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
-                if buf is None:
+                if len(buf) == 0:
                     if self.verbose:
                         self.log_message("%s:%s: Target closed connection",
                                 self.server.target_host, self.server.target_port)
