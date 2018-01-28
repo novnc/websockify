@@ -169,8 +169,7 @@ ws_ctx_t *ws_socket_ssl(ws_ctx_t *ctx, int socket, char * certfile, char * keyfi
         fatal(msg);
     }
 
-    if (SSL_CTX_use_certificate_file(ctx->ssl_ctx, certfile,
-                                     SSL_FILETYPE_PEM) <= 0) {
+    if (SSL_CTX_use_certificate_chain_file(ctx->ssl_ctx, certfile) <= 0) {
         sprintf(msg, "Unable to load certificate file %s\n", certfile);
         fatal(msg);
     }
