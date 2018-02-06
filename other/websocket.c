@@ -22,7 +22,7 @@
 #include <fcntl.h>  // daemonizing
 #include <openssl/err.h>
 #include <openssl/ssl.h>
-#include <resolv.h>      /* base64 encode/decode */
+#include <openssl/bio.h> /* base64 encode/decode */
 #include <openssl/md5.h> /* md5 hash */
 #include <openssl/sha.h> /* sha1 hash */
 #include "websocket.h"
@@ -208,6 +208,72 @@ void ws_socket_free(ws_ctx_t *ctx) {
     }
 }
 
+int ws_b64_ntop(const unsigned char const * src, size_t srclen, char * dst, size_t dstlen) {
+    int len = 0;
+    int total_len = 0;
+
+    BIO *buff, *b64f;
+    BUF_MEM *ptr;
+
+    b64f = BIO_new(BIO_f_base64());
+    buff = BIO_new(BIO_s_mem());
+    buff = BIO_push(b64f, buff);
+
+    BIO_set_flags(buff, BIO_FLAGS_BASE64_NO_NL);
+    BIO_set_close(buff, BIO_CLOSE);
+    do {
+        len = BIO_write(buff, src + total_len, srclen - total_len);
+        if (len > 0)
+            total_len += len;
+    } while (len && BIO_should_retry(buff));
+
+    BIO_flush(buff);
+
+    BIO_get_mem_ptr(buff, &ptr);
+    len = ptr->length;
+
+    memcpy(dst, ptr->data, dstlen < len ? dstlen : len);
+    dst[dstlen < len ? dstlen : len] = '\0';
+
+    BIO_free_all(buff);
+
+    if (dstlen < len)
+        return -1;
+
+    return len;
+}
+
+int ws_b64_pton(const char const * src, unsigned char * dst, size_t dstlen) {
+    int len = 0;
+    int total_len = 0;
+    int pending = 0;
+
+    BIO *buff, *b64f;
+
+    b64f = BIO_new(BIO_f_base64());
+    buff = BIO_new_mem_buf(src, -1);
+    buff = BIO_push(b64f, buff);
+
+    BIO_set_flags(buff, BIO_FLAGS_BASE64_NO_NL);
+    BIO_set_close(buff, BIO_CLOSE);
+    do {
+        len = BIO_read(buff, dst + total_len, dstlen - total_len);
+        if (len > 0)
+            total_len += len;
+    } while (len && BIO_should_retry(buff));
+
+    dst[total_len] = '\0';
+
+    pending = BIO_ctrl_pending(buff);
+
+    BIO_free_all(buff);
+
+    if (pending)
+        return -1;
+
+    return len;
+}
+
 /* ------------------------------------------------------- */
 
 
@@ -215,7 +281,7 @@ int encode_hixie(u_char const *src, size_t srclength,
                  char *target, size_t targsize) {
     int sz = 0, len = 0;
     target[sz++] = '\x00';
-    len = b64_ntop(src, srclength, target+sz, targsize-sz);
+    len = ws_b64_ntop(src, srclength, target+sz, targsize-sz);
     if (len < 0) {
         return len;
     }
@@ -250,7 +316,7 @@ int decode_hixie(char *src, size_t srclength,
         /* We may have more than one frame */
         end = (char *)memchr(start, '\xff', srclength);
         *end = '\x00';
-        len = b64_pton(start, target+retlen, targsize-retlen);
+        len = ws_b64_pton(start, target+retlen, targsize-retlen);
         if (len < 0) {
             return len;
         }
@@ -296,7 +362,7 @@ int encode_hybi(u_char const *src, size_t srclength,
         //payload_offset = 10;
     }
 
-    len = b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+    len = ws_b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
     
     if (len < 0) {
         return len;
@@ -393,7 +459,7 @@ int decode_hybi(unsigned char *src, size_t srclength,
         }
 
         // base64 decode the data
-        len = b64_pton((const char*)payload, target+target_offset, targsize);
+        len = ws_b64_pton((const char*)payload, target+target_offset, targsize);
 
         // Restore the first character of the next frame
         payload[payload_length] = save_char;
@@ -563,7 +629,7 @@ static void gen_sha1(headers_t *headers, char *target) {
     SHA1_Update(&c, HYBI_GUID, 36);
     SHA1_Final(hash, &c);
 
-    r = b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
+    r = ws_b64_ntop(hash, sizeof hash, target, HYBI10_ACCEPTHDRLEN);
     //assert(r == HYBI10_ACCEPTHDRLEN - 1);
 }
 
