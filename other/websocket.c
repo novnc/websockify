@@ -861,6 +861,7 @@ void start_server() {
             break;   // Child process exits
         } else {         // parent process
             settings.handler_id += 1;
+            close(csock);
         }
     }
     if (pid == 0) {
