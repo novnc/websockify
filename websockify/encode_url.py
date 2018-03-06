@@ -6,7 +6,7 @@ import hashlib
 import base64
 import datetime
 # Please change the salt for your own project.
-SALT = "Some salt for security. liqun@ncl.sg"
+SALT = "Some salt for security. Please change it in your project. liqun@ncl.sg"
 def qencode(str, create_date=datetime.date.today(), salt=SALT):
     ''' The func encode str, hash it and base64 it.'''
     alg = hashlib.sha256()
@@ -42,10 +42,13 @@ def get_server_from_path(path, is_encoded, valid_daynum=3, salt=SALT):
     path looks like [/qencode(n1.soc.cloud.ncl.sg:5901)] 
     '''
     try:
+        pos = path.rfind('/')
+        if pos == -1:
+            return '', 0
         if is_encoded:
-            str = qdecode(path[1:], valid_daynum, salt)
+            str = qdecode(path[pos+1:], valid_daynum, salt)
         else:
-            str = path[1:]
+            str = path[pos+1:]
         if str == '':
             return '', 0
         phost = ''
@@ -73,6 +76,13 @@ def test_basic():
     assert str == dec
     dec = qdecode(enc, 3, 'test salt1')
     assert dec == ''
+    str = "n1.soc.cloud.ncl.sg:5901:ntechni3"
+    enc = qencode(str)
+    print enc
+    print base64.urlsafe_b64decode(enc)
+    dec = qdecode(enc)
+    assert str == dec
+    assert get_server_from_path('/'+enc, True) == ('n1.soc.cloud.ncl.sg', 5901)
 def main():
     '''The func is the main func.'''
     import sys
