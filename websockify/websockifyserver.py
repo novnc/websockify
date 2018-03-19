@@ -288,6 +288,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         if self.rec:
             self.rec.write("'EOF'];\n")
             self.rec.close()
+        WebSocketRequestHandler.finish(self)
 
     def handle(self):
         # When using run_once, we have a single process, so
