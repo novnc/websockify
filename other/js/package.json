@@ -18,7 +18,6 @@
   "dependencies": {
     "ws": ">=0.4.27",
     "optimist": "latest",
-    "mime-types" : "latest",
-    "policyfile": "latest"
+    "mime-types" : "latest"
   }
 }
