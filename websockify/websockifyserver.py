@@ -142,7 +142,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         if bufs:
             for buf in bufs:
                 if self.rec:
-                    self.rec.write("%s,\n" % repr("{%s{" % tdelta + buf))
+                    self.rec.write("{},\n".format("{{{}{}{{".format(tdelta, buf)))
                 self.send_parts.append(buf)
 
         # Flush any previously queued data
@@ -189,7 +189,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
             self.print_traffic("}")
 
             if self.rec:
-                self.rec.write("%s,\n" % repr("}%s}" % tdelta + buf))
+                self.rec.write("{},\n".format("}}{}{}}}".format(tdelta, buf)))
 
             bufs.append(buf)
 
