@@ -36,9 +36,9 @@ URL_PATH_DEF_VNCSERVER = True
 # Whether is URL path encoded
 URL_PATH_ENCODED = False
 # URL valid day number after creating.
-URL_VALID_DAYNUM = 3
+URL_VALID_DAYNUM = 1
 # Salt used to valide the hash of the URL.
-URL_SALT = 'Some salt used to hash the URL for integrity validation. liqun@ncl.sg'
+URL_SALT = "Some salt for security. Please change it in your project. liqun@ncl.sg"
 
 class ProxyRequestHandler(websockifyserver.WebSockifyRequestHandler):
 
@@ -114,7 +114,9 @@ Traffic Legend:
             (ptarget_host, ptarget_port) = encode_url.get_server_from_path(\
                 self.path, URL_PATH_ENCODED, URL_VALID_DAYNUM, URL_SALT)
             if ptarget_port == 0:
-                raise self.server.EClose('Cannot decode path.') 
+                print 'Error: URL encode error[%s]' % ptarget_host
+                return
+                #raise self.server.EClose('Cannot decode path.') 
             msg = "connecting to: %s:%s" % (ptarget_host, ptarget_port)
         else:
             msg = "connecting to: %s:%s" % (
