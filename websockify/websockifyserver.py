@@ -97,6 +97,20 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         if self.logger is None:
             self.logger = WebSockifyServer.get_logger()
 
+        if sys.version_info[0] < 3:
+	    self.extensions_map = {
+                '.manifest': 'text/cache-manifest',
+                '.html': 'text/html',
+                '.png': 'image/png',
+                '.jpg': 'image/jpg',
+                '.svg': 'image/svg+xml',
+                '.css': 'text/css',
+                '.js': 'application/x-javascript',
+                '.json': 'application/json',
+                '.xml': 'application/xml',
+                '': 'application/octet-stream', # Default
+	    }
+
         WebSocketRequestHandler.__init__(self, req, addr, server)
 
     def log_message(self, format, *args):
