@@ -12,7 +12,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import os, sys, time, errno, signal, socket, select, logging
+import os, sys, time, errno, signal, socket, select, logging, mimetypes
 import multiprocessing
 
 # Imports that vary by python version
@@ -97,6 +97,8 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         if self.logger is None:
             self.logger = WebSockifyServer.get_logger()
 
+        if sys.version_info[0] == '2':
+            self.extensions_map = mimetypes.types_map
         WebSocketRequestHandler.__init__(self, req, addr, server)
 
     def log_message(self, format, *args):
