@@ -86,6 +86,9 @@ and websockify as a browser telnet client (`wstelnet.html`).
 
 These are not necessary for the basic operation.
 
+* Muliti-vncserver: Use path in URL to pass VNC server address:port for
+  connecting different VNC servers.
+
 * Daemonizing: When the `-D` option is specified, websockify runs
   in the background as a daemon process.
 
