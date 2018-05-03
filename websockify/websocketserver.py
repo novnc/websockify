@@ -17,6 +17,7 @@ except ImportError:
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 
+
 class WebSocketRequestHandler(BaseHTTPRequestHandler):
     """WebSocket request handler base class.
 
@@ -34,6 +35,13 @@ class WebSocketRequestHandler(BaseHTTPRequestHandler):
 
     def __init__(self, request, client_address, server):
         BaseHTTPRequestHandler.__init__(self, request, client_address, server)
+
+    def address_string(self, show_proxied=False):
+        immediate_client = super(WebSocketRequestHandler, self).address_string()
+        fwd_for = self.headers.get("X-Forwarded-For", None)
+        if show_proxied and fwd_for:
+            return "{},{}".format(fwd_for, immediate_client)
+        return immediate_client
 
     def handle_one_request(self):
         """Extended request handler

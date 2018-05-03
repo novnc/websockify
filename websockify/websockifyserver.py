@@ -88,10 +88,11 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         self.daemon = getattr(server, "daemon", False)
         self.record = getattr(server, "record", False)
         self.run_once = getattr(server, "run_once", False)
-        self.rec        = None
+        self.rec = None
         self.handler_id = getattr(server, "handler_id", False)
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
+        self.log_proxied_client = getattr(server, "log_proxied_client", False)
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
@@ -99,12 +100,16 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
 
         WebSocketRequestHandler.__init__(self, req, addr, server)
 
-    def log_message(self, format, *args):
-        self.logger.info("%s - - [%s] %s" % (self.address_string(), self.log_date_time_string(), format % args))
-
     #
     # WebSocketRequestHandler logging/output functions
     #
+
+    def log_message(self, format, *args):
+        self.logger.info(
+            "%s - - [%s] %s" % (
+                self.address_string(show_proxied=self.log_proxied_client),
+                self.log_date_time_string(),
+                format % args))
 
     def print_traffic(self, token="."):
         """ Show traffic flow mode. """
@@ -216,7 +221,13 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
 
     def handle_upgrade(self):
         # ensure connection is authorized, and determine the target
-        self.validate_connection()
+        try:
+            self.validate_connection()
+        except WebSockifyServer.EClose as e:
+            # Add info on remote client and re-raise
+            if self.log_proxied_client:
+                e.orig_client = self.address_string(show_proxied=self.log_proxied_client)
+            raise
 
         WebSocketRequestHandler.handle_upgrade(self)
 
@@ -332,7 +343,8 @@ class WebSockifyServer(object):
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
-            tcp_keepintvl=None):
+            tcp_keepintvl=None,
+            log_proxied_client=False):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
@@ -360,6 +372,8 @@ class WebSockifyServer(object):
         self.tcp_keepcnt    = tcp_keepcnt
         self.tcp_keepidle   = tcp_keepidle
         self.tcp_keepintvl  = tcp_keepintvl
+
+        self.log_proxied_client = log_proxied_client
 
         # keyfile path must be None if not specified
         self.key = None
@@ -411,6 +425,8 @@ class WebSockifyServer(object):
             self.msg("  - Backgrounding (daemon)")
         if self.record:
             self.msg("  - Recording to '%s.*'", self.record)
+        if self.log_proxied_client:
+            self.msg("  - Logging IP of intermediate proxies")
 
     #
     # WebSockifyServer static methods
@@ -671,11 +687,17 @@ class WebSockifyServer(object):
         try:
             try:
                 client = self.do_handshake(startsock, address)
-            except self.EClose:
+            except self.EClose as e:
                 _, exc, _ = sys.exc_info()
                 # Connection was not a WebSockets connection
                 if exc.args[0]:
-                    self.msg("%s: %s" % (address[0], exc.args[0]))
+                    orig_client = getattr(e, 'orig_client', None)
+                    if orig_client:
+                        # this allowes to log IP of possibly
+                        # proxied clients
+                        self.msg("%s: %s" % (orig_client, exc.args[0]))
+                    else:
+                        self.msg("%s: %s" % (address[0], exc.args[0]))
             except WebSockifyServer.Terminate:
                 raise
             except Exception:

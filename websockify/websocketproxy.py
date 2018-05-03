@@ -457,6 +457,9 @@ def websockify_init():
     parser.add_option("--log-file", metavar="FILE",
             dest="log_file",
             help="File where logs will be saved")
+    parser.add_option("--log-proxied-client", action="store_true",
+            help="prepends the content of the X-Forwarded-For "
+            "header (if present) to the immediate client's IP in logs")
 
 
     (opts, args) = parser.parse_args()
