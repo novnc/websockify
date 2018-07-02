@@ -346,7 +346,7 @@ class WebSockifyServer(object):
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
-            tcp_keepintvl=None):
+            tcp_keepintvl=None, ssl_ciphers=None, ssl_options=0):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
@@ -356,6 +356,8 @@ class WebSockifyServer(object):
         self.listen_port    = listen_port
         self.prefer_ipv6    = source_is_ipv6
         self.ssl_only       = ssl_only
+        self.ssl_ciphers    = ssl_ciphers
+        self.ssl_options    = ssl_options
         self.verify_client  = verify_client
         self.daemon         = daemon
         self.run_once       = run_once
@@ -572,6 +574,9 @@ class WebSockifyServer(object):
                     and callable(ssl.create_default_context)):
                     # create new-style SSL wrapping for extended features
                     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                    if self.ssl_ciphers is not None:
+                        context.set_ciphers(self.ssl_ciphers)
+                    context.options = self.ssl_options
                     context.load_cert_chain(certfile=self.cert, keyfile=self.key)
                     if self.verify_client:
                         context.verify_mode = ssl.CERT_REQUIRED

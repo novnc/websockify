@@ -270,6 +270,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
         class fake_create_default_context():
             def __init__(self, purpose):
                 self.verify_mode = None
+                self.options = 0
             def load_cert_chain(self, certfile, keyfile):
                 pass
             def set_default_verify_paths(self):
@@ -289,6 +290,91 @@ class WebSockifyServerTestCase(unittest.TestCase):
         self.assertRaises(
             websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
+
+    def test_do_handshake_ssl_sets_ciphers(self):
+        test_ciphers = 'TEST-CIPHERS-1:TEST-CIPHER-2'
+
+        class FakeHandler(object):
+            def __init__(self, *args, **kwargs):
+                pass
+
+        server = self._get_server(handler_class=FakeHandler, daemon=True, 
+                                  idle_timeout=1, ssl_ciphers=test_ciphers)
+        sock = FakeSocket("\x16some ssl data")
+
+        def fake_select(rlist, wlist, xlist, timeout=None):
+            return ([sock], [], [])
+
+        class fake_create_default_context():
+            CIPHERS = ''
+            def __init__(self, purpose):
+                self.verify_mode = None
+                self.options = 0
+            def load_cert_chain(self, certfile, keyfile):
+                pass
+            def set_default_verify_paths(self):
+                pass
+            def load_verify_locations(self, cafile):
+                pass
+            def wrap_socket(self, *args, **kwargs):
+                pass
+            def set_ciphers(self, ciphers_to_set):
+                fake_create_default_context.CIPHERS = ciphers_to_set
+
+        self.stubs.Set(select, 'select', fake_select)
+        if (hasattr(ssl, 'create_default_context')):
+            # for recent versions of python
+            self.stubs.Set(ssl, 'create_default_context', fake_create_default_context)
+            server.do_handshake(sock, '127.0.0.1')
+            self.assertEqual(fake_create_default_context.CIPHERS, test_ciphers)
+        else:
+            # for fallback for old versions of python
+            # not supperted, nothing to test
+            pass
+
+    def test_do_handshake_ssl_sets_opions(self):
+        test_options = 0xCAFEBEEF
+
+        class FakeHandler(object):
+            def __init__(self, *args, **kwargs):
+                pass
+
+        server = self._get_server(handler_class=FakeHandler, daemon=True, 
+                                  idle_timeout=1, ssl_options=test_options)
+        sock = FakeSocket("\x16some ssl data")
+
+        def fake_select(rlist, wlist, xlist, timeout=None):
+            return ([sock], [], [])
+
+        class fake_create_default_context(object):
+            OPTIONS = 0
+            def __init__(self, purpose):
+                self.verify_mode = None
+                self._options = 0
+            def load_cert_chain(self, certfile, keyfile):
+                pass
+            def set_default_verify_paths(self):
+                pass
+            def load_verify_locations(self, cafile):
+                pass
+            def wrap_socket(self, *args, **kwargs):
+                pass
+            def get_options(self):
+                return self._options
+            def set_options(self, val):
+                fake_create_default_context.OPTIONS = val
+            options = property(get_options, set_options)
+
+        self.stubs.Set(select, 'select', fake_select)
+        if (hasattr(ssl, 'create_default_context')):
+            # for recent versions of python
+            self.stubs.Set(ssl, 'create_default_context', fake_create_default_context)
+            server.do_handshake(sock, '127.0.0.1')
+            self.assertEqual(fake_create_default_context.OPTIONS, test_options)
+        else:
+            # for fallback for old versions of python
+            # not supperted, nothing to test
+            pass
 
     def test_fallback_sigchld_handler(self):
         # TODO(directxman12): implement this
