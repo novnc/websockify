@@ -88,7 +88,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 return ("some host", "some port")
 
         host, port = self.handler.get_target(
-            TestPlugin(None), self.handler.path)
+            TestPlugin(None))
 
         self.assertEqual(host, "some host")
         self.assertEqual(port, "some port")
@@ -99,7 +99,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 return ("unix_socket", "/tmp/socket")
 
         _, socket = self.handler.get_target(
-            TestPlugin(None), self.handler.path)
+            TestPlugin(None))
 
         self.assertEqual(socket, "/tmp/socket")
 
@@ -109,7 +109,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 return None
 
         self.assertRaises(FakeServer.EClose, self.handler.get_target,
-            TestPlugin(None), "https://localhost:6080/websockify?token=blah")
+            TestPlugin(None))
 
     def test_token_plugin(self):
         class TestPlugin(token_plugins.BasePlugin):

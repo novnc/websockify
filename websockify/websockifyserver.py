@@ -93,6 +93,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
         self.web_auth = getattr(server, "web_auth", False)
+        self.host_token = getattr(server, "host_token", False)
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:

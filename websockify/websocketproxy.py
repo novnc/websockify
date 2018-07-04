@@ -135,22 +135,30 @@ Traffic Legend:
                     self.log_message("%s:%s: Closed target",
                             self.server.target_host, self.server.target_port)
 
-    def get_target(self, target_plugin, path):
+    def get_target(self, target_plugin):
         """
-        Parses the path, extracts a token, and looks up a target
-        for that token using the token plugin. Sets
-        target_host and target_port if successful
+        Gets a token from either the path or the host,
+        depending on --host-token, and looks up a target
+        for that token using the token plugin. Used by
+        validate_connection() to set target_host and target_port.
         """
         # The files in targets contain the lines
         # in the form of token: host:port
 
-        # Extract the token parameter from url
-        args = parse_qs(urlparse(path)[4]) # 4 is the query from url
+        if self.host_token:
+            token = self.headers.get('Host')
 
-        if not 'token' in args or not len(args['token']):
+        else:
+            # Extract the token parameter from url
+            args = parse_qs(urlparse(self.path)[4]) # 4 is the query from url
+
+            if 'token' in args and len(args['token']):
+                token = args['token'][0].rstrip('\n')
+            else:
+                token = None
+
+        if token is None:
             raise self.server.EClose("Token not present")
-
-        token = args['token'][0].rstrip('\n')
 
         result_pair = target_plugin.lookup(token)
 
@@ -263,6 +271,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         self.heartbeat      = kwargs.pop('heartbeat', None)
 
         self.token_plugin = kwargs.pop('token_plugin', None)
+        self.host_token = kwargs.pop('host_token', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
 
         # Last 3 timestamps command was run
@@ -451,6 +460,9 @@ def websockify_init():
     parser.add_option("--token-source", default=None, metavar="ARG",
                       help="an argument to be passed to the token plugin "
                            "on instantiation")
+    parser.add_option("--host-token", action="store_true",
+                      help="use the host HTTP header as token instead of the "
+                           "token URL query parameter")
     parser.add_option("--auth-plugin", default=None, metavar="CLASS",
                       help="use a Python class, usually one from websockify.auth_plugins, "
                            "such as BasicHTTPAuth, to determine if a connection is allowed")
@@ -516,6 +528,9 @@ def websockify_init():
 
     if opts.token_source and not opts.token_plugin:
         parser.error("You must use --token-plugin to use --token-source")
+
+    if opts.host_token and not opts.token_plugin:
+        parser.error("You must use --token-plugin to use --host-token")
 
     if opts.auth_source and not opts.auth_plugin:
         parser.error("You must use --auth-plugin to use --auth-source")
