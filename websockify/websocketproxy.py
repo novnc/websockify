@@ -11,7 +11,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess, logging, errno
+import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl
 try:
     from socketserver import ForkingMixIn
 except ImportError:
@@ -382,6 +382,53 @@ def _subprocess_setup():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
+try :
+    # First try SSL options for Python 3.4 and above
+    SSL_OPTIONS = {
+        'default': ssl.OP_ALL,
+        'tlsv1_1': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+        ssl.OP_NO_TLSv1,
+        'tlsv1_2': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+        ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1,
+        'tlsv1_3': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+        ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_2,
+    }
+except AttributeError:
+    try:
+        # Python 3.3 uses a different scheme for SSL options
+        # tlsv1_3 is not supported on older Python versions
+        SSL_OPTIONS = {
+            'default': ssl.OP_ALL,
+            'tlsv1_1': ssl.PROTOCOL_TLSv1 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+            ssl.OP_NO_TLSv1,
+            'tlsv1_2': ssl.PROTOCOL_TLSv1 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+            ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1,
+        }
+    except AttributeError:
+        # Python 2.6 does not support TLS v1.2, and uses a different scheme
+        # for SSL options
+        SSL_OPTIONS = {
+            'default': ssl.PROTOCOL_SSLv23,
+            'tlsv1_1': ssl.PROTOCOL_TLSv1,
+        }
+
+def select_ssl_version(version):
+    """Returns SSL options for the most secure TSL version available on this
+    Python version"""
+    if version in SSL_OPTIONS:
+        return SSL_OPTIONS[version]
+    else:
+        # It so happens that version names sorted lexicographically form a list
+        # from the least to the most secure
+        keys = list(SSL_OPTIONS.keys())
+        keys.sort() 
+        fallback = keys[-1]
+        logger = logging.getLogger(WebSocketProxy.log_prefix)
+        logger.warn("TLS version %s unsupported. Falling back to %s",
+                    version, fallback)
+
+        return SSL_OPTIONS[fallback]
+
 def websockify_init():
     # Setup basic logging to stderr.
     logger = logging.getLogger(WebSocketProxy.log_prefix)
@@ -430,6 +477,12 @@ def websockify_init():
             help="file of concatenated certificates of authorities trusted "
             "for validating clients (only effective with --verify-client). "
             "If omitted, system default list of CAs is used.")
+    parser.add_option("--ssl-version", type="choice", default="default",
+            choices=["default", "tlsv1_1", "tlsv1_2", "tlsv1_3"], action="store",
+            help="minimum TLS version to use (default, tlsv1_1, tlsv1_2, tlsv1_3)")
+    parser.add_option("--ssl-ciphers", action="store",
+            help="list of ciphers allowed for connection. For a list of "
+            "supported ciphers run `openssl ciphers`")
     parser.add_option("--unix-target",
             help="connect to unix socket target", metavar="FILE")
     parser.add_option("--inetd",
@@ -479,6 +532,9 @@ def websockify_init():
                  "such as /dev/log, or a UDP host:port pair.")
 
     (opts, args) = parser.parse_args()
+
+    opts.ssl_options = select_ssl_version(opts.ssl_version)
+    del opts.ssl_version
 
     if opts.log_file:
         # Setup logging to user-specified file.
