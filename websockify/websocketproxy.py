@@ -445,20 +445,20 @@ def websockify_init():
             "directory containing configuration files of this form "
             "(DEPRECATED: use `--token-plugin TokenFile --token-source "
             " path/to/token/file` instead)")
-    parser.add_option("--token-plugin", default=None, metavar="PLUGIN",
-                      help="use the given Python class to process tokens "
-                           "into host:port pairs")
+    parser.add_option("--token-plugin", default=None, metavar="CLASS",
+                      help="use a Python class, usually one from websockify.token_plugins, "
+                           "such as TokenFile, to process tokens into host:port pairs")
     parser.add_option("--token-source", default=None, metavar="ARG",
-                      help="an argument to be passed to the token plugin"
+                      help="an argument to be passed to the token plugin "
                            "on instantiation")
-    parser.add_option("--auth-plugin", default=None, metavar="PLUGIN",
-                      help="use the given Python class to determine if "
-                           "a connection is allowed")
+    parser.add_option("--auth-plugin", default=None, metavar="CLASS",
+                      help="use a Python class, usually one from websockify.auth_plugins, "
+                           "such as BasicHTTPAuth, to determine if a connection is allowed")
     parser.add_option("--auth-source", default=None, metavar="ARG",
-                      help="an argument to be passed to the auth plugin"
+                      help="an argument to be passed to the auth plugin "
                            "on instantiation")
-    parser.add_option("--heartbeat", type=int, default=0,
-            help="send a ping to the client every HEARTBEAT seconds")
+    parser.add_option("--heartbeat", type=int, default=0, metavar="INTERVAL",
+            help="send a ping to the client every INTERVAL seconds")
     parser.add_option("--log-file", metavar="FILE",
             dest="log_file",
             help="File where logs will be saved")
