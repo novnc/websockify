@@ -373,19 +373,18 @@ def _subprocess_setup():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-def logger_init():
+def websockify_init():
+    # Setup basic logging to stderr.
     logger = logging.getLogger(WebSocketProxy.log_prefix)
     logger.propagate = False
     logger.setLevel(logging.INFO)
-    h = logging.StreamHandler()
-    h.setLevel(logging.DEBUG)
-    h.setFormatter(logging.Formatter("%(message)s"))
-    logger.addHandler(h)
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.setLevel(logging.DEBUG)
+    log_formatter = logging.Formatter("%(message)s")
+    stderr_handler.setFormatter(log_formatter)
+    logger.addHandler(stderr_handler)
 
-
-def websockify_init():
-    logger_init()
-
+    # Setup optparse.
     usage = "\n    %prog [options]"
     usage += " [source_addr:]source_port [target_addr:target_port]"
     usage += "\n    %prog [options]"
@@ -463,21 +462,57 @@ def websockify_init():
     parser.add_option("--log-file", metavar="FILE",
             dest="log_file",
             help="File where logs will be saved")
-
+    parser.add_option("--syslog", default=None, metavar="SERVER",
+            help="Log to syslog server. SERVER can be local socket, "
+                 "such as /dev/log, or a UDP host:port pair.")
 
     (opts, args) = parser.parse_args()
 
     if opts.log_file:
+        # Setup logging to user-specified file.
         opts.log_file = os.path.abspath(opts.log_file)
-        handler = logging.FileHandler(opts.log_file)
-        handler.setLevel(logging.DEBUG)
-        handler.setFormatter(logging.Formatter("%(message)s"))
-        logging.getLogger(WebSocketProxy.log_prefix).addHandler(handler)
+        log_file_handler = logging.FileHandler(opts.log_file)
+        log_file_handler.setLevel(logging.DEBUG)
+        log_file_handler.setFormatter(log_formatter)
+        logger.addHandler(log_file_handler)
 
     del opts.log_file
 
+    if opts.syslog:
+        # Determine how to connect to syslog...
+        if opts.syslog.count(':'):
+            # User supplied a host:port pair.
+            syslog_host, syslog_port = opts.syslog.rsplit(':', 1)
+            try:
+                syslog_port = int(syslog_port)
+            except ValueError:
+                parser.error("Error parsing syslog port")
+            syslog_dest = (syslog_host, syslog_port)
+        else:
+            # User supplied a local socket file.
+            syslog_dest = os.path.abspath(opts.syslog)
+
+        from logging.handlers import SysLogHandler
+
+        # Determine syslog facility.
+        if opts.daemon:
+            syslog_facility = SysLogHandler.LOG_DAEMON
+        else:
+            syslog_facility = SysLogHandler.LOG_USER
+
+        # Start logging to syslog.
+        syslog_handler = SysLogHandler(address=syslog_dest, facility=syslog_facility)
+        syslog_handler.setLevel(logging.DEBUG)
+        syslog_handler.setFormatter(log_formatter)
+        logger.addHandler(syslog_handler)
+
+    del opts.syslog
+
     if opts.verbose:
-        logging.getLogger(WebSocketProxy.log_prefix).setLevel(logging.DEBUG)
+        logger.setLevel(logging.DEBUG)
+
+
+    # Validate options.
 
     if opts.token_source and not opts.token_plugin:
         parser.error("You must use --token-plugin to use --token-source")
