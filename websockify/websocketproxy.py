@@ -56,38 +56,42 @@ Traffic Legend:
         self.end_headers()
     
     def validate_connection(self):
-        if self.server.token_plugin:
-            host, port = self.get_target(self.server.token_plugin, self.path)
-            if host == 'unix_socket':
-                self.server.unix_target = port
+        if not self.server.token_plugin:
+            return
 
-            else:
-                self.server.target_host = host
-                self.server.target_port = port
+        host, port = self.get_target(self.server.token_plugin)
+        if host == 'unix_socket':
+            self.server.unix_target = port
 
-        if self.server.auth_plugin:
+        else:
+            self.server.target_host = host
+            self.server.target_port = port
+
+    def auth_connection(self):
+        if not self.server.auth_plugin:
+            return
+
+        try:
+            # get client certificate data
+            client_cert_data = self.request.getpeercert()
+            # extract subject information
+            client_cert_subject = client_cert_data['subject']
+            # flatten data structure
+            client_cert_subject = dict([x[0] for x in client_cert_subject])
+            # add common name to headers (apache +StdEnvVars style)
+            self.headers['SSL_CLIENT_S_DN_CN'] = client_cert_subject['commonName']
+        except (TypeError, AttributeError, KeyError):
+            # not a SSL connection or client presented no certificate with valid data
+            pass
             
-            try:
-                # get client certificate data
-                client_cert_data = self.request.getpeercert()
-                # extract subject information
-                client_cert_subject = client_cert_data['subject']
-                # flatten data structure
-                client_cert_subject = dict([x[0] for x in client_cert_subject])
-                # add common name to headers (apache +StdEnvVars style)
-                self.headers['SSL_CLIENT_S_DN_CN'] = client_cert_subject['commonName']
-            except (TypeError, AttributeError, KeyError):
-                # not a SSL connection or client presented no certificate with valid data
-                pass
-                
-            try:
-                self.server.auth_plugin.authenticate(
-                    headers=self.headers, target_host=self.server.target_host,
-                    target_port=self.server.target_port)
-            except auth.AuthenticationError:
-                ex = sys.exc_info()[1]
-                self.send_auth_error(ex)
-                raise
+        try:
+            self.server.auth_plugin.authenticate(
+                headers=self.headers, target_host=self.server.target_host,
+                target_port=self.server.target_port)
+        except auth.AuthenticationError:
+            ex = sys.exc_info()[1]
+            self.send_auth_error(ex)
+            raise
 
     def new_websocket_client(self):
         """
@@ -424,6 +428,8 @@ def websockify_init():
             help="inetd mode, receive listening socket from stdin", action="store_true")
     parser.add_option("--web", default=None, metavar="DIR",
             help="run webserver on same port. Serve files from DIR.")
+    parser.add_option("--web-auth", action="store_true",
+            help="require authentication to access webserver.")
     parser.add_option("--wrap-mode", default="exit", metavar="MODE",
             choices=["exit", "ignore", "respawn"],
             help="action to take when the wrapped program exits "
@@ -478,6 +484,12 @@ def websockify_init():
 
     if opts.auth_source and not opts.auth_plugin:
         parser.error("You must use --auth-plugin to use --auth-source")
+
+    if opts.web_auth and not opts.auth_plugin:
+        parser.error("You must use --auth-plugin to use --web-auth")
+
+    if opts.web_auth and not opts.web:
+        parser.error("You must use --web to use --web-auth")
 
 
     # Transform to absolute path as daemon may chdir

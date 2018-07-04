@@ -40,35 +40,41 @@ class BasicHTTPAuth(object):
         auth_header = headers.get('Authorization')
         if auth_header:
             if not auth_header.startswith('Basic '):
-                raise AuthenticationError(response_code=403)
+                self.auth_error()
 
             try:
                 user_pass_raw = base64.b64decode(auth_header[6:])
             except TypeError:
-                raise AuthenticationError(response_code=403)
+                self.auth_error()
 
             try:
                 # http://stackoverflow.com/questions/7242316/what-encoding-should-i-use-for-http-basic-authentication
                 user_pass_as_text = user_pass_raw.decode('ISO-8859-1')
             except UnicodeDecodeError:
-                raise AuthenticationError(response_code=403)
+                self.auth_error()
 
             user_pass = user_pass_as_text.split(':', 1)
             if len(user_pass) != 2:
-                raise AuthenticationError(response_code=403)
+                self.auth_error()
 
             if not self.validate_creds(*user_pass):
-                raise AuthenticationError(response_code=403)
+                self.demand_auth()
 
         else:
-            raise AuthenticationError(response_code=401,
-                                      response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
+            self.demand_auth()
 
     def validate_creds(self, username, password):
         if '%s:%s' % (username, password) == self.src:
             return True
         else:
             return False
+
+    def auth_error(self):
+        raise AuthenticationError(response_code=403)
+
+    def demand_auth(self):
+        raise AuthenticationError(response_code=401,
+                                  response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
 
 class ExpectOrigin(object):
     def __init__(self, src=None):

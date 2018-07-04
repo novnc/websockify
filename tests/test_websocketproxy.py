@@ -139,8 +139,8 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.handler.server.target_port = "someport"
 
         self.assertRaises(auth_plugins.AuthenticationError,
-                          self.handler.validate_connection)
+                          self.handler.auth_connection)
 
         self.handler.server.target_host = "someotherhost"
-        self.handler.validate_connection()
+        self.handler.auth_connection()
 

@@ -92,6 +92,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         self.handler_id = getattr(server, "handler_id", False)
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
+        self.web_auth = getattr(server, "web_auth", False)
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
@@ -217,6 +218,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
     def handle_upgrade(self):
         # ensure connection is authorized, and determine the target
         self.validate_connection()
+        self.auth_connection()
 
         WebSocketRequestHandler.handle_upgrade(self)
 
@@ -263,6 +265,10 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
             self.send_close(exc.args[0], exc.args[1])
 
     def do_GET(self):
+        if self.web_auth:
+            # ensure connection is authorized, this seems to apply to list_directory() as well
+            self.auth_connection()
+
         if self.only_upgrade:
             self.send_error(405, "Method Not Allowed")
         else:
@@ -279,10 +285,17 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         raise Exception("WebSocketRequestHandler.new_websocket_client() must be overloaded")
 
     def validate_connection(self):
-        """ Ensure that the connection is a valid connection, and set the target. """
+        """ Ensure that the connection has a valid token, and set the target. """
+        pass
+
+    def auth_connection(self):
+        """ Ensure that the connection is authorized. """
         pass
 
     def do_HEAD(self):
+        if self.web_auth:
+            self.auth_connection()
+
         if self.only_upgrade:
             self.send_error(405, "Method Not Allowed")
         else:
@@ -328,7 +341,7 @@ class WebSockifyServer(object):
             listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', ssl_only=None,
             verify_client=False, cafile=None,
-            daemon=False, record='', web='',
+            daemon=False, record='', web='', web_auth=False,
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
@@ -349,6 +362,7 @@ class WebSockifyServer(object):
         self.idle_timeout   = idle_timeout
         self.traffic        = traffic
         self.file_only      = file_only
+        self.web_auth       = web_auth
 
         self.launch_time    = time.time()
         self.ws_connection  = False
