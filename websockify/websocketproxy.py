@@ -146,7 +146,14 @@ Traffic Legend:
         # in the form of token: host:port
 
         if self.host_token:
+            # Use hostname as token
             token = self.headers.get('Host')
+
+            # Remove port from hostname, as it'll always be the one where
+            # websockify listens (unless something between the client and
+            # websockify is redirecting traffic, but that's beside the point)
+            if token:
+                token = token.partition(':')[0]
 
         else:
             # Extract the token parameter from url
