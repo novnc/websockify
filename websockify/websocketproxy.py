@@ -30,6 +30,15 @@ try:
 except ImportError:
     from cgi import parse_qs
     from urlparse import urlparse
+# Switch to open function let URL path define path.
+# &path=vncserver.domain.name:port
+URL_PATH_DEF_VNCSERVER = True
+# Whether is URL path encoded
+URL_PATH_ENCODED = False
+# URL valid day number after creating.
+URL_VALID_DAYNUM = 1
+# Salt used to valide the hash of the URL.
+URL_SALT = "Some salt for security. Please change it in your project. liqun@ncl.sg"
 
 class ProxyRequestHandler(websockifyserver.WebSockifyRequestHandler):
 
@@ -104,6 +113,15 @@ Traffic Legend:
             msg = "connecting to command: '%s' (port %s)" % (" ".join(self.server.wrap_cmd), self.server.target_port)
         elif self.server.unix_target:
             msg = "connecting to unix socket: %s" % self.server.unix_target
+        elif URL_PATH_DEF_VNCSERVER:
+            import encode_url
+            (ptarget_host, ptarget_port) = encode_url.get_server_from_path(\
+                self.path, URL_PATH_ENCODED, URL_VALID_DAYNUM, URL_SALT)
+            if ptarget_port == 0:
+                print 'Error: URL encode error[%s]' % ptarget_host
+                return
+                #raise self.server.EClose('Cannot decode path.') 
+            msg = "connecting to: %s:%s" % (ptarget_host, ptarget_port)
         else:
             msg = "connecting to: %s:%s" % (
                                     self.server.target_host, self.server.target_port)
@@ -112,7 +130,14 @@ Traffic Legend:
             msg += " (using SSL)"
         self.log_message(msg)
 
-        tsock = websockifyserver.WebSockifyServer.socket(self.server.target_host,
+        if URL_PATH_DEF_VNCSERVER:
+            tsock = websockifyserver.WebSockifyServer.socket(ptarget_host,
+                                                           ptarget_port,
+                                                           connect=True,
+                                                           use_ssl=self.server.ssl_target,
+                                                           unix_socket=self.server.unix_target)
+        else:
+            tsock = websockifyserver.WebSockifyServer.socket(self.server.target_host,
                                                        self.server.target_port,
                                                        connect=True,
                                                        use_ssl=self.server.ssl_target,
