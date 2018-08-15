@@ -3,7 +3,7 @@
 '''
 Python WebSocket server base
 Copyright 2011 Joel Martin
-Copyright 2016 Pierre Ossman
+Copyright 2016-2018 Pierre Ossman
 Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 '''
 
@@ -17,23 +17,20 @@ except ImportError:
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 
-class WebSocketRequestHandler(BaseHTTPRequestHandler):
-    """WebSocket request handler base class.
+class WebSocketRequestHandlerMixIn:
+    """WebSocket request handler mix-in class
 
-    This class forms the base for a server that wishes to handle
-    WebSocket requests. It functions exactly as BastHTTPRequestHandler,
-    except that WebSocket requests are intercepted and the methods
-    handle_upgrade() and handle_websocket() are called. The standard
-    do_GET() will be called for normal requests.
+    This class modifies and existing request handler to handle
+    WebSocket requests. The request handler will continue to function
+    as before, except that WebSocket requests are intercepted and the
+    methods handle_upgrade() and handle_websocket() are called. The
+    standard do_GET() will be called for normal requests.
 
     The class instance SocketClass can be overridden with the class to
     use for the WebSocket connection.
     """
 
     SocketClass = WebSocket
-
-    def __init__(self, request, client_address, server):
-        BaseHTTPRequestHandler.__init__(self, request, client_address, server)
 
     def handle_one_request(self):
         """Extended request handler
@@ -45,7 +42,12 @@ class WebSocketRequestHandler(BaseHTTPRequestHandler):
         self._real_do_GET = self.do_GET
         self.do_GET = self._websocket_do_GET
         try:
-            BaseHTTPRequestHandler.handle_one_request(self)
+            # super() only works for new style classes
+            if issubclass(WebSocketRequestHandlerMixIn, object):
+                super(WebSocketRequestHandlerMixIn, self).handle_one_request()
+            else:
+                # Assume handle_one_request() hasn't been overriden
+                BaseHTTPRequestHandler.handle_one_request(self)
         finally:
             self.do_GET = self._real_do_GET
 
@@ -92,6 +94,12 @@ class WebSocketRequestHandler(BaseHTTPRequestHandler):
         return once done.
         """
         pass
+
+# Convenient ready made classes
+
+class WebSocketRequestHandler(WebSocketRequestHandlerMixIn,
+                              BaseHTTPRequestHandler):
+    pass
 
 class WebSocketServer(HTTPServer):
     pass

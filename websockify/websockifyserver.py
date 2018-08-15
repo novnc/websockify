@@ -45,7 +45,7 @@ if sys.platform == 'win32':
     sys.exit("Windows is not supported at this time")
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
-from websockify.websocketserver import WebSocketRequestHandler
+from websockify.websocketserver import WebSocketRequestHandlerMixIn
 
 class CompatibleWebSocket(WebSocket):
     def select_subprotocol(self, protocols):
@@ -56,7 +56,7 @@ class CompatibleWebSocket(WebSocket):
             return ''
 
 # HTTP handler with WebSocket upgrade support
-class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler):
+class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHandler):
     """
     WebSocket Request Handler Class, derived from SimpleHTTPRequestHandler.
     Must be sub-classed with new_websocket_client method definition.
@@ -99,7 +99,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         if self.logger is None:
             self.logger = WebSockifyServer.get_logger()
 
-        WebSocketRequestHandler.__init__(self, req, addr, server)
+        SimpleHTTPRequestHandler.__init__(self, req, addr, server)
 
     def log_message(self, format, *args):
         self.logger.info("%s - - [%s] %s" % (self.address_string(), self.log_date_time_string(), format % args))
@@ -221,7 +221,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         self.validate_connection()
         self.auth_connection()
 
-        WebSocketRequestHandler.handle_upgrade(self)
+        WebSocketRequestHandlerMixIn.handle_upgrade(self)
 
     def handle_websocket(self):
         # Indicate to server that a Websocket upgrade was done
@@ -306,7 +306,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandler, SimpleHTTPRequestHandler
         if self.rec:
             self.rec.write("'EOF'];\n")
             self.rec.close()
-        WebSocketRequestHandler.finish(self)
+        SimpleHTTPRequestHandler.finish(self)
 
     def handle(self):
         # When using run_once, we have a single process, so
