@@ -484,8 +484,37 @@ def websockify_init():
     parser.add_option("--syslog", default=None, metavar="SERVER",
             help="Log to syslog server. SERVER can be local socket, "
                  "such as /dev/log, or a UDP host:port pair.")
+    parser.add_option("--legacy-syslog", action="store_true",
+                      help="Use the old syslog protocol instead of RFC 5424. "
+                           "Use this if the messages produced by websockify seem abnormal.")
 
     (opts, args) = parser.parse_args()
+
+
+    # Validate options.
+
+    if opts.token_source and not opts.token_plugin:
+        parser.error("You must use --token-plugin to use --token-source")
+
+    if opts.host_token and not opts.token_plugin:
+        parser.error("You must use --token-plugin to use --host-token")
+
+    if opts.auth_source and not opts.auth_plugin:
+        parser.error("You must use --auth-plugin to use --auth-source")
+
+    if opts.web_auth and not opts.auth_plugin:
+        parser.error("You must use --auth-plugin to use --web-auth")
+
+    if opts.web_auth and not opts.web:
+        parser.error("You must use --web to use --web-auth")
+
+    if opts.legacy_syslog and not opts.syslog:
+        parser.error("You must use --syslog to use --legacy-syslog")
+
+
+    opts.ssl_options = select_ssl_version(opts.ssl_version)
+    del opts.ssl_version
+
 
     if opts.log_file:
         # Setup logging to user-specified file.
@@ -511,42 +540,28 @@ def websockify_init():
             # User supplied a local socket file.
             syslog_dest = os.path.abspath(opts.syslog)
 
-        from logging.handlers import SysLogHandler
+        from websockify.sysloghandler import WebsockifySysLogHandler
 
         # Determine syslog facility.
         if opts.daemon:
-            syslog_facility = SysLogHandler.LOG_DAEMON
+            syslog_facility = WebsockifySysLogHandler.LOG_DAEMON
         else:
-            syslog_facility = SysLogHandler.LOG_USER
+            syslog_facility = WebsockifySysLogHandler.LOG_USER
 
         # Start logging to syslog.
-        syslog_handler = SysLogHandler(address=syslog_dest, facility=syslog_facility)
+        syslog_handler = WebsockifySysLogHandler(address=syslog_dest,
+                                                 facility=syslog_facility,
+                                                 ident='websockify',
+                                                 legacy=opts.legacy_syslog)
         syslog_handler.setLevel(logging.DEBUG)
         syslog_handler.setFormatter(log_formatter)
         logger.addHandler(syslog_handler)
 
     del opts.syslog
+    del opts.legacy_syslog
 
     if opts.verbose:
         logger.setLevel(logging.DEBUG)
-
-
-    # Validate options.
-
-    if opts.token_source and not opts.token_plugin:
-        parser.error("You must use --token-plugin to use --token-source")
-
-    if opts.host_token and not opts.token_plugin:
-        parser.error("You must use --token-plugin to use --host-token")
-
-    if opts.auth_source and not opts.auth_plugin:
-        parser.error("You must use --auth-plugin to use --auth-source")
-
-    if opts.web_auth and not opts.auth_plugin:
-        parser.error("You must use --auth-plugin to use --web-auth")
-
-    if opts.web_auth and not opts.web:
-        parser.error("You must use --web to use --web-auth")
 
 
     # Transform to absolute path as daemon may chdir
