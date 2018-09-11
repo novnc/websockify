@@ -42,18 +42,6 @@ To encrypt the traffic using the WebSocket 'wss://' URI scheme you need to gener
 
 openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
 
-.SS Websock Javascript library
-
-The websock.js (see https://github.com/kanaka/websockify) Javascript library library provides a Websock object that is similar to the standard WebSocket object but Websock enables communication with raw TCP sockets (i.e. the binary stream) via websockify. This is accomplished by base64 encoding the data stream between Websock and websockify.
-
-Websock has built-in receive queue buffering; the message event does not contain actual data but is simply a notification that there is new data available. Several rQ* methods are available to read binary data off of the receive queue.
-
-The Websock API is documented on the websock.js API wiki page:
-
-https://github.com/kanaka/websockify/wiki/websock.js
-
-See the "Wrap a Program" section below for an example of using Websock and websockify as a browser telnet client (wstelnet.html).
-
 .SS Additional websockify features
 
 These are not necessary for the basic operation.

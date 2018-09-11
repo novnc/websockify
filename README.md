@@ -63,25 +63,6 @@ intermediate(s) from the CA, etc. Point to this file with the `--cert` option
 and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
 
 
-### Websock Javascript library
-
-
-The `include/websock.js` Javascript library library provides a Websock
-object that is similar to the standard WebSocket object but Websock
-enables communication with raw TCP sockets (i.e. the binary stream)
-via websockify.
-
-Websock has built-in receive queue buffering; the message event
-does not contain actual data but is simply a notification that
-there is new data available. Several rQ* methods are available to
-read binary data off of the receive queue.
-
-The Websock API is documented on the [websock.js API wiki page](https://github.com/kanaka/websockify/wiki/websock.js)
-
-See the "Wrap a Program" section below for an example of using Websock
-and websockify as a browser telnet client (`wstelnet.html`).
-
-
 ### Additional websockify features
 
 These are not necessary for the basic operation.
@@ -123,12 +104,13 @@ These are not necessary for the basic operation.
   options, where CLASS is usually one from token_plugins.py and ARG is
   the plugin's configuration.
 
-### Implementations of websockify
+### Other implementations of websockify
 
 The primary implementation of websockify is in python. There are
-several alternate implementations in other languages (C, Node.js,
-Clojure, Ruby) in the `other/` subdirectory (with varying levels of
-functionality).
+several alternate implementations in other languages available in
+our sister repositories [websockify-js](https://github.com/novnc/websockify-js)
+(JavaScript/Node.js) and [websockify-other](https://github.com/novnc/websockify-other)
+ (C, Clojure, Ruby).
 
 In addition there are several other external projects that implement
 the websockify "protocol". See the alternate implementation [Feature
@@ -169,12 +151,12 @@ the command:
 
     `sudo ./run 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
-The `wstelnet.html` page demonstrates a simple WebSockets based telnet
-client (use 'localhost' and '2023' for the host and port
-respectively).
+The `wstelnet.html` page in the [websockify-js](https://github.com/novnc/websockify-js)
+project demonstrates a simple WebSockets based telnet client (use
+'localhost' and '2023' for the host and port respectively).
 
 
-### Installing the Python implementation of websockify
+### Installing websockify
 
 Download one of the releases or the latest development version, extract
 it and run `python setup.py install` as root in the directory where you
