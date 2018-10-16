@@ -39,7 +39,7 @@ new_client = function(client, req) {
     log('Version ' + client.protocolVersion + ', subprotocol: ' + client.protocol);
 
     if (argv.record) {
-      var rs = fs.createWriteStream(argv.record + '/' + new Date().toISOString());
+      var rs = fs.createWriteStream(argv.record + '/' + new Date().toISOString().replace(/:/g, "_"));
       rs.write('var VNC_frame_data = [\n');
     } else {
       var rs = null;
