@@ -112,11 +112,16 @@ Traffic Legend:
             msg += " (using SSL)"
         self.log_message(msg)
 
-        tsock = websockifyserver.WebSockifyServer.socket(self.server.target_host,
-                                                       self.server.target_port,
-                                                       connect=True,
-                                                       use_ssl=self.server.ssl_target,
-                                                       unix_socket=self.server.unix_target)
+        try:
+            tsock = websockifyserver.WebSockifyServer.socket(self.server.target_host,
+                                                           self.server.target_port,
+                                                           connect=True,
+                                                           use_ssl=self.server.ssl_target,
+                                                           unix_socket=self.server.unix_target)
+        except Exception:
+            self.log_message("Failed to connect to %s:%s",
+                             self.server.target_host, self.server.target_port)
+            raise self.CClose(1011, "Failed to connect to downstream server")
 
         self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
         if not self.server.wrap_cmd and not self.server.unix_target:
