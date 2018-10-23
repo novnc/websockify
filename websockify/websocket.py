@@ -571,6 +571,8 @@ class WebSocket(object):
                     msg = self._partial_msg
                     self._partial_msg = ''.decode("ascii")
                     return msg
+            elif frame["opcode"] == 0x1:
+                self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Text frames are not supported")
             elif frame["opcode"] == 0x2:
                 if self._partial_msg:
                     self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Unexpected new frame")
