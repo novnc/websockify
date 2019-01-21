@@ -13,9 +13,15 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl
 try:
-    from socketserver import ForkingMixIn
+    try:
+        from socketserver import ForkingMixIn
+    except ImportError:
+        from socketserver import ThreadingMixIn as ForkingMixIn
 except ImportError:
-    from SocketServer import ForkingMixIn
+    try:
+        from SocketServer import ForkingMixIn
+    except ImportError:
+        from SocketServer import ThreadingMixIn as ForkingMixIn
 
 try:
     from http.server import HTTPServer

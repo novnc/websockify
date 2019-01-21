@@ -14,6 +14,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import os, sys, time, errno, signal, socket, select, logging
 import multiprocessing
+import warnings
 
 # Imports that vary by python version
 
@@ -42,7 +43,8 @@ if sys.platform == 'win32':
     import multiprocessing.reduction
     # the multiprocesssing module behaves much differently on Windows,
     # and we have yet to fix all the bugs
-    sys.exit("Windows is not supported at this time")
+    warnings.warn("Windows is not fully supported at this time",
+                  category=RuntimeWarning)
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 from websockify.websocketserver import WebSocketRequestHandlerMixIn
