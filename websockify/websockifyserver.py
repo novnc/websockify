@@ -340,7 +340,7 @@ class WebSockifyServer(object):
 
     def __init__(self, RequestHandlerClass, listen_fd=None,
             listen_host='', listen_port=None, source_is_ipv6=False,
-            verbose=False, cert='', key='', ssl_only=None,
+            verbose=False, cert='', key='', password=None, ssl_only=None,
             verify_client=False, cafile=None,
             daemon=False, record='', web='', web_auth=False,
             file_only=False,
@@ -380,6 +380,7 @@ class WebSockifyServer(object):
 
         # keyfile path must be None if not specified
         self.key = None
+        self.password = password
 
         # Make paths settings absolute
         self.cert = os.path.abspath(cert)
@@ -577,7 +578,7 @@ class WebSockifyServer(object):
                     if self.ssl_ciphers is not None:
                         context.set_ciphers(self.ssl_ciphers)
                     context.options = self.ssl_options
-                    context.load_cert_chain(certfile=self.cert, keyfile=self.key)
+                    context.load_cert_chain(certfile=self.cert, keyfile=self.key, password=self.password)
                     if self.verify_client:
                         context.verify_mode = ssl.CERT_REQUIRED
                         if self.cafile:
