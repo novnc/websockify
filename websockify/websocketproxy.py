@@ -478,6 +478,8 @@ def websockify_init():
             help="SSL certificate file")
     parser.add_option("--key", default=None,
             help="SSL key file (if separate from cert)")
+    parser.add_option("--key-password", default=None,
+            help="SSL key password")
     parser.add_option("--ssl-only", action="store_true",
             help="disallow non-encrypted client connections")
     parser.add_option("--ssl-target", action="store_true",

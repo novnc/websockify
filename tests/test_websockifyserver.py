@@ -271,7 +271,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, purpose):
                 self.verify_mode = None
                 self.options = 0
-            def load_cert_chain(self, certfile, keyfile):
+            def load_cert_chain(self, certfile, keyfile, password):
                 pass
             def set_default_verify_paths(self):
                 pass
@@ -310,7 +310,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, purpose):
                 self.verify_mode = None
                 self.options = 0
-            def load_cert_chain(self, certfile, keyfile):
+            def load_cert_chain(self, certfile, keyfile, password):
                 pass
             def set_default_verify_paths(self):
                 pass
@@ -351,7 +351,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, purpose):
                 self.verify_mode = None
                 self._options = 0
-            def load_cert_chain(self, certfile, keyfile):
+            def load_cert_chain(self, certfile, keyfile, password):
                 pass
             def set_default_verify_paths(self):
                 pass
