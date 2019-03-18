@@ -315,7 +315,11 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         if self.run_once:
             self.handle_one_request()
         else:
-            SimpleHTTPRequestHandler.handle(self)
+            try:
+                SimpleHTTPRequestHandler.handle(self)
+            except Exception:
+                exc = sys.exc_info()[1]
+                self.send_error(400, str(exc))
 
     def log_request(self, code='-', size='-'):
         if self.verbose:
