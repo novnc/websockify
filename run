@@ -2,4 +2,5 @@
 
 import websockify
 
-websockify.websocketproxy.websockify_init()
+if __name__ == '__main__':
+	websockify.websocketproxy.websockify_init()
