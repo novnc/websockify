@@ -13,9 +13,9 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl
 try:
-    from socketserver import ForkingMixIn
+    from socketserver import ThreadingMixIn
 except ImportError:
-    from SocketServer import ForkingMixIn
+    from SocketServer import ThreadingMixIn
 
 try:
     from http.server import HTTPServer
@@ -726,7 +726,7 @@ def websockify_init():
         server.start_server()
 
 
-class LibProxyServer(ForkingMixIn, HTTPServer):
+class LibProxyServer(ThreadingMixIn, HTTPServer):
     """
     Just like WebSocketProxy, but uses standard Python SocketServer
     framework.
