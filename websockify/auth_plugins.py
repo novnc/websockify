@@ -87,7 +87,7 @@ class ExpectOrigin(object):
         origin = headers.get('Origin', None)
         if origin is None or origin not in self.source:
             raise InvalidOriginError(expected=self.source, actual=origin)
-            
+
 class ClientCertCNAuth(object):
     """Verifies client by SSL certificate. Specify src as whitespace separated list of common names."""
 
