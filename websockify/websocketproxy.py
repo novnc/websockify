@@ -46,15 +46,15 @@ Traffic Legend:
     <  - Client send
     <. - Client send partial
 """
-    
+
     def send_auth_error(self, ex):
         self.send_response(ex.code, ex.msg)
         self.send_header('Content-Type', 'text/html')
         for name, val in ex.headers.items():
             self.send_header(name, val)
-        
+
         self.end_headers()
-    
+
     def validate_connection(self):
         if not self.server.token_plugin:
             return
@@ -83,7 +83,7 @@ Traffic Legend:
         except (TypeError, AttributeError, KeyError):
             # not a SSL connection or client presented no certificate with valid data
             pass
-            
+
         try:
             self.server.auth_plugin.authenticate(
                 headers=self.headers, target_host=self.server.target_host,
@@ -129,6 +129,22 @@ Traffic Legend:
 
         self.print_traffic(self.traffic_legend)
 
+        # Here we call the connection hook "connect", if one is defined.
+        # These local variables are used by the connection tracking:
+        sockname, query = None, None
+        if self.server.conn_plugin:
+            # Store the local socket connection data
+            sockname = tsock.getsockname()
+            query = parse_qs(urlparse(self.path).query)
+            self.server.conn_plugin.connect(
+                host=self.server.target_host,
+                port=self.server.target_port,
+                use_ssl=self.server.ssl_target,
+                unix_socket=self.server.unix_target,
+                sockname=sockname,
+                query=query,
+            )
+
         # Start proxying
         try:
             self.do_proxy(tsock)
@@ -136,6 +152,19 @@ Traffic Legend:
             if tsock:
                 tsock.shutdown(socket.SHUT_RDWR)
                 tsock.close()
+
+                # After disconnecting, we call the "disconnect" hook of the
+                # connection plugin, if it exists.
+                if self.server.conn_plugin:
+                    self.server.conn_plugin.disconnect(
+                        host=self.server.target_host,
+                        port=self.server.target_port,
+                        use_ssl=self.server.ssl_target,
+                        unix_socket=self.server.unix_target,
+                        sockname=sockname,
+                        query=query,
+                    )
+
                 if self.verbose:
                     self.log_message("%s:%s: Closed target",
                             self.server.target_host, self.server.target_port)
@@ -285,6 +314,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         self.token_plugin = kwargs.pop('token_plugin', None)
         self.host_token = kwargs.pop('host_token', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.conn_plugin = kwargs.pop('conn_plugin', None)
 
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
@@ -352,6 +382,10 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         else:
             msg = "  - proxying from %s to %s" % (
                 src_string, dst_string)
+
+        if self.conn_plugin:
+            msg = "  - Tracking connections with plugin %s" % (
+                type(self.conn_plugin).__name__)
 
         if self.ssl_target:
             msg += " (using SSL)"
@@ -433,7 +467,7 @@ def select_ssl_version(version):
         # It so happens that version names sorted lexicographically form a list
         # from the least to the most secure
         keys = list(SSL_OPTIONS.keys())
-        keys.sort() 
+        keys.sort()
         fallback = keys[-1]
         logger = logging.getLogger(WebSocketProxy.log_prefix)
         logger.warn("TLS version %s unsupported. Falling back to %s",
@@ -536,6 +570,12 @@ def websockify_init():
     parser.add_option("--auth-source", default=None, metavar="ARG",
                       help="an argument to be passed to the auth plugin "
                            "on instantiation")
+    parser.add_option("--conn-plugin", default=None, metavar="CLASS",
+                      help="use a Python class to implement hooks on "
+                           "connection events")
+    parser.add_option("--conn-source", default=None, metavar="ARG",
+                      help="an argument to be passed to the conn plugin "
+                           "on instantiation")
     parser.add_option("--heartbeat", type=int, default=0, metavar="INTERVAL",
             help="send a ping to the client every INTERVAL seconds")
     parser.add_option("--log-file", metavar="FILE",
@@ -567,6 +607,9 @@ def websockify_init():
 
     if opts.web_auth and not opts.web:
         parser.error("You must use --web to use --web-auth")
+
+    if opts.conn_source and not opts.conn_plugin:
+        parser.error("You must use --conn-plugin to use --conn-source")
 
     if opts.legacy_syslog and not opts.syslog:
         parser.error("You must use --syslog to use --legacy-syslog")
@@ -712,6 +755,21 @@ def websockify_init():
         opts.auth_plugin = auth_plugin_cls(opts.auth_source)
 
     del opts.auth_source
+
+    if opts.conn_plugin is not None:
+        if '.' not in opts.conn_plugin:
+            opts.conn_plugin = (
+                'websockify.conn_plugins.%s' % opts.conn_plugin)
+
+        conn_plugin_module, conn_plugin_cls = opts.conn_plugin.rsplit('.', 1)
+
+        __import__(conn_plugin_module)
+        conn_plugin_cls = getattr(sys.modules[conn_plugin_module], conn_plugin_cls)
+
+        opts.conn_plugin = conn_plugin_cls(opts.conn_source)
+
+    del opts.conn_source
+
 
     # Create and start the WebSockets proxy
     libserver = opts.libserver
