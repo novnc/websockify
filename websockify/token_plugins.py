@@ -134,3 +134,23 @@ class JWTTokenApi(BasePlugin):
         except ImportError as e:
             print("package jwcrypto not found, are you sure you've installed it correctly?", file=sys.stderr)
             return None
+
+import sys
+
+if sys.version_info >= (2, 7):
+    import redis
+    import simplejson
+
+    class TokenRedis(object):
+        def __init__(self, src):
+            self._server, self._port = src.split(":")
+
+        def lookup(self, token):
+            client = redis.Redis(host=self._server,port=self._port)
+            stuff = client.get(token)
+            if stuff is None:
+                return None
+            else:
+                combo = simplejson.loads(stuff.decode("utf-8"))
+                pair = combo["host"]
+                return pair.split(':')
