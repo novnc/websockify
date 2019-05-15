@@ -775,7 +775,7 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
     def process_request(self, request, client_address):
         """Override process_request to implement a counter"""
         self.handler_id += 1
-        ForkingMixIn.process_request(self, request, client_address)
+        ThreadingMixIn.process_request(self, request, client_address)
 
 
 if __name__ == '__main__':
