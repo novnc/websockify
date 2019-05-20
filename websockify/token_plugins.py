@@ -2,6 +2,7 @@ from __future__ import print_function
 import os
 import sys
 
+
 class BasePlugin(object):
     def __init__(self, src):
         self.source = src
@@ -34,7 +35,8 @@ class ReadOnlyTokenFile(BasePlugin):
                         tok, target = line.split(': ')
                         self._targets[tok] = target.strip().rsplit(':', 1)
                     except ValueError:
-                        print >>sys.stderr, "Syntax error in %s on line %d" % (self.source, index)
+                        print >>sys.stderr, "Syntax error in %s on line %d" % (
+                            self.source, index)
                 index += 1
 
     def lookup(self, token):
@@ -100,7 +102,7 @@ class JWTTokenApi(BasePlugin):
             import json
 
             key = jwt.JWK()
-            
+
             try:
                 with open(self.source, 'rb') as key_file:
                     key_data = key_file.read()
@@ -112,7 +114,7 @@ class JWTTokenApi(BasePlugin):
                 key.import_from_pem(key_data)
             except:
                 try:
-                    key.import_key(k=key_data.decode('utf-8'),kty='oct')
+                    key.import_key(k=key_data.decode('utf-8'), kty='oct')
                 except:
                     print('Failed to correctly parse key data!', file=sys.stderr)
                     return None
@@ -132,25 +134,61 @@ class JWTTokenApi(BasePlugin):
                 print("Failed to parse token: %s" % str(e), file=sys.stderr)
                 return None
         except ImportError as e:
-            print("package jwcrypto not found, are you sure you've installed it correctly?", file=sys.stderr)
+            print(
+                "package jwcrypto not found, are you sure you've installed it correctly?", file=sys.stderr)
             return None
 
-import sys
 
-if sys.version_info >= (2, 7):
-    import redis
-    import simplejson
+class TokenRedis(BasePlugin):
+    """ Token plugin for Redis DataBase 
+        The Redis tokens are accepted with the struct ->
 
-    class TokenRedis(object):
-        def __init__(self, src):
-            self._server, self._port = src.split(":")
+            E.g: redis set value
+                host={"ip":"localhost", "port": "5901"}
+                json_host=json.dumps(host)
+                redis.set('token', json_host)
+            ...
+            Start websockify with this args ->  e.g
+        websockify --web=/path/to/noVNC --token-plugin=TokenRedis --token-source=[IP]:[PORT] [LISTEN_PORT]
+    """  
 
-        def lookup(self, token):
-            client = redis.Redis(host=self._server,port=self._port)
-            stuff = client.get(token)
-            if stuff is None:
+    def __init__(self, src):
+        self._server, self._port = src.split(":")
+
+    def lookup(self, token):
+
+        try:
+            import simplejson as json
+        except ImportError:
+            import json
+
+        try:
+            import redis
+
+            try:
+                client = redis.Redis(host=self._server, port=self._port)
+                stuff = client.get(token)
+                if stuff is None:
+                    return None
+
+                try:
+                    host = json.loads(stuff.decode('utf-8'))
+
+                    # Removing uni-code chars
+                    import ast
+                    data = ast.literal_eval(
+                        json.dumps([host["ip"], host["port"]]))
+                    return data
+                except ValueError:
+                    print("Decoding JSON has failed {0}".format(
+                        file=sys.stderr))
+                    return None
+
+            except (redis.exceptions.ConnectionError,
+                    redis.exceptions.BusyLoadingError):
+                print("Redis conexion error {0}".format(file=sys.stderr))
                 return None
-            else:
-                combo = simplejson.loads(stuff.decode("utf-8"))
-                pair = combo["host"]
-                return pair.split(':')
+
+        except ImportError:
+            print("The package redis, not found,{0} ".format(file=sys.stderr))
+            return None
