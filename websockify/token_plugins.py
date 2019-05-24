@@ -135,22 +135,23 @@ class JWTTokenApi(BasePlugin):
             print("package jwcrypto not found, are you sure you've installed it correctly?", file=sys.stderr)
             return None
 
-import sys
+class TokenRedis(object):
+    def __init__(self, src):
+        self._server, self._port = src.split(":")
 
-if sys.version_info >= (2, 7):
-    import redis
-    import simplejson
+    def lookup(self, token):
+        try:
+            import redis
+            import simplejson
+        except ImportError as e:
+            print("package redis or simplejson not found, are you sure you've installed them correctly?", file=sys.stderr)
+            return None
 
-    class TokenRedis(object):
-        def __init__(self, src):
-            self._server, self._port = src.split(":")
-
-        def lookup(self, token):
-            client = redis.Redis(host=self._server,port=self._port)
-            stuff = client.get(token)
-            if stuff is None:
-                return None
-            else:
-                combo = simplejson.loads(stuff.decode("utf-8"))
-                pair = combo["host"]
-                return pair.split(':')
+        client = redis.Redis(host=self._server,port=self._port)
+        stuff = client.get(token)
+        if stuff is None:
+            return None
+        else:
+            combo = simplejson.loads(stuff.decode("utf-8"))
+            pair = combo["host"]
+            return pair.split(':')
