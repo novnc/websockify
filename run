@@ -1,6 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env sh
 
-import websockify
+BASE_DIR="$(dirname "$(realpath "$0")")"
 
-if __name__ == '__main__':
-	websockify.websocketproxy.websockify_init()
+cd "$BASE_DIR"
+
+python -m websockify $@
