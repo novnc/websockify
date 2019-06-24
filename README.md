@@ -186,25 +186,3 @@ before running `python setup.py install`.
 
 Afterwards, websockify should be available in your path. Run
 `websockify --help` to confirm it's installed correctly.
-
-
-### Building the Python ssl module (for python 2.5 and older)
-
-* Install the build dependencies. On Ubuntu use this command:
-
-    `sudo aptitude install python-dev bluetooth-dev`
-
-* At the top level of the websockify repostory, download, build and
-  symlink the ssl module:
-
-    `wget --no-check-certificate http://pypi.python.org/packages/source/s/ssl/ssl-1.15.tar.gz`
-
-    `tar xvzf ssl-1.15.tar.gz`
-
-    `cd ssl-1.15`
-
-    `make`
-
-    `cd ../`
-
-    `ln -sf ssl-1.15/build/lib.linux-*/ssl ssl`
