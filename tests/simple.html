@@ -2,8 +2,6 @@
 
     <head>
         <title>Websock Simple Client</title>
-        <script src="include/util.js"></script>
-        <script src="include/websock.js"></script> 
     </head>
 
     <body>
@@ -20,8 +18,8 @@
 
 
     <script>
-        var $D = function(id) { return document.getElementById(id); },
-            ws = null, msgs = $D('messages');
+        var document.getElementById = function(id) { return document.getElementById(id); },
+            ws = null, msgs = document.getElementById('messages');
 
         function msg(str) {
             msgs.innerHTML += str + "\n";
@@ -29,38 +27,38 @@
         }
 
         function connect() {
-            var uri = $D('target').value;
-            ws = new Websock()
+            var uri = document.getElementById('target').value;
             msg("connecting to: " + uri);
-            ws.open(uri);
-            ws.on('open', function () {
+            ws = new WebSocket(uri);
+            ws.binaryType = 'arraybuffer';
+            ws.addEventListener('open', function () {
                 msg("Connected");
             });
-            ws.on('message', function () {
-                msg("Received: " + ws.rQshiftStr());
+            ws.addEventListener('message', function (e) {
+                msg("Received: " + e.data);
             });
-            ws.on('close', function () {
+            ws.addEventListener('close', function () {
                 disconnect();
                 msg("Disconnected");
             });
 
-            $D('connectButton').value = "Disconnect";
-            $D('connectButton').onclick = disconnect;
-            $D('sendButton').disabled = false;
+            document.getElementById('connectButton').value = "Disconnect";
+            document.getElementById('connectButton').onclick = disconnect;
+            document.getElementById('sendButton').disabled = false;
         }
 
         function disconnect() {
             if (ws) { ws.close(); }
             ws = null;
 
-            $D('connectButton').value = "Connect";
-            $D('connectButton').onclick = connect;
-            $D('sendButton').disabled = true;
+            document.getElementById('connectButton').value = "Connect";
+            document.getElementById('connectButton').onclick = connect;
+            document.getElementById('sendButton').disabled = true;
         }
 
         function send() {
-            msg("Sending: " + $D('sendText').value);
-            ws.send_string($D('sendText').value);
+            msg("Sending: " + document.getElementById('sendText').value);
+            ws.send_string(document.getElementById('sendText').value);
         };
     </script>
 
