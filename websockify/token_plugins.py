@@ -65,10 +65,12 @@ class BaseTokenAPI(BasePlugin):
     # should go
 
     # we import things on demand so that other plugins
-    # in this file can be used w/o unecessary dependencies
+    # in this file can be used w/o unnecessary dependencies
 
     def process_result(self, resp):
-        return resp.text.split(':')
+        host, port = resp.text.split(':')
+        port = port.encode('ascii','ignore')
+        return [ host, port ]
 
     def lookup(self, token):
         import requests
