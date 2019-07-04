@@ -1,7 +1,7 @@
 ## websockify: WebSockets support for any application/server
 
 websockify was formerly named wsproxy and was part of the
-[noVNC](https://github.com/kanaka/noVNC) project.
+[noVNC](https://github.com/novnc/noVNC) project.
 
 At the most basic level, websockify just translates WebSockets traffic
 to normal socket traffic. Websockify accepts the WebSockets handshake,
@@ -19,7 +19,7 @@ href="https://groups.google.com/forum/?fromgroups#!forum/novnc">noVNC/websockify
 discussion group</a>
 
 Bugs and feature requests can be submitted via [github
-issues](https://github.com/kanaka/websockify/issues).
+issues](https://github.com/novnc/websockify/issues).
 
 If you want to show appreciation for websockify you could donate to a great
 non-profits such as: [Compassion
@@ -114,7 +114,7 @@ our sister repositories [websockify-js](https://github.com/novnc/websockify-js)
 
 In addition there are several other external projects that implement
 the websockify "protocol". See the alternate implementation [Feature
-Matrix](https://github.com/kanaka/websockify/wiki/Feature_Matrix) for
+Matrix](https://github.com/novnc/websockify/wiki/Feature_Matrix) for
 more information.
 
 
@@ -141,7 +141,7 @@ when the wrapped program exits or daemonizes.
 
 Here is an example of using websockify to wrap the vncserver command
 (which backgrounds itself) for use with
-[noVNC](https://github.com/kanaka/noVNC):
+[noVNC](https://github.com/novnc/noVNC):
 
     `./run 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
