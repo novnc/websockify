@@ -2,16 +2,6 @@
 
     <head>
         <title>WebSockets Latency Test</title>
-        <script src="include/util.js"></script>
-        <script src="include/webutil.js"></script> 
-        <script src="include/websock.js"></script> 
-        <!-- Uncomment to activate firebug lite -->
-        <!--
-        <script type='text/javascript' 
-            src='http://getfirebug.com/releases/lite/1.2/firebug-lite-compressed.js'></script>
-        -->
-
-
     </head>
 
     <body>
@@ -73,7 +63,7 @@
 
         function message(str) {
             console.log(str);
-            cell = $D('messages');
+            cell = document.getElementById('messages');
             msg_cnt++;
             cell.innerHTML += msg_cnt + ": " + str + "\n";
             cell.scrollTop = cell.scrollHeight;
@@ -90,7 +80,7 @@
 
             now = (new Date()).getTime(); // Early as possible
 
-            arr = ws.rQshiftBytes(ws.rQlen());
+            arr = new Uint8Array(data);
             first = String.fromCharCode(arr[0]);
             last = String.fromCharCode(arr[arr.length-1]);
 
@@ -156,7 +146,7 @@
             timestamp = (new Date()).getTime();
             arr.pushStr("^" + send_seq + ":" + timestamp + ":" + payload + "$");
             send_seq ++;
-            ws.send(arr);
+            ws.send(new Uint8Array(arr));
             sent++;
 
             showStats();
@@ -164,36 +154,35 @@
         }
 
         function showStats() {
-            $D('sent').innerHTML     = sent;
-            $D('received').innerHTML = received;
-            $D('laverage').innerHTML = laverage.toFixed(2);
-            $D('lrunning').innerHTML = lrunning.toFixed(2);
-            $D('lmin').innerHTML     = lmin.toFixed(2);
-            $D('lmax').innerHTML     = lmax.toFixed(2);
+            document.getElementById('sent').innerHTML     = sent;
+            document.getElementById('received').innerHTML = received;
+            document.getElementById('laverage').innerHTML = laverage.toFixed(2);
+            document.getElementById('lrunning').innerHTML = lrunning.toFixed(2);
+            document.getElementById('lmin').innerHTML     = lmin.toFixed(2);
+            document.getElementById('lmax').innerHTML     = lmax.toFixed(2);
         }
 
         function init_ws() {
             console.log(">> init_ws");
             var scheme = "ws://";
-            if ($D('encrypt').checked) {
+            if (document.getElementById('encrypt').checked) {
                 scheme = "wss://";
             }
             var uri = scheme + host + ":" + port;
             console.log("connecting to " + uri);
-            ws = new Websock();
-            ws.maxBufferedAmount = 5000;
-            ws.open(uri);
+            ws = new WebSocket(uri);
+            ws.binaryType = 'arraybuffer';
 
-            ws.on('message', function() {
-                recvMsg();
+            ws.addEventListener('message', function(e) {
+                recvMsg(e.data);
             });
-            ws.on('open', function() {
+            ws.addEventListener('open', function() {
                 send_ref = setTimeout(sendMsg, sendDelay);
             });
-            ws.on('close', function(e) {
+            ws.addEventListener('close', function(e) {
                 disconnect();
             });
-            ws.on('error', function(e) {
+            ws.addEventListener('error', function(e) {
                 message("Websock error: " + e);
                 disconnect();
             });
@@ -203,10 +192,10 @@
 
         function connect() {
             console.log(">> connect");
-            host = $D('host').value;
-            port = $D('port').value;
-            payload_size = parseInt($D('payload_size').value, 10);
-            sendDelay = parseInt($D('sendDelay').value, 10);
+            host = document.getElementById('host').value;
+            port = document.getElementById('port').value;
+            payload_size = parseInt(document.getElementById('payload_size').value, 10);
+            sendDelay = parseInt(document.getElementById('sendDelay').value, 10);
 
             if ((!host) || (!port)) {
                 console.log("must set host and port");
@@ -235,8 +224,8 @@
             lmin      = 999999999;
             lmax      = 0;
 
-            $D('connectButton').value = "Stop";
-            $D('connectButton').onclick = disconnect;
+            document.getElementById('connectButton').value = "Stop";
+            document.getElementById('connectButton').onclick = disconnect;
             console.log("<< connect");
         }
 
@@ -254,8 +243,8 @@
             recv_seq = 0;
             send_seq = 0;
 
-            $D('connectButton').value = "Start";
-            $D('connectButton').onclick = connect;
+            document.getElementById('connectButton').value = "Start";
+            document.getElementById('connectButton').onclick = connect;
             console.log("<< disconnect");
         }
 
@@ -263,9 +252,9 @@
         window.onload = function() {
             console.log("onload");
             var url = document.location.href;
-            $D('host').value = (url.match(/host=([^&#]*)/) || ['',window.location.hostname])[1];
-            $D('port').value = (url.match(/port=([^&#]*)/) || ['',window.location.port])[1];
-            $D('payload_size').value = payload_size;
+            document.getElementById('host').value = (url.match(/host=([^&#]*)/) || ['',window.location.hostname])[1];
+            document.getElementById('port').value = (url.match(/port=([^&#]*)/) || ['',window.location.port])[1];
+            document.getElementById('payload_size').value = payload_size;
         }
     </script>
 

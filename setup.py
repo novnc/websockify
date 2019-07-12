@@ -23,7 +23,7 @@ setup(name=name,
                        'include/websock.js'])],
       keywords='noVNC websockify',
       license='LGPLv3',
-      url="https://github.com/kanaka/websockify",
+      url="https://github.com/novnc/websockify",
       author="Joel Martin",
       author_email="github@martintribe.org",
 

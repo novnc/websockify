@@ -1,7 +1,7 @@
 ## websockify: WebSockets support for any application/server
 
 websockify was formerly named wsproxy and was part of the
-[noVNC](https://github.com/kanaka/noVNC) project.
+[noVNC](https://github.com/novnc/noVNC) project.
 
 At the most basic level, websockify just translates WebSockets traffic
 to normal socket traffic. Websockify accepts the WebSockets handshake,
@@ -19,7 +19,7 @@ href="https://groups.google.com/forum/?fromgroups#!forum/novnc">noVNC/websockify
 discussion group</a>
 
 Bugs and feature requests can be submitted via [github
-issues](https://github.com/kanaka/websockify/issues).
+issues](https://github.com/novnc/websockify/issues).
 
 If you want to show appreciation for websockify you could donate to a great
 non-profits such as: [Compassion
@@ -63,25 +63,6 @@ intermediate(s) from the CA, etc. Point to this file with the `--cert` option
 and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
 
 
-### Websock Javascript library
-
-
-The `include/websock.js` Javascript library library provides a Websock
-object that is similar to the standard WebSocket object but Websock
-enables communication with raw TCP sockets (i.e. the binary stream)
-via websockify.
-
-Websock has built-in receive queue buffering; the message event
-does not contain actual data but is simply a notification that
-there is new data available. Several rQ* methods are available to
-read binary data off of the receive queue.
-
-The Websock API is documented on the [websock.js API wiki page](https://github.com/kanaka/websockify/wiki/websock.js)
-
-See the "Wrap a Program" section below for an example of using Websock
-and websockify as a browser telnet client (`wstelnet.html`).
-
-
 ### Additional websockify features
 
 These are not necessary for the basic operation.
@@ -123,16 +104,17 @@ These are not necessary for the basic operation.
   options, where CLASS is usually one from token_plugins.py and ARG is
   the plugin's configuration.
 
-### Implementations of websockify
+### Other implementations of websockify
 
 The primary implementation of websockify is in python. There are
-several alternate implementations in other languages (C, Node.js,
-Clojure, Ruby) in the `other/` subdirectory (with varying levels of
-functionality).
+several alternate implementations in other languages available in
+our sister repositories [websockify-js](https://github.com/novnc/websockify-js)
+(JavaScript/Node.js) and [websockify-other](https://github.com/novnc/websockify-other)
+ (C, Clojure, Ruby).
 
 In addition there are several other external projects that implement
 the websockify "protocol". See the alternate implementation [Feature
-Matrix](https://github.com/kanaka/websockify/wiki/Feature_Matrix) for
+Matrix](https://github.com/novnc/websockify/wiki/Feature_Matrix) for
 more information.
 
 
@@ -159,7 +141,7 @@ when the wrapped program exits or daemonizes.
 
 Here is an example of using websockify to wrap the vncserver command
 (which backgrounds itself) for use with
-[noVNC](https://github.com/kanaka/noVNC):
+[noVNC](https://github.com/novnc/noVNC):
 
     `./run 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
@@ -169,12 +151,12 @@ the command:
 
     `sudo ./run 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
-The `wstelnet.html` page demonstrates a simple WebSockets based telnet
-client (use 'localhost' and '2023' for the host and port
-respectively).
+The `wstelnet.html` page in the [websockify-js](https://github.com/novnc/websockify-js)
+project demonstrates a simple WebSockets based telnet client (use
+'localhost' and '2023' for the host and port respectively).
 
 
-### Installing the Python implementation of websockify
+### Installing websockify
 
 Download one of the releases or the latest development version, extract
 it and run `python setup.py install` as root in the directory where you

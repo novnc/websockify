@@ -2,16 +2,6 @@
 
     <head>
         <title>WebSockets Load Test</title>
-        <script src="include/util.js"></script>
-        <script src="include/webutil.js"></script> 
-        <script src="include/websock.js"></script> 
-        <!-- Uncomment to activate firebug lite -->
-        <!--
-        <script type='text/javascript' 
-            src='http://getfirebug.com/releases/lite/1.2/firebug-lite-compressed.js'></script>
-        -->
-
-
     </head>
 
     <body>
@@ -47,7 +37,7 @@
 
         function error(str) {
             console.error(str);
-            cell = $D('error');
+            cell = document.getElementById('error');
             cell.innerHTML += errors + ": " + str + "\n";
             cell.scrollTop = cell.scrollHeight;
         }
@@ -74,8 +64,8 @@
         function check_respond(data) {
             //console.log(">> check_respond");
             var first, last, str, length, chksum, nums, arr;
-            first = String.fromCharCode(data.shift());
-            last = String.fromCharCode(data.pop());
+            first = String.fromCharCode(data[0]);
+            last = String.fromCharCode(data[data.length-1]);
 
             if (first != "^") {
                 errors++;
@@ -87,9 +77,11 @@
                 error("Packet missing end char '$'");
                 return;
             }
-            arr = data.map(function(num) {
-                    return String.fromCharCode(num); 
-                } ).join('').split(':');
+            text = ''
+            for (var i = 1; i < data.length-1; i++) {
+                text += String.fromCharCode(data[i]);
+            }
+            arr = text.split(':');
             seq    = arr[0];
             length = arr[1];
             chksum = arr[2];
@@ -137,44 +129,44 @@
             var nums = numlist.join('');
             arr.pushStr("^" + send_seq + ":" + length + ":" + chksum + ":" + nums + "$")
             send_seq ++;
-            ws.send(arr);
+            ws.send(new Uint8Array(arr));
             sent++;
         }
 
         function update_stats() {
-            $D('sent').innerHTML = sent;
-            $D('received').innerHTML = received;
-            $D('errors').innerHTML = errors;
+            document.getElementById('sent').innerHTML = sent;
+            document.getElementById('received').innerHTML = received;
+            document.getElementById('errors').innerHTML = errors;
         }
 
         function init_ws() {
             console.log(">> init_ws");
             var scheme = "ws://";
-            if ($D('encrypt').checked) {
+            if (document.getElementById('encrypt').checked) {
                 scheme = "wss://";
             }
             var uri = scheme + host + ":" + port;
             console.log("connecting to " + uri);
-            ws = new Websock();
-            ws.open(uri);
+            ws = new WebSocket(uri);
+            ws.binaryType = 'arraybuffer';
 
-            ws.on('message', function() {
+            ws.addEventListener('message', function(e) {
                 //console.log(">> WebSockets.onmessage");
-                arr = ws.rQshiftBytes(ws.rQlen());
+                arr = new Uint8Array(e.data);
                 check_respond(arr);
                 //console.log("<< WebSockets.onmessage");
             });
-            ws.on('open', function() {
+            ws.addEventListener('open', function() {
                 console.log(">> WebSockets.onopen");
                 send_ref = setInterval(send, sendDelay);
                 console.log("<< WebSockets.onopen");
             });
-            ws.on('close', function(e) {
+            ws.addEventListener('close', function(e) {
                 console.log(">> WebSockets.onclose");
                 clearInterval(send_ref);
                 console.log("<< WebSockets.onclose");
             });
-            ws.on('error', function(e) {
+            ws.addEventListener('error', function(e) {
                 console.log(">> WebSockets.onerror");
                 console.log("   " + e);
                 console.log("<< WebSockets.onerror");
@@ -185,9 +177,9 @@
 
         function connect() {
             console.log(">> connect");
-            host = $D('host').value;
-            port = $D('port').value;
-            sendDelay = parseInt($D('sendDelay').value, 10);
+            host = document.getElementById('host').value;
+            port = document.getElementById('port').value;
+            sendDelay = parseInt(document.getElementById('sendDelay').value, 10);
             if ((!host) || (!port)) {
                 console.log("must set host and port");
                 return;
@@ -199,8 +191,8 @@
             init_ws();
             update_ref = setInterval(update_stats, 1);
 
-            $D('connectButton').value = "Stop";
-            $D('connectButton').onclick = disconnect;
+            document.getElementById('connectButton').value = "Stop";
+            document.getElementById('connectButton').onclick = disconnect;
             console.log("<< connect");
         }
 
@@ -215,16 +207,16 @@
             recv_seq = 0;
             send_seq = 0;
 
-            $D('connectButton').value = "Start";
-            $D('connectButton').onclick = connect;
+            document.getElementById('connectButton').value = "Start";
+            document.getElementById('connectButton').onclick = connect;
             console.log("<< disconnect");
         }
 
         window.onload = function() {
             console.log("onload");
             var url = document.location.href;
-            $D('host').value = (url.match(/host=([^&#]*)/) || ['',''])[1];
-            $D('port').value = (url.match(/port=([^&#]*)/) || ['',''])[1];
+            document.getElementById('host').value = (url.match(/host=([^&#]*)/) || ['',window.location.hostname])[1];
+            document.getElementById('port').value = (url.match(/port=([^&#]*)/) || ['',window.location.port])[1];
         }
     </script>
 

@@ -5,14 +5,14 @@ Windows noVNC Websockify Service
 The "noVNC Websocket Service.exe" file is a windows service wrapper created with Visual Studio 2010 to create a windows service to start stop the noVNC Websocket Server. All files used to create the wrapper can be found in 'noVNC Websocket Service Project' folder.
 
 To download the precompiled executables please grab the zip in the downloads section of websockify project:
-https://github.com/kanaka/websockify
+https://github.com/novnc/websockify
 
 ---------------------------
 Installation
 ---------------------------
 
 1. This service requires websockify.exe be in the same directory. Instructions on how to compile websockify python script as a windows executable can be found here:
-https://github.com/kanaka/websockify/wiki/Compiling-Websockify-as-Windows-Executable
+https://github.com/novnc/websockify/wiki/Compiling-Websockify-as-Windows-Executable
 
 2.To add this service to a Windows PC you need to run the commandline as administrator and then run this line:
 
