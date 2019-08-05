@@ -54,7 +54,20 @@ Traffic Legend:
             self.send_header(name, val)
         
         self.end_headers()
-    
+
+    def end_headers(self):
+        self.send_security_headers()
+
+        if self.request_version != 'HTTP/0.9':
+            self.wfile.write("\r\n")
+
+    def send_security_headers(self):
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("Content-Security-Policy", "default-src 'self';")
+        self.send_header("X-XSS-Protection", "1")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Strict-Transport-Security", "max-age=16070400; includeSubDomains")
+
     def validate_connection(self):
         if not self.server.token_plugin:
             return
