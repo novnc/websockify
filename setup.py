@@ -9,6 +9,7 @@ setup(name=name,
       version=version,
       description="Websockify.",
       long_description=long_description,
+      long_description_content_type="text/markdown",
       classifiers=[
           "Programming Language :: Python",
           "Programming Language :: Python :: 2",
