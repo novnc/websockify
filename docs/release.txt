@@ -4,7 +4,7 @@
     git tag v${WVER}
     git push origin master
     git push origin v${WVER}
-- Register with pypi.python.org (once):
-    python setup.py register
-- Upload the source distribution to pypi
-    python setup.py sdist upload
+- Create the source distribution
+    python3 setup.py sdist
+- Upload the source distribution
+    python3 -m twine upload dist/websockify-${WVER}.tar.gz
