@@ -2,17 +2,6 @@
 
     <head>
         <title>WebSockets Echo Test</title>
-        <script src="include/util.js"></script>
-        <script src="include/webutil.js"></script> 
-        <script src="include/base64.js"></script>
-        <script src="include/websock.js"></script> 
-        <!-- Uncomment to activate firebug lite -->
-        <!--
-        <script type='text/javascript' 
-            src='http://getfirebug.com/releases/lite/1.2/firebug-lite-compressed.js'></script>
-        -->
-
-
     </head>
 
     <body>
@@ -37,7 +26,7 @@
 
         function message(str) {
             console.log(str);
-            cell = $D('messages');
+            cell = document.getElementById('messages');
             cell.innerHTML += msg_cnt + ": " + str + "\n";
             cell.scrollTop = cell.scrollHeight;
             msg_cnt++;
@@ -52,20 +41,21 @@
 
         function send_msg() {
             var str = "Message #" + send_cnt;
-            ws.send_string(str);
+            var encoder = new TextEncoder();
+            ws.send(encoder.encode(str));
             message("Sent message: '" + str + "'");
             send_cnt++;
         }
 
         function update_stats() {
-            $D('sent').innerHTML = sent;
-            $D('received').innerHTML = received;
-            $D('errors').innerHTML = errors;
+            document.getElementById('sent').innerHTML = sent;
+            document.getElementById('received').innerHTML = received;
+            document.getElementById('errors').innerHTML = errors;
         }
 
         function connect() {
-            var host = $D('host').value,
-                port = $D('port').value,
+            var host = document.getElementById('host').value,
+                port = document.getElementById('port').value,
                 scheme = "ws://", uri;
 
             console.log(">> connect");
@@ -78,28 +68,29 @@
                 ws.close();
             }
 
-            if ($D('encrypt').checked) {
+            if (document.getElementById('encrypt').checked) {
                 scheme = "wss://";
             }
             uri = scheme + host + ":" + port;
             message("connecting to " + uri);
 
-            ws = new Websock();
-            ws.open(uri);
+            ws = new WebSocket(uri);
+            ws.binaryType = 'arraybuffer';
 
-            ws.on('message', function(e) {
+            ws.addEventListener('message', function(e) {
                 //console.log(">> WebSockets.onmessage");
-                var str = ws.rQshiftStr();
+                var decoder = new TextDecoder('UTF-8');
+                var str = decoder.decode(e.data);
 
                 message("Received message '" + str + "'");
                 //console.log("<< WebSockets.onmessage");
             });
-            ws.on('open', function(e) {
+            ws.addEventListener('open', function(e) {
                 console.log(">> WebSockets.onopen");
                 echo_ref = setInterval(send_msg, echoDelay);
                 console.log("<< WebSockets.onopen");
             });
-            ws.on('close', function(e) {
+            ws.addEventListener('close', function(e) {
                 console.log(">> WebSockets.onclose");
                 if (echo_ref) {
                     clearInterval(echo_ref);
@@ -107,7 +98,7 @@
                 }
                 console.log("<< WebSockets.onclose");
             });
-            ws.on('error', function(e) {
+            ws.addEventListener('error', function(e) {
                 console.log(">> WebSockets.onerror");
                 if (echo_ref) {
                     clearInterval(echo_ref);
@@ -116,8 +107,8 @@
                 console.log("<< WebSockets.onerror");
             });
 
-            $D('connectButton').value = "Stop";
-            $D('connectButton').onclick = disconnect;
+            document.getElementById('connectButton').value = "Stop";
+            document.getElementById('connectButton').onclick = disconnect;
             console.log("<< connect");
         }
 
@@ -131,8 +122,8 @@
                 clearInterval(echo_ref);
             }
 
-            $D('connectButton').value = "Start";
-            $D('connectButton').onclick = connect;
+            document.getElementById('connectButton').value = "Start";
+            document.getElementById('connectButton').onclick = connect;
             console.log("<< disconnect");
         }
 
@@ -140,8 +131,8 @@
         window.onload = function() {
             console.log("onload");
             var url = document.location.href;
-            $D('host').value = (url.match(/host=([^&#]*)/) || ['',window.location.hostname])[1];
-            $D('port').value = (url.match(/port=([^&#]*)/) || ['',window.location.port])[1];
+            document.getElementById('host').value = (url.match(/host=([^&#]*)/) || ['',window.location.hostname])[1];
+            document.getElementById('port').value = (url.match(/port=([^&#]*)/) || ['',window.location.port])[1];
         }
     </script>
 

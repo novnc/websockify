@@ -1,5 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/env sh
 
-import websockify
+BASE_DIR="$(cd $(dirname "$0"); pwd)"
 
-websockify.websocketproxy.websockify_init()
+cd "$BASE_DIR"
+
+python -m websockify $@

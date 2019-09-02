@@ -16,16 +16,20 @@
 
 """ Unit tests for websocketproxy """
 
+import sys
 import unittest
 import unittest
 import socket
 
 from mox3 import stubout
 
-from websockify import websocket
+from websockify import websockifyserver
 from websockify import websocketproxy
 from websockify import token_plugins
 from websockify import auth_plugins
+
+if sys.version_info >= (2,7):
+    from jwcrypto import jwt
 
 try:
     from StringIO import StringIO
@@ -75,7 +79,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             FakeSocket(''), "127.0.0.1", FakeServer())
         self.handler.path = "https://localhost:6080/websockify?token=blah"
         self.handler.headers = None
-        self.stubs.Set(websocket.WebSocketServer, 'socket',
+        self.stubs.Set(websockifyserver.WebSockifyServer, 'socket',
                        staticmethod(lambda *args, **kwargs: None))
 
     def tearDown(self):
@@ -88,7 +92,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 return ("some host", "some port")
 
         host, port = self.handler.get_target(
-            TestPlugin(None), self.handler.path)
+            TestPlugin(None))
 
         self.assertEqual(host, "some host")
         self.assertEqual(port, "some port")
@@ -99,7 +103,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 return ("unix_socket", "/tmp/socket")
 
         _, socket = self.handler.get_target(
-            TestPlugin(None), self.handler.path)
+            TestPlugin(None))
 
         self.assertEqual(socket, "/tmp/socket")
 
@@ -109,7 +113,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 return None
 
         self.assertRaises(FakeServer.EClose, self.handler.get_target,
-            TestPlugin(None), "https://localhost:6080/websockify?token=blah")
+            TestPlugin(None))
 
     def test_token_plugin(self):
         class TestPlugin(token_plugins.BasePlugin):
@@ -125,6 +129,96 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(self.handler.server.target_host, "somehost")
         self.assertEqual(self.handler.server.target_port, "blah")
 
+    if sys.version_info >= (2,7):
+        def test_asymmetric_jws_token_plugin(self):
+            key = jwt.JWK()
+            private_key = open("./tests/fixtures/private.pem", "rb").read()
+            key.import_from_pem(private_key)
+            jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
+            jwt_token.make_signed_token(key)
+            self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+
+            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
+                        staticmethod(lambda *args, **kwargs: None))
+
+            self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/public.pem")
+            self.handler.validate_connection()
+
+            self.assertEqual(self.handler.server.target_host, "remote_host")
+            self.assertEqual(self.handler.server.target_port, "remote_port")
+        
+        def test_asymmetric_jws_token_plugin_with_illigal_key_exception(self):
+            key = jwt.JWK()
+            private_key = open("./tests/fixtures/private.pem", "rb").read()
+            key.import_from_pem(private_key)
+            jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
+            jwt_token.make_signed_token(key)
+            self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+
+            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
+                        staticmethod(lambda *args, **kwargs: None))
+
+            self.handler.server.token_plugin = token_plugins.JWTTokenApi("wrong.pub")
+            self.assertRaises(self.handler.server.EClose, 
+                            self.handler.validate_connection)
+
+
+        def test_symmetric_jws_token_plugin(self):
+            secret = open("./tests/fixtures/symmetric.key").read()
+            key = jwt.JWK()
+            key.import_key(kty="oct",k=secret)
+            jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
+            jwt_token.make_signed_token(key)
+            self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+
+            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
+                        staticmethod(lambda *args, **kwargs: None))
+
+            self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/symmetric.key")
+            self.handler.validate_connection()
+
+            self.assertEqual(self.handler.server.target_host, "remote_host")
+            self.assertEqual(self.handler.server.target_port, "remote_port")
+        
+        def test_symmetric_jws_token_plugin_with_illigal_key_exception(self):
+            secret = open("./tests/fixtures/symmetric.key").read()
+            key = jwt.JWK()
+            key.import_key(kty="oct",k=secret)
+            jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
+            jwt_token.make_signed_token(key)
+            self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+
+            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
+                        staticmethod(lambda *args, **kwargs: None))
+
+            self.handler.server.token_plugin = token_plugins.JWTTokenApi("wrong_sauce")
+            self.assertRaises(self.handler.server.EClose, 
+                            self.handler.validate_connection)
+
+        def test_asymmetric_jwe_token_plugin(self):
+            private_key = jwt.JWK()
+            public_key = jwt.JWK()
+            private_key_data = open("./tests/fixtures/private.pem", "rb").read()
+            public_key_data = open("./tests/fixtures/public.pem", "rb").read()
+            private_key.import_from_pem(private_key_data)
+            public_key.import_from_pem(public_key_data)
+            jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
+            jwt_token.make_signed_token(private_key)
+            jwe_token = jwt.JWT(header={"alg": "RSA1_5", "enc": "A256CBC-HS512"},
+                        claims=jwt_token.serialize())
+            jwe_token.make_encrypted_token(public_key)
+
+            self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwe_token.serialize())
+
+            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
+                        staticmethod(lambda *args, **kwargs: None))
+
+            self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/private.pem")
+            self.handler.validate_connection()
+
+            self.assertEqual(self.handler.server.target_host, "remote_host")
+            self.assertEqual(self.handler.server.target_port, "remote_port")
+
     def test_auth_plugin(self):
         class TestPlugin(auth_plugins.BasePlugin):
             def authenticate(self, headers, target_host, target_port):
@@ -139,8 +233,8 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.handler.server.target_port = "someport"
 
         self.assertRaises(auth_plugins.AuthenticationError,
-                          self.handler.validate_connection)
+                          self.handler.auth_connection)
 
         self.handler.server.target_host = "someotherhost"
-        self.handler.validate_connection()
+        self.handler.auth_connection()
 

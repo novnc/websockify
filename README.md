@@ -1,7 +1,7 @@
 ## websockify: WebSockets support for any application/server
 
 websockify was formerly named wsproxy and was part of the
-[noVNC](https://github.com/kanaka/noVNC) project.
+[noVNC](https://github.com/novnc/noVNC) project.
 
 At the most basic level, websockify just translates WebSockets traffic
 to normal socket traffic. Websockify accepts the WebSockets handshake,
@@ -19,7 +19,7 @@ href="https://groups.google.com/forum/?fromgroups#!forum/novnc">noVNC/websockify
 discussion group</a>
 
 Bugs and feature requests can be submitted via [github
-issues](https://github.com/kanaka/websockify/issues).
+issues](https://github.com/novnc/websockify/issues).
 
 If you want to show appreciation for websockify you could donate to a great
 non-profits such as: [Compassion
@@ -33,16 +33,8 @@ href="http://www.twitter.com/noVNC">@noVNC</a> if you do.
 ### WebSockets binary data
 
 Starting with websockify 0.5.0, only the HyBi / IETF
-6455 WebSocket protocol is supported.
-
-Websockify negotiates whether to base64 encode traffic to and from the
-client via the subprotocol header (Sec-WebSocket-Protocol). The valid
-subprotocol values are 'binary' and 'base64' and if the client sends
-both then the server (the python implementation) will prefer 'binary'.
-The 'binary' subprotocol indicates that the data will be sent raw
-using binary WebSocket frames. Some HyBi clients (such as the Flash
-fallback and older Chrome and iOS versions) do not support binary data
-which is why the negotiation is necessary.
+6455 WebSocket protocol is supported. There is no support for the older
+Base64 encoded data format.
 
 
 ### Encrypted WebSocket connections (wss://)
@@ -71,26 +63,6 @@ intermediate(s) from the CA, etc. Point to this file with the `--cert` option
 and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
 
 
-### Websock Javascript library
-
-
-The `include/websock.js` Javascript library library provides a Websock
-object that is similar to the standard WebSocket object but Websock
-enables communication with raw TCP sockets (i.e. the binary stream)
-via websockify. This is accomplished by base64 encoding the data
-stream between Websock and websockify.
-
-Websock has built-in receive queue buffering; the message event
-does not contain actual data but is simply a notification that
-there is new data available. Several rQ* methods are available to
-read binary data off of the receive queue.
-
-The Websock API is documented on the [websock.js API wiki page](https://github.com/kanaka/websockify/wiki/websock.js)
-
-See the "Wrap a Program" section below for an example of using Websock
-and websockify as a browser telnet client (`wstelnet.html`).
-
-
 ### Additional websockify features
 
 These are not necessary for the basic operation.
@@ -103,20 +75,14 @@ These are not necessary for the basic operation.
   wrapping the socket if the data starts with '\x16' or '\x80'
   (indicating SSL).
 
-* Flash security policy: websockify detects flash security policy
-  requests (again by sniffing the first packet) and answers with an
-  appropriate flash security policy response (and then closes the
-  port). This means no separate flash security policy server is needed
-  for supporting the flash WebSockets fallback emulator.
-
 * Session recording: This feature that allows recording of the traffic
   sent and received from the client to a file using the `--record`
   option.
 
 * Mini-webserver: websockify can detect and respond to normal web
-  requests on the same port as the WebSockets proxy and Flash security
-  policy. This functionality is activated with the `--web DIR` option
-  where DIR is the root of the web directory to serve.
+  requests on the same port as the WebSockets proxy. This functionality
+  is activated with the `--web DIR` option where DIR is the root of the
+  web directory to serve.
 
 * Wrap a program: see the "Wrap a Program" section below.
 
@@ -124,16 +90,31 @@ These are not necessary for the basic operation.
   This functionality is activated with the `--log-file FILE` option
   where FILE is the file where the logs should be saved.
 
-### Implementations of websockify
+* Authentication plugins: websockify can demand authentication for
+  websocket connections and, if you use `--web-auth`, also for normal
+  web requests. This functionality is activated with the
+  `--auth-plugin CLASS` and `--auth-source ARG` options, where CLASS is
+  usually one from auth_plugins.py and ARG is the plugin's configuration.
+
+* Token plugins: a single instance of websockify can connect clients to
+  multiple different pre-configured targets, depending on the token sent
+  by the client using the `token` URL parameter, or the hostname used to
+  reach websockify, if you use `--host-token`. This functionality is
+  activated with the `--token-plugin CLASS` and `--token-source ARG`
+  options, where CLASS is usually one from token_plugins.py and ARG is
+  the plugin's configuration.
+
+### Other implementations of websockify
 
 The primary implementation of websockify is in python. There are
-several alternate implementations in other languages (C, Node.js,
-Clojure, Ruby) in the `other/` subdirectory (with varying levels of
-functionality).
+several alternate implementations in other languages available in
+our sister repositories [websockify-js](https://github.com/novnc/websockify-js)
+(JavaScript/Node.js) and [websockify-other](https://github.com/novnc/websockify-other)
+ (C, Clojure, Ruby).
 
 In addition there are several other external projects that implement
 the websockify "protocol". See the alternate implementation [Feature
-Matrix](https://github.com/kanaka/websockify/wiki/Feature_Matrix) for
+Matrix](https://github.com/novnc/websockify/wiki/Feature_Matrix) for
 more information.
 
 
@@ -160,7 +141,7 @@ when the wrapped program exits or daemonizes.
 
 Here is an example of using websockify to wrap the vncserver command
 (which backgrounds itself) for use with
-[noVNC](https://github.com/kanaka/noVNC):
+[noVNC](https://github.com/novnc/noVNC):
 
     `./run 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
@@ -170,32 +151,24 @@ the command:
 
     `sudo ./run 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
-The `wstelnet.html` page demonstrates a simple WebSockets based telnet
-client (use 'localhost' and '2023' for the host and port
-respectively).
+The `wstelnet.html` page in the [websockify-js](https://github.com/novnc/websockify-js)
+project demonstrates a simple WebSockets based telnet client (use
+'localhost' and '2023' for the host and port respectively).
 
 
-### Building the Python ssl module (for python 2.5 and older)
+### Installing websockify
 
-* Install the build dependencies. On Ubuntu use this command:
+Download one of the releases or the latest development version, extract
+it and run `python setup.py install` as root in the directory where you
+extracted the files. Normally, this will also install numpy for better
+performance, if you don't have it installed already. However, numpy is
+optional. If you don't want to install numpy or if you can't compile it,
+you can edit setup.py and remove the `install_requires=['numpy'],` line
+before running `python setup.py install`.
 
-    `sudo aptitude install python-dev bluetooth-dev`
+Afterwards, websockify should be available in your path. Run
+`websockify --help` to confirm it's installed correctly.
 
-* At the top level of the websockify repostory, download, build and
-  symlink the ssl module:
-
-    `wget --no-check-certificate http://pypi.python.org/packages/source/s/ssl/ssl-1.15.tar.gz`
-
-    `tar xvzf ssl-1.15.tar.gz`
-
-    `cd ssl-1.15`
-
-    `make`
-
-    `cd ../`
-
-    `ln -sf ssl-1.15/build/lib.linux-*/ssl ssl`
-    
 ### Running as a Docker container
 
 By using the [efrecon/websockify](https://hub.docker.com/r/efrecon/websockify/)
@@ -211,4 +184,3 @@ This command would websockify the remote at `xxx.xx.xx.xx:yyy`, without
 encryption on port `8080` (not the remapping).
 
     docker run -it --rm -p 8080:80 --name websockify efrecon/websockify 80 xxx.xx.xx.xx:yyy
-    
