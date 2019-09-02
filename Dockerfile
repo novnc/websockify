@@ -1,7 +1,7 @@
 FROM alpine
 MAINTAINER Emmanuel Frecon <efrecon@gmail.com>
 
-RUN apk add --update-cache python py-numpy && \
+RUN apk add --update-cache python py-numpy py-requests && \
     rm -rf /var/cache/apk/*
 
 COPY run /opt/websockify/
