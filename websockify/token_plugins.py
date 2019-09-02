@@ -70,6 +70,9 @@ class BaseTokenAPI(BasePlugin):
     def process_result(self, resp):
         host, port = resp.text.split(':')
         port = port.encode('ascii','ignore')
+        port = str.strip(port)
+        if str.isdigit(port):
+            port = int(port)
         return [ host, port ]
 
     def lookup(self, token):
