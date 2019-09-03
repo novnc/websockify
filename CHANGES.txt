@@ -1,6 +1,23 @@
 Changes
 =======
 
+0.9.0
+-----
+
+* Base64 support removed and binary mode is now required
+* Low level WebSocket protocol handling now has its own class
+* Authentication now optionally required for web server
+* Server hostname can be used as the token
+* JWT/JWS/JWE can be used for the token
+* redis can be used for the token
+* Can now log to syslog
+* Improved latency by disabling Nagle for proxied connection
+* Added client certificate authentication
+* Support for password protected certificate key file
+* TLS ciphers and options are now configurable
+* Can be invoked via inetd
+* Lots of minor fixes...
+
 0.8.0
 -----
 

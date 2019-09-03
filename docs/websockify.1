@@ -42,18 +42,6 @@ To encrypt the traffic using the WebSocket 'wss://' URI scheme you need to gener
 
 openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
 
-.SS Websock Javascript library
-
-The websock.js (see https://github.com/kanaka/websockify) Javascript library library provides a Websock object that is similar to the standard WebSocket object but Websock enables communication with raw TCP sockets (i.e. the binary stream) via websockify. This is accomplished by base64 encoding the data stream between Websock and websockify.
-
-Websock has built-in receive queue buffering; the message event does not contain actual data but is simply a notification that there is new data available. Several rQ* methods are available to read binary data off of the receive queue.
-
-The Websock API is documented on the websock.js API wiki page:
-
-https://github.com/kanaka/websockify/wiki/websock.js
-
-See the "Wrap a Program" section below for an example of using Websock and websockify as a browser telnet client (wstelnet.html).
-
 .SS Additional websockify features
 
 These are not necessary for the basic operation.
@@ -65,13 +53,10 @@ Daemonizing: When the -D option is specified, websockify runs in the background 
 SSL (the wss:// WebSockets URI): This is detected automatically by websockify by sniffing the first byte sent from the client and then wrapping the socket if the data starts with '\\x16' or '\\x80' (indicating SSL).
 
 .IP *
-Flash security policy: websockify detects flash security policy requests (again by sniffing the first packet) and answers with an appropriate flash security policy response (and then closes the port). This means no separate flash security policy server is needed for supporting the flash WebSockets fallback emulator.
-
-.IP *
 Session recording: This feature that allows recording of the traffic sent and received from the client to a file using the --record option.
 
 .IP *
-Mini-webserver: websockify can detect and respond to normal web requests on the same port as the WebSockets proxy and Flash security policy. This functionality is activate with the --web DIR option where DIR is the root of the web directory to serve.
+Mini-webserver: websockify can detect and respond to normal web requests on the same port as the WebSockets proxy. This functionality is activate with the --web DIR option where DIR is the root of the web directory to serve.
 
 .IP *
 Wrap a program: see the "Wrap a Program" section below.
@@ -92,19 +77,34 @@ Here is an example of using websockify to wrap the vncserver command (which back
 
 `./websockify 5901 --wrap-mode=ignore -- vncserver -geometry 1024x768 :1`
 
-Here is an example of wrapping telnetd (from krb5-telnetd).telnetd exits after the connection closes so the wrap mode is set to respawn the command:
+Here is an example of wrapping telnetd (from krb5-telnetd). telnetd exits after the connection closes so the wrap mode is set to respawn the command:
 
 `sudo ./websockify 2023 --wrap-mode=respawn -- telnetd -debug 2023`
 
 The wstelnet.html page demonstrates a simple WebSockets based telnet client.
 
+.SS Use client certificate verification
+
+This feature requires Python 2.7.9 or newer or Python 3.4 or newer.
+
+The --verify-client option makes the server ask the client for a SSL certificate. Presenting a valid (not expired and trusted by any supplied certificate authority) certificate is required for the client connection. With -auth-plugin=ClientCertCNAuth, the client certificate can be checked against a list of authorised certificate users. Non-encrypted connection attempts always fail during authentication.
+
+Here is an example of a vncsevrer with password-less, certificate-driven authentication:
+
+`./websockify 5901 --cert=fullchain.pem --key=privkey.pem --ssl-only --verify-client --cafile=ca-certificates.crt --auth-plugin=ClientCertCNAuth --auth-source='jane@example.com Joe User9824510' --web=noVNC/ --wrap-mode=ignore -- vncserver :1 -geometry 1024x768 -SecurityTypes=None`
+
+The --auth-source option takes a white-space separated list of common names. Depending on your clients certificates they can be verified email addresses, user-names or any other string used for identification.
+
+The --cafile option selects a file containing concatenated certificates of authorities trusted for validating clients. If this option is omitted, system default list of CAs is used. Upon connect, the client should supply the whole certificate chain. If your clients are known not to send intermediate certificates, they can be appended to the ca-file as well.
+            
+Note: Most browsers ask the user to select a certificate only while connecting via HTTPS, not WebSockets. Connecting directly to the SSL secured WebSocket may cause the browser to abort the connection. If you want to connect via noVNC, the --web option should point to a copy of noVNC, so it is loaded from the same host.
 
 .SH AUTHOR
 Joel Martin (github@martintribe.org)
 
 .SH SEE ALSO
 
-https://github.com/kanaka/websockify/
+https://github.com/novnc/websockify/
 
-https://github.com/kanaka/websockify/wiki/
+https://github.com/novnc/websockify/wiki/
 

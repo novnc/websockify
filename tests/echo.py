@@ -12,9 +12,9 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 import os, sys, select, optparse, logging
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
-from websockify.websocket import WebSocketServer, WebSocketRequestHandler
+from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
 
-class WebSocketEcho(WebSocketRequestHandler):
+class WebSocketEcho(WebSockifyRequestHandler):
     """
     WebSockets server that echos back whatever is received from the
     client.  """
@@ -48,7 +48,7 @@ class WebSocketEcho(WebSocketRequestHandler):
                 cqueue.extend(frames)
 
                 if closed:
-                    self.send_close()
+                    break
 
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog [options] listen_port")
@@ -63,14 +63,14 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
 
     try:
-        if len(args) != 1: raise
+        if len(args) != 1: raise ValueError
         opts.listen_port = int(args[0])
-    except:
+    except ValueError:
         parser.error("Invalid arguments")
 
     logging.basicConfig(level=logging.INFO)
 
     opts.web = "."
-    server = WebSocketServer(WebSocketEcho, **opts.__dict__)
+    server = WebSockifyServer(WebSocketEcho, **opts.__dict__)
     server.start_server()
 
