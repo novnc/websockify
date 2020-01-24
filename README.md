@@ -171,16 +171,26 @@ Afterwards, websockify should be available in your path. Run
 
 ### Running as a Docker container
 
-By using the [efrecon/websockify](https://hub.docker.com/r/efrecon/websockify/)
-you should be able to run the python version of websockify in a Docker
-container. The image automatically exports the standed encrypted and clear-text
-web ports `443` and `80`, you will have to remap at least one of them through
-the `-p` option of `docker run`. Also, the image provides `/opt/websockify/data`
-and `/opt/websockify/config`, two volumes that can be used to mount local data
-from the host and give to websockify for specifying certificates and keys, for
-example.
+websockify can be used from within a Docker container. A command similar to the
+following will generate a Docker image called `novnc/websockify` running the
+python version:
 
-This command would websockify the remote at `xxx.xx.xx.xx:yyy`, without
-encryption on port `8080` (not the remapping).
+    docker build -t novnc/websockify .
 
-    docker run -it --rm -p 8080:80 --name websockify efrecon/websockify 80 xxx.xx.xx.xx:yyy
+The image automatically exports the standard encrypted and clear-text web ports
+`443` and `80`. You will have to remap at least one of them through the `-p`
+option of `docker run`. Also, the image provides `/opt/websockify/data` and
+`/opt/websockify/config`, two volumes that can be used to mount local data from
+the host or Docker volumes and given to websockify for specifying certificates
+and keys, for example.
+
+Given the image `novnc/websockify` built above, the following command would
+create a container called `websockify` that "websockifies" the remote at
+`xxx.xx.xx.xx:yyy`, without encryption and make the remote available on port
+`8080`.
+
+    docker run -it --rm -p 8080:80 --name websockify novnc/websockify 80 xxx.xx.xx.xx:yyy
+
+All arguments passed to the Docker container, i.e. all arguments after
+`novnc/websockify` in the command above, are blindly passed to the `run` script,
+thus to `websockify.py`.
