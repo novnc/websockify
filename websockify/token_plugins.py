@@ -154,6 +154,6 @@ class TokenRedis(object):
         if stuff is None:
             return None
         else:
-            combo = simplejson.loads(stuff.decode("utf-8"))
+            combo = simplejson.loads(stuff)
             pair = combo["host"]
             return pair.split(':')
