@@ -118,9 +118,9 @@ Traffic Legend:
                                                            connect=True,
                                                            use_ssl=self.server.ssl_target,
                                                            unix_socket=self.server.unix_target)
-        except Exception:
-            self.log_message("Failed to connect to %s:%s",
-                             self.server.target_host, self.server.target_port)
+        except Exception as e:
+            self.log_message("Failed to connect to %s:%s: %s",
+                             self.server.target_host, self.server.target_port, e)
             raise self.CClose(1011, "Failed to connect to downstream server")
 
         self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
