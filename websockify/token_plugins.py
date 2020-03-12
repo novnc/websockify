@@ -102,7 +102,7 @@ class JWTTokenApi(BasePlugin):
             import json
 
             key = jwt.JWK()
-            
+
             try:
                 with open(self.source, 'rb') as key_file:
                     key_data = key_file.read()
@@ -158,3 +158,31 @@ class TokenRedis(object):
             (host, port) = combo["host"].split(':')
             port = port.encode('ascii','ignore')
             return [ host, port ]
+
+
+class UnixDomainSocketDirectory(BasePlugin):
+    def __init__(self, *args, **kwargs):
+        super(UnixDomainSocketDirectory, self).__init__(*args, **kwargs)
+        self._dir_path = os.path.abspath(self.source)
+
+    def lookup(self, token):
+        try:
+            import stat
+
+            if not os.path.isdir(self._dir_path):
+                return None
+
+            uds_path = os.path.abspath(os.path.join(self._dir_path, token))
+            if not uds_path.startswith(self._dir_path):
+                return None
+
+            if not os.path.exists(uds_path):
+                return None
+
+            if not stat.S_ISSOCK(os.stat(uds_path).st_mode):
+                return None
+
+            return [ 'unix_socket', uds_path ]
+        except Exception as e:
+                print("Error finding unix domain socket: %s" % str(e), file=sys.stderr)
+                return None
