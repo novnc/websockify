@@ -1,12 +1,7 @@
 language: python
 python:
-    - 2.6
     - 2.7
-    - 3.3
-    - 3.4
-# We need trusty for Python 2.6. We can raise this when we no longer
-# care about 2.6.
-dist: trusty
+    - 3.6
 
 install:
     - pip install 'setuptools>=18.5,<=39.0.0'
