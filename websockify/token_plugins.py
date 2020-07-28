@@ -1,6 +1,7 @@
 from __future__ import print_function
 import os
 import sys
+import re
 
 class BasePlugin(object):
     def __init__(self, src):
@@ -31,7 +32,7 @@ class ReadOnlyTokenFile(BasePlugin):
             for line in [l.strip() for l in open(f).readlines()]:
                 if line and not line.startswith('#'):
                     try:
-                        tok, target = line.split(': ')
+                        tok, target = re.split(':\s', line)
                         self._targets[tok] = target.strip().rsplit(':', 1)
                     except ValueError:
                         print >>sys.stderr, "Syntax error in %s on line %d" % (self.source, index)
