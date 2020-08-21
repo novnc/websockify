@@ -569,7 +569,7 @@ class WebSocket(object):
 
                 if frame["fin"]:
                     msg = self._partial_msg
-                    self._partial_msg = ''.decode("ascii")
+                    self._partial_msg = ''.encode("ascii")
                     return msg
             elif frame["opcode"] == 0x1:
                 self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Text frames are not supported")
