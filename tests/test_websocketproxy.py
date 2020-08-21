@@ -20,10 +20,11 @@ import sys
 import unittest
 import unittest
 import socket
+try:
+    from mock import patch
+except ImportError:
+    from unittest.mock import patch
 
-from mox3 import stubout
-
-from websockify import websockifyserver
 from websockify import websocketproxy
 from websockify import token_plugins
 from websockify import auth_plugins
@@ -74,16 +75,14 @@ class FakeServer(object):
 class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
         super(ProxyRequestHandlerTestCase, self).setUp()
-        self.stubs = stubout.StubOutForTesting()
         self.handler = websocketproxy.ProxyRequestHandler(
             FakeSocket(''), "127.0.0.1", FakeServer())
         self.handler.path = "https://localhost:6080/websockify?token=blah"
         self.handler.headers = None
-        self.stubs.Set(websockifyserver.WebSockifyServer, 'socket',
-                       staticmethod(lambda *args, **kwargs: None))
+        patch('websockify.websockifyserver.WebSockifyServer.socket').start()
 
     def tearDown(self):
-        self.stubs.UnsetAll()
+        patch.stopall()
         super(ProxyRequestHandlerTestCase, self).tearDown()
 
     def test_get_target(self):
@@ -120,8 +119,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             def lookup(self, token):
                 return (self.source + token).split(',')
 
-        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                       staticmethod(lambda *args, **kwargs: None))
+        patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
         self.handler.server.token_plugin = TestPlugin("somehost,")
         self.handler.validate_connection()
@@ -138,8 +136,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             jwt_token.make_signed_token(key)
             self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
 
-            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                        staticmethod(lambda *args, **kwargs: None))
+            patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
             self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/public.pem")
             self.handler.validate_connection()
@@ -155,8 +152,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             jwt_token.make_signed_token(key)
             self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
 
-            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                        staticmethod(lambda *args, **kwargs: None))
+            patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
             self.handler.server.token_plugin = token_plugins.JWTTokenApi("wrong.pub")
             self.assertRaises(self.handler.server.EClose, 
@@ -171,8 +167,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             jwt_token.make_signed_token(key)
             self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
 
-            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                        staticmethod(lambda *args, **kwargs: None))
+            patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
             self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/symmetric.key")
             self.handler.validate_connection()
@@ -188,8 +183,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             jwt_token.make_signed_token(key)
             self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
 
-            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                        staticmethod(lambda *args, **kwargs: None))
+            patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
             self.handler.server.token_plugin = token_plugins.JWTTokenApi("wrong_sauce")
             self.assertRaises(self.handler.server.EClose, 
@@ -210,8 +204,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
             self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwe_token.serialize())
 
-            self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                        staticmethod(lambda *args, **kwargs: None))
+            patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
             self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/private.pem")
             self.handler.validate_connection()
@@ -225,8 +218,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
                 if target_host == self.source:
                     raise auth_plugins.AuthenticationError(response_msg="some_error")
 
-        self.stubs.Set(websocketproxy.ProxyRequestHandler, 'send_auth_error',
-                       staticmethod(lambda *args, **kwargs: None))
+        patcher = patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error').start()
 
         self.handler.server.auth_plugin = TestPlugin("somehost")
         self.handler.server.target_host = "somehost"
