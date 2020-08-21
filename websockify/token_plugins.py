@@ -34,7 +34,7 @@ class ReadOnlyTokenFile(BasePlugin):
                         tok, target = line.split(': ')
                         self._targets[tok] = target.strip().rsplit(':', 1)
                     except ValueError:
-                        print >>sys.stderr, "Syntax error in %s on line %d" % (self.source, index)
+                        print("Syntax error in %s on line %d" % (self.source, index), file=sys.stderr)
                 index += 1
 
     def lookup(self, token):
