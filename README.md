@@ -57,7 +57,7 @@ and approve. Browsers generally don't give you the "trust certificate?" prompt
 by opening a WSS socket with invalid certificate, hence you need to have it
 acccept it by either of those two methods.
 
-If you have a commercial/valid SSL certificate with one ore more intermediate
+If you have a commercial/valid SSL certificate with one or more intermediate
 certificates, concat them into one file, server certificate first, then the
 intermediate(s) from the CA, etc. Point to this file with the `--cert` option
 and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
