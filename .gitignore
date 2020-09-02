@@ -6,4 +6,7 @@
 target.cfg
 target.cfg.d
 .tox
+
+build/
+dist/
 *.egg-info
