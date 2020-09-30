@@ -436,6 +436,9 @@ class WebSocket(object):
         WebSocketWantWriteError can be raised if there is insufficient
         space in the underlying socket.
         """
+        if not isinstance(msg, bytes):
+            raise TypeError
+
         if not self._sent_close:
             # Only called to flush?
             self._sendmsg(0x2, msg)
@@ -445,10 +448,16 @@ class WebSocket(object):
 
     def ping(self, data=''.encode('ascii')):
         """Write a ping message to the WebSocket."""
+        if not isinstance(data, bytes):
+            raise TypeError
+
         self._sendmsg(0x9, data)
 
     def pong(self, data=''.encode('ascii')):
         """Write a pong message to the WebSocket."""
+        if not isinstance(data, bytes):
+            raise TypeError
+
         self._sendmsg(0xA, data)
 
     def shutdown(self, how, code=1000, reason=None):
