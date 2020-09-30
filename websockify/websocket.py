@@ -421,6 +421,9 @@ class WebSocket(object):
         WebSocketWantWriteError can be raised if there is insufficient
         space in the underlying socket.
         """
+        if len(bytes) == 0:
+            return 0
+
         return self.sendmsg(bytes)
 
     def sendmsg(self, msg):
@@ -435,8 +438,7 @@ class WebSocket(object):
         """
         if not self._sent_close:
             # Only called to flush?
-            if msg:
-                self._sendmsg(0x2, msg)
+            self._sendmsg(0x2, msg)
 
         self._flush()
         return len(msg)
