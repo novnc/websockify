@@ -93,6 +93,8 @@ class WebSocket(object):
         self._recv_queue = []
         self._send_buffer = ''.encode("ascii")
 
+        self._previous_sendmsg = None
+
         self._sent_close = False
         self._received_close = False
 
@@ -254,8 +256,8 @@ class WebSocket(object):
         the value "websocket" in such cases.
 
         WebSocketWantWriteError can be raised if the response cannot be
-        sent right away. Repeated calls to accept() does not need to
-        retain the arguments.
+        sent right away. accept() must be called again once more space
+        is available using the same arguments.
         """
 
         # This is a state machine in order to handle
@@ -419,7 +421,8 @@ class WebSocket(object):
         data from other calls, or split it over multiple messages.
 
         WebSocketWantWriteError can be raised if there is insufficient
-        space in the underlying socket.
+        space in the underlying socket. send() must be called again
+        once more space is available using the same arguments.
         """
         if len(bytes) == 0:
             return 0
@@ -434,31 +437,81 @@ class WebSocket(object):
         single WebSocket message.
 
         WebSocketWantWriteError can be raised if there is insufficient
-        space in the underlying socket.
+        space in the underlying socket. sendmsg() must be called again
+        once more space is available using the same arguments.
         """
         if not isinstance(msg, bytes):
             raise TypeError
 
-        if not self._sent_close:
-            # Only called to flush?
-            self._sendmsg(0x2, msg)
+        if self._sent_close:
+            return 0
 
-        self._flush()
+        if self._previous_sendmsg is not None:
+            if self._previous_sendmsg != msg:
+                raise ValueError
+
+            self._flush()
+            self._previous_sendmsg = None
+
+            return len(msg)
+
+        try:
+            self._sendmsg(0x2, msg)
+        except WebSocketWantWriteError:
+            self._previous_sendmsg = msg
+            raise
+
         return len(msg)
 
     def ping(self, data=''.encode('ascii')):
-        """Write a ping message to the WebSocket."""
+        """Write a ping message to the WebSocket
+
+        WebSocketWantWriteError can be raised if there is insufficient
+        space in the underlying socket. ping() must be called again once
+        more space is available using the same arguments.
+        """
         if not isinstance(data, bytes):
             raise TypeError
 
-        self._sendmsg(0x9, data)
+        if self._previous_sendmsg is not None:
+            if self._previous_sendmsg != data:
+                raise ValueError
+
+            self._flush()
+            self._previous_sendmsg = None
+
+            return
+
+        try:
+            self._sendmsg(0x9, data)
+        except WebSocketWantWriteError:
+            self._previous_sendmsg = data
+            raise
 
     def pong(self, data=''.encode('ascii')):
-        """Write a pong message to the WebSocket."""
+        """Write a pong message to the WebSocket
+
+        WebSocketWantWriteError can be raised if there is insufficient
+        space in the underlying socket. pong() must be called again once
+        more space is available using the same arguments.
+        """
         if not isinstance(data, bytes):
             raise TypeError
 
-        self._sendmsg(0xA, data)
+        if self._previous_sendmsg is not None:
+            if self._previous_sendmsg != data:
+                raise ValueError
+
+            self._flush()
+            self._previous_sendmsg = None
+
+            return
+
+        try:
+            self._sendmsg(0xA, data)
+        except WebSocketWantWriteError:
+            self._previous_sendmsg = data
+            raise
 
     def shutdown(self, how, code=1000, reason=None):
         """Gracefully terminate the WebSocket connection.
@@ -470,7 +523,9 @@ class WebSocket(object):
         ignored.
 
         WebSocketWantWriteError can be raised if there is insufficient
-        space in the underlying socket for the close message.
+        space in the underlying socket for the close message. shutdown()
+        must be called again once more space is available using the same
+        arguments.
 
         The how argument is currently ignored.
         """
@@ -502,7 +557,9 @@ class WebSocket(object):
         a close message to the peer.
 
         WebSocketWantWriteError can be raised if there is insufficient
-        space in the underlying socket for the close message.
+        space in the underlying socket for the close message. close()
+        must be called again once more space is available using the same
+        arguments.
         """
         self.shutdown(socket.SHUT_RDWR, code, reason)
         self._close()

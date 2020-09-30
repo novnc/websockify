@@ -146,20 +146,14 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
                     self.rec.write("'{{{0}{{{1}',\n".format(tdelta, bufstr))
                 self.send_parts.append(buf)
 
-        # Flush any previously queued data
-        try:
-            self.request.sendmsg('')
-        except WebSocketWantWriteError:
-            return True
-
         while self.send_parts:
             # Send pending frames
-            buf = self.send_parts.pop(0)
             try:
-                self.request.sendmsg(buf)
+                self.request.sendmsg(self.send_parts[0])
             except WebSocketWantWriteError:
                 self.print_traffic("<.")
                 return True
+            self.send_parts.pop()
             self.print_traffic("<")
 
         return False
