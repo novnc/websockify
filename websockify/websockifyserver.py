@@ -153,7 +153,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
             except WebSocketWantWriteError:
                 self.print_traffic("<.")
                 return True
-            self.send_parts.pop()
+            self.send_parts.pop(0)
             self.print_traffic("<")
 
         return False
