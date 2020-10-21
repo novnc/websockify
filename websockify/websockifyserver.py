@@ -149,11 +149,10 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         while self.send_parts:
             # Send pending frames
             try:
-                self.request.sendmsg(self.send_parts[0])
+                self.request.sendmsg(self.send_parts.pop(0))
             except WebSocketWantWriteError:
                 self.print_traffic("<.")
                 return True
-            self.send_parts.pop()
             self.print_traffic("<")
 
         return False
