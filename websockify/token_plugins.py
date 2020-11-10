@@ -186,3 +186,21 @@ class UnixDomainSocketDirectory(BasePlugin):
         except Exception as e:
                 print("Error finding unix domain socket: %s" % str(e), file=sys.stderr)
                 return None
+
+class HashIdToken(BasePlugin):
+
+    def __init__(self, salt_file):
+        file = open(salt_file, 'r')
+        self.salt = file.read().rstrip()
+
+    def lookup(self, token):
+        try:
+            from hashids import Hashids
+
+            hashids = Hashids(salt = self.salt,min_length=10)
+            out = hashids.decode(token)
+            
+            return ['localost', out[0]]
+        except Exception as e:
+             print("Error looking up Hashid token: %s" % str(e))
+             return None
