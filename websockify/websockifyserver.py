@@ -46,7 +46,7 @@ from websockify.websocketserver import WebSocketRequestHandlerMixIn
 
 class CompatibleWebSocket(WebSocket):
     def select_subprotocol(self, protocols):
-        # Handle old websockify clients that still specifiy a sub-protocol
+        # Handle old websockify clients that still specify a sub-protocol
         if 'binary' in protocols:
             return 'binary'
         else:
