@@ -293,6 +293,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
             wsdir = os.path.dirname(sys.argv[0])
             rebinder_path = [os.path.join(wsdir, "..", "lib"),
                              os.path.join(wsdir, "..", "lib", "websockify"),
+                             os.path.join(wsdir, ".."),
                              wsdir]
             self.rebinder = None
 
