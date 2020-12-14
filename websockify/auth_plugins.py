@@ -1,4 +1,4 @@
-class BasePlugin(object):
+class BasePlugin():
     def __init__(self, src=None):
         self.source = src
 
@@ -15,7 +15,7 @@ class AuthenticationError(Exception):
         if log_msg is None:
             log_msg = response_msg
 
-        super(AuthenticationError, self).__init__('%s %s' % (self.code, log_msg))
+        super().__init__('%s %s' % (self.code, log_msg))
 
 
 class InvalidOriginError(AuthenticationError):
@@ -23,13 +23,13 @@ class InvalidOriginError(AuthenticationError):
         self.expected_origin = expected
         self.actual_origin = actual
 
-        super(InvalidOriginError, self).__init__(
+        super().__init__(
             response_msg='Invalid Origin',
             log_msg="Invalid Origin Header: Expected one of "
                     "%s, got '%s'" % (expected, actual))
 
 
-class BasicHTTPAuth(object):
+class BasicHTTPAuth():
     """Verifies Basic Auth headers. Specify src as username:password"""
 
     def __init__(self, src=None):
@@ -76,7 +76,7 @@ class BasicHTTPAuth(object):
         raise AuthenticationError(response_code=401,
                                   response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
 
-class ExpectOrigin(object):
+class ExpectOrigin():
     def __init__(self, src=None):
         if src is None:
             self.source = []
@@ -88,7 +88,7 @@ class ExpectOrigin(object):
         if origin is None or origin not in self.source:
             raise InvalidOriginError(expected=self.source, actual=origin)
 
-class ClientCertCNAuth(object):
+class ClientCertCNAuth():
     """Verifies client by SSL certificate. Specify src as whitespace separated list of common names."""
 
     def __init__(self, src=None):

@@ -12,24 +12,13 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl
-try:
-    from socketserver import ThreadingMixIn
-except ImportError:
-    from SocketServer import ThreadingMixIn
-
-try:
-    from http.server import HTTPServer
-except ImportError:
-    from BaseHTTPServer import HTTPServer
+from socketserver import ThreadingMixIn
+from http.server import HTTPServer
 
 import select
 from websockify import websockifyserver
 from websockify import auth_plugins as auth
-try:
-    from urllib.parse import parse_qs, urlparse
-except ImportError:
-    from cgi import parse_qs
-    from urlparse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 class ProxyRequestHandler(websockifyserver.WebSockifyRequestHandler):
 
@@ -319,7 +308,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
                 "REBIND_OLD_PORT": str(kwargs['listen_port']),
                 "REBIND_NEW_PORT": str(self.target_port)})
 
-        websockifyserver.WebSockifyServer.__init__(self, RequestHandlerClass, *args, **kwargs)
+        super().__init__(RequestHandlerClass, *args, **kwargs)
 
     def run_wrap_cmd(self):
         self.msg("Starting '%s'", " ".join(self.wrap_cmd))
@@ -395,35 +384,15 @@ def _subprocess_setup():
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-try :
-    # First try SSL options for Python 3.4 and above
-    SSL_OPTIONS = {
-        'default': ssl.OP_ALL,
-        'tlsv1_1': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-        ssl.OP_NO_TLSv1,
-        'tlsv1_2': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-        ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1,
-        'tlsv1_3': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-        ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_2,
-    }
-except AttributeError:
-    try:
-        # Python 3.3 uses a different scheme for SSL options
-        # tlsv1_3 is not supported on older Python versions
-        SSL_OPTIONS = {
-            'default': ssl.OP_ALL,
-            'tlsv1_1': ssl.PROTOCOL_TLSv1 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-            ssl.OP_NO_TLSv1,
-            'tlsv1_2': ssl.PROTOCOL_TLSv1 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-            ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1,
-        }
-    except AttributeError:
-        # Python 2.6 does not support TLS v1.2, and uses a different scheme
-        # for SSL options
-        SSL_OPTIONS = {
-            'default': ssl.PROTOCOL_SSLv23,
-            'tlsv1_1': ssl.PROTOCOL_TLSv1,
-        }
+SSL_OPTIONS = {
+    'default': ssl.OP_ALL,
+    'tlsv1_1': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+    ssl.OP_NO_TLSv1,
+    'tlsv1_2': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+    ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1,
+    'tlsv1_3': ssl.PROTOCOL_TLS | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
+    ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_2,
+}
 
 def select_ssl_version(version):
     """Returns SSL options for the most secure TSL version available on this
@@ -769,14 +738,13 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
         if web:
             os.chdir(web)
 
-        HTTPServer.__init__(self, (listen_host, listen_port),
-                            RequestHandlerClass)
+        super().__init__((listen_host, listen_port), RequestHandlerClass)
 
 
     def process_request(self, request, client_address):
         """Override process_request to implement a counter"""
         self.handler_id += 1
-        ThreadingMixIn.process_request(self, request, client_address)
+        super().process_request(request, client_address)
 
 
 if __name__ == '__main__':

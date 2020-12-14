@@ -1,5 +1,5 @@
 mock
 nose
-jwcrypto;python_version>="2.7"
-redis;python_version>="2.7"
-simplejson;python_version>="2.7"
+jwcrypto
+redis
+simplejson

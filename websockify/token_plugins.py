@@ -1,8 +1,7 @@
-from __future__ import print_function
 import os
 import sys
 
-class BasePlugin(object):
+class BasePlugin():
     def __init__(self, src):
         self.source = src
 
@@ -15,7 +14,7 @@ class ReadOnlyTokenFile(BasePlugin):
     #   token: host:port
     # or a directory of such files
     def __init__(self, *args, **kwargs):
-        super(ReadOnlyTokenFile, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._targets = None
 
     def _load_targets(self):
@@ -57,7 +56,7 @@ class TokenFile(ReadOnlyTokenFile):
     def lookup(self, token):
         self._load_targets()
 
-        return super(TokenFile, self).lookup(token)
+        return super().lookup(token)
 
 
 class BaseTokenAPI(BasePlugin):
@@ -137,7 +136,7 @@ class JWTTokenApi(BasePlugin):
             print("package jwcrypto not found, are you sure you've installed it correctly?", file=sys.stderr)
             return None
 
-class TokenRedis(object):
+class TokenRedis():
     def __init__(self, src):
         self._server, self._port = src.split(":")
 
@@ -162,7 +161,7 @@ class TokenRedis(object):
 
 class UnixDomainSocketDirectory(BasePlugin):
     def __init__(self, *args, **kwargs):
-        super(UnixDomainSocketDirectory, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._dir_path = os.path.abspath(self.source)
 
     def lookup(self, token):

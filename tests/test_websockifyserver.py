@@ -22,30 +22,17 @@ import select
 import shutil
 import socket
 import ssl
-try:
-    from mock import patch, MagicMock, ANY
-except ImportError:
-    from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch, MagicMock, ANY
 import sys
 import tempfile
 import unittest
 import socket
 import signal
+from http.server import BaseHTTPRequestHandler
+from io import StringIO
+from io import BytesIO
+
 from websockify import websockifyserver
-
-try:
-    from BaseHTTPServer import BaseHTTPRequestHandler
-except ImportError:
-    from http.server import BaseHTTPRequestHandler
-
-try:
-    from StringIO import StringIO
-    BytesIO = StringIO
-except ImportError:
-    from io import StringIO
-    from io import BytesIO
-
-
 
 
 def raise_oserror(*args, **kwargs):
@@ -53,11 +40,8 @@ def raise_oserror(*args, **kwargs):
 
 
 class FakeSocket(object):
-    def __init__(self, data=''):
-        if isinstance(data, bytes):
-            self._data = data
-        else:
-            self._data = data.encode('latin_1')
+    def __init__(self, data=b''):
+        self._data = data
 
     def recv(self, amt, flags=None):
         res = self._data[0:amt]
@@ -99,7 +83,7 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
     def test_normal_get_with_only_upgrade_returns_error(self, send_error):
         server = self._get_server(web=None)
         handler = websockifyserver.WebSockifyRequestHandler(
-            FakeSocket('GET /tmp.txt HTTP/1.1'), '127.0.0.1', server)
+            FakeSocket(b'GET /tmp.txt HTTP/1.1'), '127.0.0.1', server)
 
         handler.do_GET()
         send_error.assert_called_with(405, ANY)
@@ -108,7 +92,7 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
     def test_list_dir_with_file_only_returns_error(self, send_error):
         server = self._get_server(file_only=True)
         handler = websockifyserver.WebSockifyRequestHandler(
-            FakeSocket('GET / HTTP/1.1'), '127.0.0.1', server)
+            FakeSocket(b'GET / HTTP/1.1'), '127.0.0.1', server)
 
         handler.path = '/'
         handler.do_GET()
@@ -186,7 +170,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
     def test_handshake_ssl_only_without_ssl_raises_error(self):
         server = self._get_server(daemon=True, ssl_only=1, idle_timeout=1)
 
-        sock = FakeSocket('some initial data')
+        sock = FakeSocket(b'some initial data')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             return ([sock], [], [])
@@ -208,7 +192,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             handler_class=FakeHandler, daemon=True,
             ssl_only=0, idle_timeout=1)
 
-        sock = FakeSocket('some initial data')
+        sock = FakeSocket(b'some initial data')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             return ([sock], [], [])
@@ -229,7 +213,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
         server = self._get_server(daemon=True, ssl_only=0, idle_timeout=1,
                                   cert='afdsfasdafdsafdsafdsafdas')
 
-        sock = FakeSocket("\x16some ssl data")
+        sock = FakeSocket(b"\x16some ssl data")
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             return ([sock], [], [])
@@ -242,7 +226,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
     def test_do_handshake_ssl_error_eof_raises_close_error(self):
         server = self._get_server(daemon=True, ssl_only=0, idle_timeout=1)
 
-        sock = FakeSocket("\x16some ssl data")
+        sock = FakeSocket(b"\x16some ssl data")
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             return ([sock], [], [])
@@ -264,12 +248,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
                 raise ssl.SSLError(ssl.SSL_ERROR_EOF)
 
         patch('select.select').start().side_effect = fake_select
-        if (hasattr(ssl, 'create_default_context')):
-            # for recent versions of python
-            patch('ssl.create_default_context').start().side_effect = fake_create_default_context
-        else:
-            # for fallback for old versions of python
-            patch('ssl.warp_socket').start().side_effect = fake_wrap_socket
+        patch('ssl.create_default_context').start().side_effect = fake_create_default_context
         self.assertRaises(
             websockifyserver.WebSockifyServer.EClose, server.do_handshake,
             sock, '127.0.0.1')
@@ -283,7 +262,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
         server = self._get_server(handler_class=FakeHandler, daemon=True, 
                                   idle_timeout=1, ssl_ciphers=test_ciphers)
-        sock = FakeSocket("\x16some ssl data")
+        sock = FakeSocket(b"\x16some ssl data")
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             return ([sock], [], [])
@@ -305,15 +284,9 @@ class WebSockifyServerTestCase(unittest.TestCase):
                 fake_create_default_context.CIPHERS = ciphers_to_set
 
         patch('select.select').start().side_effect = fake_select
-        if (hasattr(ssl, 'create_default_context')):
-            # for recent versions of python
-            patch('ssl.create_default_context').start().side_effect = fake_create_default_context
-            server.do_handshake(sock, '127.0.0.1')
-            self.assertEqual(fake_create_default_context.CIPHERS, test_ciphers)
-        else:
-            # for fallback for old versions of python
-            # not supperted, nothing to test
-            pass
+        patch('ssl.create_default_context').start().side_effect = fake_create_default_context
+        server.do_handshake(sock, '127.0.0.1')
+        self.assertEqual(fake_create_default_context.CIPHERS, test_ciphers)
 
     def test_do_handshake_ssl_sets_opions(self):
         test_options = 0xCAFEBEEF
@@ -324,7 +297,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
         server = self._get_server(handler_class=FakeHandler, daemon=True, 
                                   idle_timeout=1, ssl_options=test_options)
-        sock = FakeSocket("\x16some ssl data")
+        sock = FakeSocket(b"\x16some ssl data")
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             return ([sock], [], [])
@@ -349,15 +322,9 @@ class WebSockifyServerTestCase(unittest.TestCase):
             options = property(get_options, set_options)
 
         patch('select.select').start().side_effect = fake_select
-        if (hasattr(ssl, 'create_default_context')):
-            # for recent versions of python
-            patch('ssl.create_default_context').start().side_effect = fake_create_default_context
-            server.do_handshake(sock, '127.0.0.1')
-            self.assertEqual(fake_create_default_context.OPTIONS, test_options)
-        else:
-            # for fallback for old versions of python
-            # not supperted, nothing to test
-            pass
+        patch('ssl.create_default_context').start().side_effect = fake_create_default_context
+        server.do_handshake(sock, '127.0.0.1')
+        self.assertEqual(fake_create_default_context.OPTIONS, test_options)
 
     def test_fallback_sigchld_handler(self):
         # TODO(directxman12): implement this

@@ -8,12 +8,7 @@ Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 '''
 
 import sys
-
-# python 3.0 differences
-try:
-    from http.server import BaseHTTPRequestHandler, HTTPServer
-except ImportError:
-    from BaseHTTPServer import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 
@@ -42,12 +37,7 @@ class WebSocketRequestHandlerMixIn:
         self._real_do_GET = self.do_GET
         self.do_GET = self._websocket_do_GET
         try:
-            # super() only works for new style classes
-            if issubclass(WebSocketRequestHandlerMixIn, object):
-                super(WebSocketRequestHandlerMixIn, self).handle_one_request()
-            else:
-                # Assume handle_one_request() hasn't been overriden
-                BaseHTTPRequestHandler.handle_one_request(self)
+            super().handle_one_request()
         finally:
             self.do_GET = self._real_do_GET
 

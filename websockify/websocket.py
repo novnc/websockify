@@ -22,6 +22,7 @@ import ssl
 import struct
 from base64 import b64encode
 from hashlib import sha1
+from urllib.parse import urlparse
 
 try:
     import numpy
@@ -30,25 +31,10 @@ except ImportError:
     warnings.warn("no 'numpy' module, HyBi protocol will be slower")
     numpy = None
 
-# python 3.0 differences
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
-
-# SSLWant*Error is 2.7.9+
-try:
-    class WebSocketWantReadError(ssl.SSLWantReadError):
-        pass
-    class WebSocketWantWriteError(ssl.SSLWantWriteError):
-        pass
-except AttributeError:
-    class WebSocketWantReadError(OSError):
-        def __init__(self):
-            OSError.__init__(self, errno.EWOULDBLOCK)
-    class WebSocketWantWriteError(OSError):
-        def __init__(self):
-            OSError.__init__(self, errno.EWOULDBLOCK)
+class WebSocketWantReadError(ssl.SSLWantReadError):
+    pass
+class WebSocketWantWriteError(ssl.SSLWantWriteError):
+    pass
 
 class WebSocket(object):
     """WebSocket protocol socket like class.
@@ -87,11 +73,11 @@ class WebSocket(object):
 
         self._state = "new"
 
-        self._partial_msg = ''.encode("ascii")
+        self._partial_msg = b''
 
-        self._recv_buffer = ''.encode("ascii")
+        self._recv_buffer = b''
         self._recv_queue = []
-        self._send_buffer = ''.encode("ascii")
+        self._send_buffer = b''
 
         self._previous_sendmsg = None
 
@@ -166,9 +152,7 @@ class WebSocket(object):
             self._key = ''
             for i in range(16):
                 self._key += chr(random.randrange(256))
-            if sys.hexversion >= 0x3000000:
-                self._key = bytes(self._key, "latin-1")
-            self._key = b64encode(self._key).decode("ascii")
+            self._key = b64encode(self._key.encode("latin-1")).decode("ascii")
 
             path = uri.path
             if not path:
@@ -198,10 +182,10 @@ class WebSocket(object):
             if not self._recv():
                 raise Exception("Socket closed unexpectedly")
 
-            if self._recv_buffer.find('\r\n\r\n'.encode("ascii")) == -1:
+            if self._recv_buffer.find(b'\r\n\r\n') == -1:
                 raise WebSocketWantReadError
 
-            (request, self._recv_buffer) = self._recv_buffer.split('\r\n'.encode("ascii"), 1)
+            (request, self._recv_buffer) = self._recv_buffer.split(b'\r\n', 1)
             request = request.decode("latin-1")
 
             words = request.split()
@@ -210,7 +194,7 @@ class WebSocket(object):
             if words[1] != "101":
                 raise Exception("WebSocket request denied: %s" % " ".join(words[1:]))
 
-            (headers, self._recv_buffer) = self._recv_buffer.split('\r\n\r\n'.encode("ascii"), 1)
+            (headers, self._recv_buffer) = self._recv_buffer.split(b'\r\n\r\n', 1)
             headers = headers.decode('latin-1') + '\r\n'
             headers = email.message_from_string(headers)
 
@@ -463,7 +447,7 @@ class WebSocket(object):
 
         return len(msg)
 
-    def ping(self, data=''.encode('ascii')):
+    def ping(self, data=b''):
         """Write a ping message to the WebSocket
 
         WebSocketWantWriteError can be raised if there is insufficient
@@ -488,7 +472,7 @@ class WebSocket(object):
             self._previous_sendmsg = data
             raise
 
-    def pong(self, data=''.encode('ascii')):
+    def pong(self, data=b''):
         """Write a pong message to the WebSocket
 
         WebSocketWantWriteError can be raised if there is insufficient
@@ -542,7 +526,7 @@ class WebSocket(object):
 
         self._sent_close = True
 
-        msg = ''.encode('ascii')
+        msg = b''
         if code is not None:
             msg += struct.pack(">H", code)
             if reason is not None:
@@ -571,16 +555,9 @@ class WebSocket(object):
         while True:
             try:
                 data = self.socket.recv(4096)
-            except (socket.error, OSError):
-                exc = sys.exc_info()[1]
-                if hasattr(exc, 'errno'):
-                    err = exc.errno
-                else:
-                    err = exc[0]
-
-                if err == errno.EWOULDBLOCK:
+            except OSError as exc:
+                if exc.errno == errno.EWOULDBLOCK:
                     raise WebSocketWantReadError
-
                 raise
 
             if len(data) == 0:
@@ -637,7 +614,7 @@ class WebSocket(object):
 
                 if frame["fin"]:
                     msg = self._partial_msg
-                    self._partial_msg = ''.encode("ascii")
+                    self._partial_msg = b''
                     return msg
             elif frame["opcode"] == 0x1:
                 self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Text frames are not supported")
@@ -712,16 +689,9 @@ class WebSocket(object):
 
         try:
             sent = self.socket.send(self._send_buffer)
-        except (socket.error, OSError):
-            exc = sys.exc_info()[1]
-            if hasattr(exc, 'errno'):
-                err = exc.errno
-            else:
-                err = exc[0]
-
-            if err == errno.EWOULDBLOCK:
+        except OSError as exc:
+            if exc.errno == errno.EWOULDBLOCK:
                 raise WebSocketWantWriteError
-
             raise
 
         self._send_buffer = self._send_buffer[sent:]
@@ -747,11 +717,9 @@ class WebSocket(object):
     def _sendmsg(self, opcode, msg):
         # Sends a standard data message
         if self.client:
-            mask = ''
+            mask = b''
             for i in range(4):
-                mask += chr(random.randrange(256))
-            if sys.hexversion >= 0x3000000:
-                mask = bytes(mask, "latin-1")
+                mask += random.randrange(256)
             frame = self._encode_hybi(opcode, msg, mask)
         else:
             frame = self._encode_hybi(opcode, msg)
@@ -773,7 +741,7 @@ class WebSocket(object):
             plen = len(buf)
             pstart = 0
             pend = plen
-            b = c = ''.encode('ascii')
+            b = c = b''
             if plen >= 4:
                 dtype=numpy.dtype('<u4')
                 if sys.byteorder == 'big':
@@ -794,8 +762,6 @@ class WebSocket(object):
             return b + c
         else:
             # Slower fallback
-            if sys.hexversion < 0x3000000:
-                mask = [ ord(c) for c in mask ]
             data = array.array('B')
             data.fromstring(buf)
             for i in range(len(data)):

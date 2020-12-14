@@ -20,32 +20,20 @@ import sys
 import unittest
 import unittest
 import socket
-try:
-    from mock import patch
-except ImportError:
-    from unittest.mock import patch
+from io import StringIO
+from io import BytesIO
+from unittest.mock import patch
+
+from jwcrypto import jwt
 
 from websockify import websocketproxy
 from websockify import token_plugins
 from websockify import auth_plugins
 
-if sys.version_info >= (2,7):
-    from jwcrypto import jwt
-
-try:
-    from StringIO import StringIO
-    BytesIO = StringIO
-except ImportError:
-    from io import StringIO
-    from io import BytesIO
-
 
 class FakeSocket(object):
-    def __init__(self, data=''):
-        if isinstance(data, bytes):
-            self._data = data
-        else:
-            self._data = data.encode('latin_1')
+    def __init__(self, data=b''):
+        self._data = data
 
     def recv(self, amt, flags=None):
         res = self._data[0:amt]
@@ -76,7 +64,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
         super(ProxyRequestHandlerTestCase, self).setUp()
         self.handler = websocketproxy.ProxyRequestHandler(
-            FakeSocket(''), "127.0.0.1", FakeServer())
+            FakeSocket(), "127.0.0.1", FakeServer())
         self.handler.path = "https://localhost:6080/websockify?token=blah"
         self.handler.headers = None
         patch('websockify.websockifyserver.WebSockifyServer.socket').start()
