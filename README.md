@@ -159,12 +159,12 @@ project demonstrates a simple WebSockets based telnet client (use
 ### Installing websockify
 
 Download one of the releases or the latest development version, extract
-it and run `python setup.py install` as root in the directory where you
+it and run `python3 setup.py install` as root in the directory where you
 extracted the files. Normally, this will also install numpy for better
 performance, if you don't have it installed already. However, numpy is
 optional. If you don't want to install numpy or if you can't compile it,
 you can edit setup.py and remove the `install_requires=['numpy'],` line
-before running `python setup.py install`.
+before running `python3 setup.py install`.
 
 Afterwards, websockify should be available in your path. Run
 `websockify --help` to confirm it's installed correctly.

@@ -6,4 +6,4 @@ install:
     - pip install 'setuptools>=18.5,<=39.0.0'
     - pip install -r test-requirements.txt
 
-script: python setup.py nosetests --verbosity=3
+script: python3 setup.py nosetests --verbosity=3
