@@ -55,7 +55,7 @@ understand it. You can do this by installing it as accepted certificate, or by
 using that same certificate for a HTTPS connection to which you navigate first
 and approve. Browsers generally don't give you the "trust certificate?" prompt
 by opening a WSS socket with invalid certificate, hence you need to have it
-acccept it by either of those two methods.
+accept it by either of those two methods.
 
 If you have a commercial/valid SSL certificate with one or more intermediate
 certificates, concat them into one file, server certificate first, then the
