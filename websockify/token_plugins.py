@@ -1,5 +1,6 @@
 import os
 import sys
+import time
 
 class BasePlugin():
     def __init__(self, src):
@@ -127,6 +128,12 @@ class JWTTokenApi(BasePlugin):
                     token = jwt.JWT(key=key, jwt=token.claims)
 
                 parsed = json.loads(token.claims)
+                
+                if 'exp' in parsed:
+                    # Expiration time is present, so we need to check it
+                    if time.time() > parsed['exp']:
+                        print('Token has expired!', file=sys.stderr)
+                        return None
 
                 return (parsed['host'], parsed['port'])
             except Exception as e:
