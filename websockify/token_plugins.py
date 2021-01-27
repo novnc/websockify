@@ -129,6 +129,12 @@ class JWTTokenApi(BasePlugin):
 
                 parsed = json.loads(token.claims)
                 
+                if 'nbf' in parsed:
+                    # Not Before is present, so we need to check it
+                    if time.time() < parsed['nbf']:
+                        print('Token can not be used yet!', file=sys.stderr)
+                        return None
+
                 if 'exp' in parsed:
                     # Expiration time is present, so we need to check it
                     if time.time() > parsed['exp']:
