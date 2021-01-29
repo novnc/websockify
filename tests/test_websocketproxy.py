@@ -144,6 +144,54 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
 
     @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
+    @patch('time.time')
+    def test_jwt_valid_time(self, mock_time):
+        key = jwt.JWK()
+        private_key = open("./tests/fixtures/private.pem", "rb").read()
+        key.import_from_pem(private_key)
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token.make_signed_token(key)
+        self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+        mock_time.return_value = 150
+
+        self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/public.pem")
+        self.handler.validate_connection()
+
+        self.assertEqual(self.handler.server.target_host, "remote_host")
+        self.assertEqual(self.handler.server.target_port, "remote_port")
+
+    @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
+    @patch('time.time')
+    def test_jwt_early_time(self, mock_time):
+        key = jwt.JWK()
+        private_key = open("./tests/fixtures/private.pem", "rb").read()
+        key.import_from_pem(private_key)
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token.make_signed_token(key)
+        self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+        mock_time.return_value = 50
+
+        self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/public.pem")
+        with self.assertRaises(self.handler.server.EClose):
+            self.handler.validate_connection()
+
+    @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
+    @patch('time.time')
+    def test_jwt_late_time(self, mock_time):
+        key = jwt.JWK()
+        private_key = open("./tests/fixtures/private.pem", "rb").read()
+        key.import_from_pem(private_key)
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token.make_signed_token(key)
+        self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
+        mock_time.return_value = 250
+
+        self.handler.server.token_plugin = token_plugins.JWTTokenApi("./tests/fixtures/public.pem")
+        with self.assertRaises(self.handler.server.EClose):
+            self.handler.validate_connection()
+
+
+    @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
     def test_symmetric_jws_token_plugin(self):
         secret = open("./tests/fixtures/symmetric.key").read()
         key = jwt.JWK()
