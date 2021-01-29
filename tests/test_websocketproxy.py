@@ -99,8 +99,8 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             def lookup(self, token):
                 return None
 
-        self.assertRaises(FakeServer.EClose, self.handler.get_target,
-            TestPlugin(None))
+        with self.assertRaises(FakeServer.EClose):
+            self.handler.get_target(TestPlugin(None))
 
     @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
     def test_token_plugin(self):
@@ -139,8 +139,8 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.handler.path = "https://localhost:6080/websockify?token={jwt_token}".format(jwt_token=jwt_token.serialize())
 
         self.handler.server.token_plugin = token_plugins.JWTTokenApi("wrong.pub")
-        self.assertRaises(self.handler.server.EClose, 
-                        self.handler.validate_connection)
+        with self.assertRaises(self.handler.server.EClose):
+            self.handler.validate_connection()
 
 
     @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
@@ -204,8 +204,8 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.handler.server.target_host = "somehost"
         self.handler.server.target_port = "someport"
 
-        self.assertRaises(auth_plugins.AuthenticationError,
-                          self.handler.auth_connection)
+        with self.assertRaises(auth_plugins.AuthenticationError):
+            self.handler.auth_connection()
 
         self.handler.server.target_host = "someotherhost"
         self.handler.auth_connection()
