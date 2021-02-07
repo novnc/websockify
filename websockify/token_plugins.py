@@ -150,26 +150,57 @@ class JWTTokenApi(BasePlugin):
             return None
 
 class TokenRedis():
+    """
+    The TokenRedis plugin expects the format of the data in a form of json.
+    
+    Prepare data with:
+        redis-cli set hello '{"host":"127.0.0.1:5000"}'
+    
+    Verify with:
+        redis-cli --raw get hello
+    
+    Spawn a test "server" using netcat
+        nc -l 5000 -v
+    
+    Note: you have to install also the 'redis' and 'simplejson' modules
+          pip install redis simplejson
+    """
     def __init__(self, src):
-        self._server, self._port = src.split(":")
+        try:
+            # import those ahead of time so we provide error earlier
+            import redis
+            import simplejson
+            self._server, self._port = src.split(":")
+            print("TokenRedis backend initilized (%s:%s)" %
+                  (self._server, self._port), file=sys.stderr)
+        except ValueError:
+            print("The provided --token-source='%s' is not in an expected format <host>:<port>" %
+                  src, file=sys.stderr)
+            sys.exit()
+        except ImportError:
+            print("package redis or simplejson not found, are you sure you've installed them correctly?", file=sys.stderr)
+            sys.exit()
 
     def lookup(self, token):
         try:
             import redis
             import simplejson
-        except ImportError as e:
+        except ImportError:
             print("package redis or simplejson not found, are you sure you've installed them correctly?", file=sys.stderr)
-            return None
+            sys.exit()
 
-        client = redis.Redis(host=self._server,port=self._port)
+        print("resolving token '%s'" % token, file=sys.stderr)
+        client = redis.Redis(host=self._server, port=self._port)
         stuff = client.get(token)
         if stuff is None:
             return None
         else:
-            combo = simplejson.loads(stuff.decode("utf-8"))
+            responseStr = stuff.decode("utf-8")
+            print("response from redis : %s" % responseStr, file=sys.stderr)
+            combo = simplejson.loads(responseStr)
             (host, port) = combo["host"].split(':')
-            port = port.encode('ascii','ignore')
-            return [ host, port ]
+            print("host: %s, port: %s" % (host,port), file=sys.stderr)
+            return [host, port]
 
 
 class UnixDomainSocketDirectory(BasePlugin):
