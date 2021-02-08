@@ -1,5 +1,6 @@
 mock
 nose
 jwcrypto
+six
 redis
 simplejson
