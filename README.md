@@ -125,7 +125,7 @@ In addition to proxying from a source address to a target address
 launch a program on the local system and proxy WebSockets traffic to
 a normal TCP port owned/bound by the program.
 
-The is accomplished with a small LD_PRELOAD library (`rebind.so`)
+This is accomplished by the LD_PRELOAD library (`rebind.so`)
 which intercepts bind() system calls by the program. The specified
 port is moved to a new localhost/loopback free high port. websockify
 then proxies WebSockets traffic directed to the original port to the
