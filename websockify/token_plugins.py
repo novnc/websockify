@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import re
 
 class BasePlugin():
     def __init__(self, src):
@@ -31,7 +32,7 @@ class ReadOnlyTokenFile(BasePlugin):
             for line in [l.strip() for l in open(f).readlines()]:
                 if line and not line.startswith('#'):
                     try:
-                        tok, target = line.split(': ')
+                        tok, target = re.split(':\s', line)
                         self._targets[tok] = target.strip().rsplit(':', 1)
                     except ValueError:
                         print("Syntax error in %s on line %d" % (self.source, index), file=sys.stderr)
