@@ -3,10 +3,39 @@
 """ Unit tests for Token plugins"""
 
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, mock_open, MagicMock
 from jwcrypto import jwt
 
-from websockify.token_plugins import JWTTokenApi
+from websockify.token_plugins import ReadOnlyTokenFile, JWTTokenApi
+
+class ReadOnlyTokenFileTestCase(unittest.TestCase):
+    patch('os.path.isdir', MagicMock(return_value=False))
+    def test_empty(self):
+        plugin = ReadOnlyTokenFile('configfile')
+
+        config = ""
+        pyopen = mock_open(read_data=config)
+
+        with patch("websockify.token_plugins.open", pyopen):
+            result = plugin.lookup('testhost')
+
+        pyopen.assert_called_once_with('configfile')
+        self.assertIsNone(result)
+
+    patch('os.path.isdir', MagicMock(return_value=False))
+    def test_simple(self):
+        plugin = ReadOnlyTokenFile('configfile')
+
+        config = "testhost: remote_host:remote_port"
+        pyopen = mock_open(read_data=config)
+
+        with patch("websockify.token_plugins.open", pyopen):
+            result = plugin.lookup('testhost')
+
+        pyopen.assert_called_once_with('configfile')
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "remote_host")
+        self.assertEqual(result[1], "remote_port")
 
 class JWSTokenTestCase(unittest.TestCase):
     def test_asymmetric_jws_token_plugin(self):
