@@ -37,6 +37,21 @@ class ReadOnlyTokenFileTestCase(unittest.TestCase):
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
 
+    patch('os.path.isdir', MagicMock(return_value=False))
+    def test_tabs(self):
+        plugin = ReadOnlyTokenFile('configfile')
+
+        config = "testhost:\tremote_host:remote_port"
+        pyopen = mock_open(read_data=config)
+
+        with patch("websockify.token_plugins.open", pyopen):
+            result = plugin.lookup('testhost')
+
+        pyopen.assert_called_once_with('configfile')
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], "remote_host")
+        self.assertEqual(result[1], "remote_port")
+
 class JWSTokenTestCase(unittest.TestCase):
     def test_asymmetric_jws_token_plugin(self):
         plugin = JWTTokenApi("./tests/fixtures/public.pem")
