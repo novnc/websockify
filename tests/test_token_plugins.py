@@ -16,7 +16,7 @@ class ReadOnlyTokenFileTestCase(unittest.TestCase):
         config = ""
         pyopen = mock_open(read_data=config)
 
-        with patch("websockify.token_plugins.open", pyopen):
+        with patch("websockify.token_plugins.open", pyopen, create=True):
             result = plugin.lookup('testhost')
 
         pyopen.assert_called_once_with('configfile')
@@ -29,7 +29,7 @@ class ReadOnlyTokenFileTestCase(unittest.TestCase):
         config = "testhost: remote_host:remote_port"
         pyopen = mock_open(read_data=config)
 
-        with patch("websockify.token_plugins.open", pyopen):
+        with patch("websockify.token_plugins.open", pyopen, create=True):
             result = plugin.lookup('testhost')
 
         pyopen.assert_called_once_with('configfile')
@@ -44,7 +44,7 @@ class ReadOnlyTokenFileTestCase(unittest.TestCase):
         config = "testhost:\tremote_host:remote_port"
         pyopen = mock_open(read_data=config)
 
-        with patch("websockify.token_plugins.open", pyopen):
+        with patch("websockify.token_plugins.open", pyopen, create=True):
             result = plugin.lookup('testhost')
 
         pyopen.assert_called_once_with('configfile')
