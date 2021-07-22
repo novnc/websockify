@@ -1,6 +1,16 @@
 Changes
 =======
 
+0.10.0
+------
+
+* Python 3.4 or newer is now required
+* Empty message frames are now supported
+* Tokens can now specify a Unix domain socket file to connect to
+* Time limits on JWT tokens are now respected
+* Whitespace is better tolerated in token files
+* Lots of minor fixes...
+
 0.9.0
 -----
 
