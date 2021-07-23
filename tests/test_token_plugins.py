@@ -167,7 +167,7 @@ class JWSTokenTestCase(unittest.TestCase):
         public_key.import_from_pem(public_key_data)
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(private_key)
-        jwe_token = jwt.JWT(header={"alg": "RSA1_5", "enc": "A256CBC-HS512"},
+        jwe_token = jwt.JWT(header={"alg": "RSA-OAEP", "enc": "A256CBC-HS512"},
                     claims=jwt_token.serialize())
         jwe_token.make_encrypted_token(public_key)
 
