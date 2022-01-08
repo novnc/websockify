@@ -465,6 +465,10 @@ class WebSockifyServer():
                 sock.connect(addrs[0][4])
                 if use_ssl:
                     sock = ssl.wrap_socket(sock)
+                    # SSL socket must be non-blocking in order to properly
+                    # handle receiving and sending data using select.
+                    # See also the comment(s) in ProxyRequestHandler.do_proxy()
+                    sock.setblocking(0)
             else:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
                 sock.bind(addrs[0][4])
