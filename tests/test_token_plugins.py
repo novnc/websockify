@@ -6,7 +6,7 @@ import unittest
 from unittest.mock import patch, mock_open, MagicMock
 from jwcrypto import jwt
 
-from websockify.token_plugins import ReadOnlyTokenFile, JWTTokenApi
+from websockify.token_plugins import ReadOnlyTokenFile, JWTTokenApi, TokenRedis
 
 class ReadOnlyTokenFileTestCase(unittest.TestCase):
     patch('os.path.isdir', MagicMock(return_value=False))
@@ -177,3 +177,29 @@ class JWSTokenTestCase(unittest.TestCase):
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
 
+class TokenRedisTestCase(unittest.TestCase):
+    @patch('redis.Redis')
+    def test_empty(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        instance = mock_redis.return_value
+        instance.get.return_value = None
+
+        result = plugin.lookup('testhost')
+
+        instance.get.assert_called_once_with('testhost')
+        self.assertIsNone(result)
+
+    @patch('redis.Redis')
+    def test_simple(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        instance = mock_redis.return_value
+        instance.get.return_value = b'{"host": "remote_host:remote_port"}'
+
+        result = plugin.lookup('testhost')
+
+        instance.get.assert_called_once_with('testhost')
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], 'remote_host')
+        self.assertEqual(result[1], 'remote_port')
