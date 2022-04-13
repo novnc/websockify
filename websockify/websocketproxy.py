@@ -35,15 +35,15 @@ Traffic Legend:
     <  - Client send
     <. - Client send partial
 """
-    
+
     def send_auth_error(self, ex):
         self.send_response(ex.code, ex.msg)
         self.send_header('Content-Type', 'text/html')
         for name, val in ex.headers.items():
             self.send_header(name, val)
-        
+
         self.end_headers()
-    
+
     def validate_connection(self):
         if not self.server.token_plugin:
             return
@@ -72,7 +72,7 @@ Traffic Legend:
         except (TypeError, AttributeError, KeyError):
             # not a SSL connection or client presented no certificate with valid data
             pass
-            
+
         try:
             self.server.auth_plugin.authenticate(
                 headers=self.headers, target_host=self.server.target_host,
@@ -403,7 +403,7 @@ def select_ssl_version(version):
         # It so happens that version names sorted lexicographically form a list
         # from the least to the most secure
         keys = list(SSL_OPTIONS.keys())
-        keys.sort() 
+        keys.sort()
         fallback = keys[-1]
         logger = logging.getLogger(WebSocketProxy.log_prefix)
         logger.warn("TLS version %s unsupported. Falling back to %s",
@@ -420,7 +420,8 @@ def websockify_init():
     stderr_handler.setLevel(logging.DEBUG)
     log_formatter = logging.Formatter("%(message)s")
     stderr_handler.setFormatter(log_formatter)
-    logger.addHandler(stderr_handler)
+    root = logging.getLogger()
+    root.addHandler(stderr_handler)
 
     # Setup optparse.
     usage = "\n    %prog [options]"
@@ -552,7 +553,8 @@ def websockify_init():
         log_file_handler = logging.FileHandler(opts.log_file)
         log_file_handler.setLevel(logging.DEBUG)
         log_file_handler.setFormatter(log_formatter)
-        logger.addHandler(log_file_handler)
+        root = logging.getLogger()
+        root.addHandler(log_file_handler)
 
     del opts.log_file
 
@@ -585,7 +587,8 @@ def websockify_init():
                                                  legacy=opts.legacy_syslog)
         syslog_handler.setLevel(logging.DEBUG)
         syslog_handler.setFormatter(log_formatter)
-        logger.addHandler(syslog_handler)
+        root = logging.getLogger()
+        root.addHandler(syslog_handler)
 
     del opts.syslog
     del opts.legacy_syslog
