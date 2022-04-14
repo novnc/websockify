@@ -1,7 +1,11 @@
+import logging
 import os
 import sys
 import time
 import re
+
+logger = logging.getLogger(__name__)
+
 
 class BasePlugin():
     def __init__(self, src):
@@ -35,7 +39,7 @@ class ReadOnlyTokenFile(BasePlugin):
                         tok, target = re.split(':\s', line)
                         self._targets[tok] = target.strip().rsplit(':', 1)
                     except ValueError:
-                        print("Syntax error in %s on line %d" % (self.source, index), file=sys.stderr)
+                        logger.error("Syntax error in %s on line %d" % (self.source, index))
                 index += 1
 
     def lookup(self, token):
@@ -108,7 +112,7 @@ class JWTTokenApi(BasePlugin):
                 with open(self.source, 'rb') as key_file:
                     key_data = key_file.read()
             except Exception as e:
-                print("Error loading key file: %s" % str(e), file=sys.stderr)
+                logger.error("Error loading key file: %s" % str(e))
                 return None
 
             try:
@@ -117,7 +121,7 @@ class JWTTokenApi(BasePlugin):
                 try:
                     key.import_key(k=key_data.decode('utf-8'),kty='oct')
                 except:
-                    print('Failed to correctly parse key data!', file=sys.stderr)
+                    logger.error('Failed to correctly parse key data!')
                     return None
 
             try:
@@ -129,40 +133,40 @@ class JWTTokenApi(BasePlugin):
                     token = jwt.JWT(key=key, jwt=token.claims)
 
                 parsed = json.loads(token.claims)
-                
+
                 if 'nbf' in parsed:
                     # Not Before is present, so we need to check it
                     if time.time() < parsed['nbf']:
-                        print('Token can not be used yet!', file=sys.stderr)
+                        logger.warning('Token can not be used yet!')
                         return None
 
                 if 'exp' in parsed:
                     # Expiration time is present, so we need to check it
                     if time.time() > parsed['exp']:
-                        print('Token has expired!', file=sys.stderr)
+                        logger.warning('Token has expired!')
                         return None
 
                 return (parsed['host'], parsed['port'])
             except Exception as e:
-                print("Failed to parse token: %s" % str(e), file=sys.stderr)
+                logger.error("Failed to parse token: %s" % str(e))
                 return None
-        except ImportError as e:
-            print("package jwcrypto not found, are you sure you've installed it correctly?", file=sys.stderr)
+        except ImportError:
+            logger.error("package jwcrypto not found, are you sure you've installed it correctly?")
             return None
 
 class TokenRedis():
     """
     The TokenRedis plugin expects the format of the data in a form of json.
-    
+
     Prepare data with:
         redis-cli set hello '{"host":"127.0.0.1:5000"}'
-    
+
     Verify with:
         redis-cli --raw get hello
-    
+
     Spawn a test "server" using netcat
         nc -l 5000 -v
-    
+
     Note: you have to install also the 'redis' and 'simplejson' modules
           pip install redis simplejson
     """
@@ -172,14 +176,14 @@ class TokenRedis():
             import redis
             import simplejson
             self._server, self._port = src.split(":")
-            print("TokenRedis backend initilized (%s:%s)" %
-                  (self._server, self._port), file=sys.stderr)
+            logger.info("TokenRedis backend initilized (%s:%s)" %
+                  (self._server, self._port))
         except ValueError:
-            print("The provided --token-source='%s' is not in an expected format <host>:<port>" %
-                  src, file=sys.stderr)
+            logger.error("The provided --token-source='%s' is not in an expected format <host>:<port>" %
+                  src)
             sys.exit()
         except ImportError:
-            print("package redis or simplejson not found, are you sure you've installed them correctly?", file=sys.stderr)
+            logger.error("package redis or simplejson not found, are you sure you've installed them correctly?")
             sys.exit()
 
     def lookup(self, token):
@@ -187,20 +191,20 @@ class TokenRedis():
             import redis
             import simplejson
         except ImportError:
-            print("package redis or simplejson not found, are you sure you've installed them correctly?", file=sys.stderr)
+            logger.error("package redis or simplejson not found, are you sure you've installed them correctly?")
             sys.exit()
 
-        print("resolving token '%s'" % token, file=sys.stderr)
+        logger.info("resolving token '%s'" % token)
         client = redis.Redis(host=self._server, port=self._port)
         stuff = client.get(token)
         if stuff is None:
             return None
         else:
             responseStr = stuff.decode("utf-8")
-            print("response from redis : %s" % responseStr, file=sys.stderr)
+            logger.debug("response from redis : %s" % responseStr)
             combo = simplejson.loads(responseStr)
             (host, port) = combo["host"].split(':')
-            print("host: %s, port: %s" % (host,port), file=sys.stderr)
+            logger.debug("host: %s, port: %s" % (host,port))
             return [host, port]
 
 
@@ -228,5 +232,5 @@ class UnixDomainSocketDirectory(BasePlugin):
 
             return [ 'unix_socket', uds_path ]
         except Exception as e:
-                print("Error finding unix domain socket: %s" % str(e), file=sys.stderr)
+                logger.error("Error finding unix domain socket: %s" % str(e))
                 return None
