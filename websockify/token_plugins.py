@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import re
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -167,14 +168,13 @@ class TokenRedis():
     Spawn a test "server" using netcat
         nc -l 5000 -v
 
-    Note: you have to install also the 'redis' and 'simplejson' modules
-          pip install redis simplejson
+    Note: you have to install also the 'redis' module
+          pip install redis
     """
     def __init__(self, src):
         try:
             # import those ahead of time so we provide error earlier
             import redis
-            import simplejson
             self._server, self._port = src.split(":")
             logger.info("TokenRedis backend initilized (%s:%s)" %
                   (self._server, self._port))
@@ -183,15 +183,14 @@ class TokenRedis():
                   src)
             sys.exit()
         except ImportError:
-            logger.error("package redis or simplejson not found, are you sure you've installed them correctly?")
+            logger.error("package redis not found, are you sure you've installed them correctly?")
             sys.exit()
 
     def lookup(self, token):
         try:
             import redis
-            import simplejson
         except ImportError:
-            logger.error("package redis or simplejson not found, are you sure you've installed them correctly?")
+            logger.error("package redis not found, are you sure you've installed them correctly?")
             sys.exit()
 
         logger.info("resolving token '%s'" % token)
@@ -202,7 +201,7 @@ class TokenRedis():
         else:
             responseStr = stuff.decode("utf-8")
             logger.debug("response from redis : %s" % responseStr)
-            combo = simplejson.loads(responseStr)
+            combo = json.loads(responseStr)
             (host, port) = combo["host"].split(':')
             logger.debug("host: %s, port: %s" % (host,port))
             return [host, port]
