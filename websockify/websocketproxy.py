@@ -427,6 +427,10 @@ def websockify_init():
     usage = "\n    %prog [options]"
     usage += " [source_addr:]source_port [target_addr:target_port]"
     usage += "\n    %prog [options]"
+    usage += " --token-plugin=CLASS [source_addr:]source_port"
+    usage += "\n    %prog [options]"
+    usage += " --unix-target=FILE [source_addr:]source_port"
+    usage += "\n    %prog [options]"
     usage += " [source_addr:]source_port -- WRAP_COMMAND_LINE"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("--verbose", "-v", action="store_true",
