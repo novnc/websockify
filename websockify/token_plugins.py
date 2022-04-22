@@ -155,8 +155,25 @@ class JWTTokenApi(BasePlugin):
             logger.error("package jwcrypto not found, are you sure you've installed it correctly?")
             return None
 
-class TokenRedis():
-    """
+
+class TokenRedis(BasePlugin):
+    """Token plugin based on the Redis in-memory data store.
+
+    The token source is in the format:
+
+        host[:port[:db[:password]]]
+
+    where port and password are optional.
+
+    If your redis server is using the default port (6379) then you can use:
+
+        my-redis-host
+
+    In case you need to authenticate with the redis server you will have to
+    specify also the port and db:
+
+        my-redis-host:6379:0:verysecretpass
+
     The TokenRedis plugin expects the format of the data in a form of json.
 
     Prepare data with:
@@ -173,17 +190,34 @@ class TokenRedis():
     """
     def __init__(self, src):
         try:
-            # import those ahead of time so we provide error earlier
             import redis
-            self._server, self._port = src.split(":")
+        except ImportError:
+            logger.error("Unable to load redis module")
+            sys.exit()
+        # Default values
+        self._port = 6379
+        self._db = 0
+        self._password = None
+        try:
+            fields = src.split(":")
+            if len(fields) == 1:
+                self._server = fields[0]
+            elif len(fields) == 2:
+                self._server, self._port = fields
+            elif len(fields) == 3:
+                self._server, self._port, self._db = fields
+            elif len(fields) == 4:
+                self._server, self._port, self._db, self._password = fields
+            else:
+                raise ValueError
+            self._port = int(self._port)
+            self._db = int(self._db)
             logger.info("TokenRedis backend initilized (%s:%s)" %
                   (self._server, self._port))
         except ValueError:
-            logger.error("The provided --token-source='%s' is not in an expected format <host>:<port>" %
-                  src)
-            sys.exit()
-        except ImportError:
-            logger.error("package redis not found, are you sure you've installed them correctly?")
+            logger.error("The provided --token-source='%s' is not in the "
+                         "expected format <host>[:<port>[:<db>[:<password>]]]" %
+                         src)
             sys.exit()
 
     def lookup(self, token):
@@ -194,7 +228,8 @@ class TokenRedis():
             sys.exit()
 
         logger.info("resolving token '%s'" % token)
-        client = redis.Redis(host=self._server, port=self._port)
+        client = redis.Redis(host=self._server, port=self._port,
+                             db=self._db, password=self._password)
         stuff = client.get(token)
         if stuff is None:
             return None

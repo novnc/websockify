@@ -203,3 +203,35 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result[0], 'remote_host')
         self.assertEqual(result[1], 'remote_port')
+
+    def test_src_only_host(self):
+        plugin = TokenRedis('127.0.0.1')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 6379)
+        self.assertEqual(plugin._db, 0)
+        self.assertEqual(plugin._password, None)
+
+    def test_src_with_host_port(self):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 1234)
+        self.assertEqual(plugin._db, 0)
+        self.assertEqual(plugin._password, None)
+
+    def test_src_with_host_port_db(self):
+        plugin = TokenRedis('127.0.0.1:1234:2')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 1234)
+        self.assertEqual(plugin._db, 2)
+        self.assertEqual(plugin._password, None)
+
+    def test_src_with_host_port_db_pass(self):
+        plugin = TokenRedis('127.0.0.1:1234:2:verysecret')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 1234)
+        self.assertEqual(plugin._db, 2)
+        self.assertEqual(plugin._password, 'verysecret')
