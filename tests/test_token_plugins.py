@@ -204,6 +204,60 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(result[0], 'remote_host')
         self.assertEqual(result[1], 'remote_port')
 
+    @patch('redis.Redis')
+    def test_json_token_with_spaces(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        instance = mock_redis.return_value
+        instance.get.return_value = b' {"host": "remote_host:remote_port"} '
+
+        result = plugin.lookup('testhost')
+
+        instance.get.assert_called_once_with('testhost')
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], 'remote_host')
+        self.assertEqual(result[1], 'remote_port')
+
+    @patch('redis.Redis')
+    def test_text_token(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        instance = mock_redis.return_value
+        instance.get.return_value = b'remote_host:remote_port'
+
+        result = plugin.lookup('testhost')
+
+        instance.get.assert_called_once_with('testhost')
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], 'remote_host')
+        self.assertEqual(result[1], 'remote_port')
+
+    @patch('redis.Redis')
+    def test_text_token_with_spaces(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        instance = mock_redis.return_value
+        instance.get.return_value = b' remote_host:remote_port '
+
+        result = plugin.lookup('testhost')
+
+        instance.get.assert_called_once_with('testhost')
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], 'remote_host')
+        self.assertEqual(result[1], 'remote_port')
+
+    @patch('redis.Redis')
+    def test_invalid_token(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+
+        instance = mock_redis.return_value
+        instance.get.return_value = b'{"host": "remote_host:remote_port"   '
+
+        result = plugin.lookup('testhost')
+
+        instance.get.assert_called_once_with('testhost')
+        self.assertIsNone(result)
+
     def test_src_only_host(self):
         plugin = TokenRedis('127.0.0.1')
 

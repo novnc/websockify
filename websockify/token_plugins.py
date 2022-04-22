@@ -174,18 +174,32 @@ class TokenRedis(BasePlugin):
 
         my-redis-host:6379:0:verysecretpass
 
-    The TokenRedis plugin expects the format of the data in a form of json.
+    The TokenRedis plugin expects the format of the target in one of these two
+    formats:
+
+    - JSON
+
+        {"host": "target-host:target-port"}
+
+    - Plain text
+
+        target-host:target-port
 
     Prepare data with:
-        redis-cli set hello '{"host":"127.0.0.1:5000"}'
+
+        redis-cli set my-token '{"host": "127.0.0.1:5000"}'
 
     Verify with:
-        redis-cli --raw get hello
+
+        redis-cli --raw get my-token
 
     Spawn a test "server" using netcat
+
         nc -l 5000 -v
 
-    Note: you have to install also the 'redis' module
+    Note: This Token Plugin depends on the 'redis' module, so you have
+    to install it before using this plugin:
+
           pip install redis
     """
     def __init__(self, src):
@@ -234,11 +248,26 @@ class TokenRedis(BasePlugin):
         if stuff is None:
             return None
         else:
-            responseStr = stuff.decode("utf-8")
+            responseStr = stuff.decode("utf-8").strip()
             logger.debug("response from redis : %s" % responseStr)
-            combo = json.loads(responseStr)
-            (host, port) = combo["host"].split(':')
-            logger.debug("host: %s, port: %s" % (host,port))
+            if responseStr.startswith("{"):
+                try:
+                    combo = json.loads(responseStr)
+                    host, port = combo["host"].split(":")
+                except ValueError:
+                    logger.error("Unable to decode JSON token: %s" %
+                                 responseStr)
+                    return None
+                except KeyError:
+                    logger.error("Unable to find 'host' key in JSON token: %s" %
+                                 responseStr)
+                    return None
+            elif re.match(r'\S+:\S+', responseStr):
+                host, port = responseStr.split(":")
+            else:
+                logger.error("Unable to parse token: %s" % responseStr)
+                return None
+            logger.debug("host: %s, port: %s" % (host, port))
             return [host, port]
 
 
