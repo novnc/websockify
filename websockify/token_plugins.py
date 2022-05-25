@@ -163,16 +163,21 @@ class TokenRedis(BasePlugin):
 
         host[:port[:db[:password]]]
 
-    where port and password are optional.
+    where port, db and password are optional. If port or db are left empty
+    they will take its default value, ie. 6379 and 0 respectively.
 
     If your redis server is using the default port (6379) then you can use:
 
         my-redis-host
 
-    In case you need to authenticate with the redis server you will have to
-    specify also the port and db:
+    In case you need to authenticate with the redis server and you are using
+    the default database and port you can use:
 
-        my-redis-host:6379:0:verysecretpass
+        my-redis-host:::verysecretpass
+
+    In the more general case you will use:
+
+        my-redis-host:6380:1:verysecretpass
 
     The TokenRedis plugin expects the format of the target in one of these two
     formats:
@@ -218,10 +223,22 @@ class TokenRedis(BasePlugin):
                 self._server = fields[0]
             elif len(fields) == 2:
                 self._server, self._port = fields
+                if not self._port:
+                    self._port = 6379
             elif len(fields) == 3:
                 self._server, self._port, self._db = fields
+                if not self._port:
+                    self._port = 6379
+                if not self._db:
+                    self._db = 0
             elif len(fields) == 4:
                 self._server, self._port, self._db, self._password = fields
+                if not self._port:
+                    self._port = 6379
+                if not self._db:
+                    self._db = 0
+                if not self._password:
+                    self._password = None
             else:
                 raise ValueError
             self._port = int(self._port)
