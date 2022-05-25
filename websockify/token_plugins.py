@@ -103,10 +103,10 @@ class JWTTokenApi(BasePlugin):
 
     def lookup(self, token):
         try:
-            from jwcrypto import jwt
+            from jwcrypto import jwt, jwk
             import json
 
-            key = jwt.JWK()
+            key = jwk.JWK()
 
             try:
                 with open(self.source, 'rb') as key_file:
