@@ -4,7 +4,7 @@
 
 import unittest
 from unittest.mock import patch, mock_open, MagicMock
-from jwcrypto import jwt
+from jwcrypto import jwt, jwk
 
 from websockify.token_plugins import ReadOnlyTokenFile, JWTTokenApi, TokenRedis
 
@@ -56,7 +56,7 @@ class JWSTokenTestCase(unittest.TestCase):
     def test_asymmetric_jws_token_plugin(self):
         plugin = JWTTokenApi("./tests/fixtures/public.pem")
 
-        key = jwt.JWK()
+        key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
@@ -71,7 +71,7 @@ class JWSTokenTestCase(unittest.TestCase):
     def test_asymmetric_jws_token_plugin_with_illigal_key_exception(self):
         plugin = JWTTokenApi("wrong.pub")
 
-        key = jwt.JWK()
+        key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
@@ -85,7 +85,7 @@ class JWSTokenTestCase(unittest.TestCase):
     def test_jwt_valid_time(self, mock_time):
         plugin = JWTTokenApi("./tests/fixtures/public.pem")
 
-        key = jwt.JWK()
+        key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
@@ -102,7 +102,7 @@ class JWSTokenTestCase(unittest.TestCase):
     def test_jwt_early_time(self, mock_time):
         plugin = JWTTokenApi("./tests/fixtures/public.pem")
 
-        key = jwt.JWK()
+        key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
@@ -117,7 +117,7 @@ class JWSTokenTestCase(unittest.TestCase):
     def test_jwt_late_time(self, mock_time):
         plugin = JWTTokenApi("./tests/fixtures/public.pem")
 
-        key = jwt.JWK()
+        key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
@@ -132,7 +132,7 @@ class JWSTokenTestCase(unittest.TestCase):
         plugin = JWTTokenApi("./tests/fixtures/symmetric.key")
 
         secret = open("./tests/fixtures/symmetric.key").read()
-        key = jwt.JWK()
+        key = jwk.JWK()
         key.import_key(kty="oct",k=secret)
         jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(key)
@@ -147,7 +147,7 @@ class JWSTokenTestCase(unittest.TestCase):
         plugin = JWTTokenApi("wrong_sauce")
 
         secret = open("./tests/fixtures/symmetric.key").read()
-        key = jwt.JWK()
+        key = jwk.JWK()
         key.import_key(kty="oct",k=secret)
         jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(key)
@@ -159,8 +159,8 @@ class JWSTokenTestCase(unittest.TestCase):
     def test_asymmetric_jwe_token_plugin(self):
         plugin = JWTTokenApi("./tests/fixtures/private.pem")
 
-        private_key = jwt.JWK()
-        public_key = jwt.JWK()
+        private_key = jwk.JWK()
+        public_key = jwk.JWK()
         private_key_data = open("./tests/fixtures/private.pem", "rb").read()
         public_key_data = open("./tests/fixtures/public.pem", "rb").read()
         private_key.import_from_pem(private_key_data)
