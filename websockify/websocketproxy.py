@@ -413,15 +413,13 @@ def select_ssl_version(version):
 
 def websockify_init():
     # Setup basic logging to stderr.
-    logger = logging.getLogger(WebSocketProxy.log_prefix)
-    logger.propagate = False
-    logger.setLevel(logging.INFO)
     stderr_handler = logging.StreamHandler()
     stderr_handler.setLevel(logging.DEBUG)
     log_formatter = logging.Formatter("%(message)s")
     stderr_handler.setFormatter(log_formatter)
     root = logging.getLogger()
     root.addHandler(stderr_handler)
+    root.setLevel(logging.INFO)
 
     # Setup optparse.
     usage = "\n    %prog [options]"
@@ -598,7 +596,8 @@ def websockify_init():
     del opts.legacy_syslog
 
     if opts.verbose:
-        logger.setLevel(logging.DEBUG)
+        root = logging.getLogger()
+        root.setLevel(logging.DEBUG)
 
 
     # Transform to absolute path as daemon may chdir
