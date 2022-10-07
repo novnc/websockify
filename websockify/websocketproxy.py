@@ -222,6 +222,18 @@ Traffic Legend:
                 tqueue.extend(bufs)
 
                 if closed:
+
+                    while (len(tqueue) != 0):
+                        # Send queued client data to the target
+                        dat = tqueue.pop(0)
+                        sent = target.send(dat)
+                        if sent == len(dat):
+                            self.print_traffic(">")
+                        else:
+                            # requeue the remaining data
+                            tqueue.insert(0, dat[sent:])
+                            self.print_traffic(".>")
+
                     # TODO: What about blocking on client socket?
                     if self.verbose:
                         self.log_message("%s:%s: Client closed connection",
@@ -245,6 +257,16 @@ Traffic Legend:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
                 if len(buf) == 0:
+
+                    # Target socket closed, flushing queues and closing client-side websocket
+                    # Send queued target data to the client
+                    if len(cqueue) != 0:
+                        c_pend = True
+                        while(c_pend):
+                            c_pend = self.send_frames(cqueue)
+
+                        cqueue = []
+
                     if self.verbose:
                         self.log_message("%s:%s: Target closed connection",
                                 self.server.target_host, self.server.target_port)
