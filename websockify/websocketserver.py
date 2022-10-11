@@ -84,8 +84,6 @@ class WebSocketRequestHandlerMixIn:
             self.send_error(400, str(exc))
             return
 
-        self.log_request(101)
-
         self.request = websocket
 
         # Other requests cannot follow Websocket data
