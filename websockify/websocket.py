@@ -158,19 +158,19 @@ class WebSocket(object):
             if not path:
                 path = "/"
 
-            self._queue_str("GET %s HTTP/1.1\r\n" % path)
-            self._queue_str("Host: %s\r\n" % uri.hostname)
-            self._queue_str("Upgrade: websocket\r\n")
-            self._queue_str("Connection: upgrade\r\n")
-            self._queue_str("Sec-WebSocket-Key: %s\r\n" % self._key)
-            self._queue_str("Sec-WebSocket-Version: 13\r\n")
+            self.send_request("GET", path)
+            self.send_header("Host", uri.hostname)
+            self.send_header("Upgrade", "websocket")
+            self.send_header("Connection", "upgrade")
+            self.send_header("Sec-WebSocket-Key", self._key)
+            self.send_header("Sec-WebSocket-Version", 13)
 
             if origin is not None:
-                self._queue_str("Origin: %s\r\n" % origin)
+                self.send_header("Origin", origin)
             if len(protocols) > 0:
-                self._queue_str("Sec-WebSocket-Protocol: %s\r\n" % ", ".join(protocols))
+                self.send_header("Sec-WebSocket-Protocol", ", ".join(protocols))
 
-            self._queue_str("\r\n")
+            self.end_headers()
 
             self._state = "send_headers"
 
@@ -283,15 +283,15 @@ class WebSocket(object):
                 if self.protocol not in protocols:
                     raise Exception('Invalid protocol selected')
 
-            self._queue_str("HTTP/1.1 101 Switching Protocols\r\n")
-            self._queue_str("Upgrade: websocket\r\n")
-            self._queue_str("Connection: Upgrade\r\n")
-            self._queue_str("Sec-WebSocket-Accept: %s\r\n" % accept)
+            self.send_response(101, "Switching Protocols")
+            self.send_header("Upgrade", "websocket")
+            self.send_header("Connection", "Upgrade")
+            self.send_header("Sec-WebSocket-Accept", accept)
 
             if self.protocol:
-                self._queue_str("Sec-WebSocket-Protocol: %s\r\n" % self.protocol)
+                self.send_header("Sec-WebSocket-Protocol", self.protocol)
 
-            self._queue_str("\r\n")
+            self.end_headers()
 
             self._state = "flush"
 
@@ -446,6 +446,18 @@ class WebSocket(object):
             raise
 
         return len(msg)
+
+    def send_response(self, code, message):
+        self._queue_str("HTTP/1.1 %d %s\r\n" % (code, message))
+
+    def send_header(self, keyword, value):
+        self._queue_str("%s: %s\r\n" % (keyword, value))
+
+    def end_headers(self):
+        self._queue_str("\r\n")
+
+    def send_request(self, type, path):
+        self._queue_str("%s %s HTTP/1.1\r\n" % (type.upper(), path))
 
     def ping(self, data=b''):
         """Write a ping message to the WebSocket
