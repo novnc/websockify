@@ -29,10 +29,10 @@ if sys.platform == 'win32':
     # make sockets pickle-able/inheritable
     import multiprocessing.reduction
 
-from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
+from websockify.websocket import WebSocketWantReadError, WebSocketWantWriteError
 from websockify.websocketserver import WebSocketRequestHandlerMixIn
 
-class CompatibleWebSocket(WebSocket):
+class CompatibleWebSocket(WebSocketRequestHandlerMixIn.SocketClass):
     def select_subprotocol(self, protocols):
         # Handle old websockify clients that still specify a sub-protocol
         if 'binary' in protocols:
