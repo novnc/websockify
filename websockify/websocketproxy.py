@@ -542,6 +542,8 @@ def websockify_init():
     parser.add_option("--legacy-syslog", action="store_true",
                       help="Use the old syslog protocol instead of RFC 5424. "
                            "Use this if the messages produced by websockify seem abnormal.")
+    parser.add_option("--file-only", action="store_true",
+                      help="use this to disable directory listings in web server.")
 
     (opts, args) = parser.parse_args()
 
