@@ -6,7 +6,7 @@ RUN mkdir -p /opt/websockify \
     && curl -SL https://github.com/novnc/websockify/archive/refs/tags/v$VERSION.tar.gz \
     | tar xzC /opt/websockify
 
-RUN python -m pip install 'numpy<1.17' redis simplejson jwcrypto
+RUN python -m pip install 'numpy<1.17' redis simplejson jwcrypto requests
 
 VOLUME /data
 
