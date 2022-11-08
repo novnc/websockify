@@ -12,6 +12,23 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
 
+class HttpWebSocket(WebSocket):
+    """Class to glue websocket and http request functionality together"""
+    def __init__(self, request_handler):
+        super().__init__()
+
+        self.request_handler = request_handler
+
+    def send_response(self, code, message=None):
+        self.request_handler.send_response(code, message)
+
+    def send_header(self, keyword, value):
+        self.request_handler.send_header(keyword, value)
+
+    def end_headers(self):
+        self.request_handler.end_headers()
+
+
 class WebSocketRequestHandlerMixIn:
     """WebSocket request handler mix-in class
 
@@ -25,7 +42,7 @@ class WebSocketRequestHandlerMixIn:
     use for the WebSocket connection.
     """
 
-    SocketClass = WebSocket
+    SocketClass = HttpWebSocket
 
     def handle_one_request(self):
         """Extended request handler
@@ -59,15 +76,13 @@ class WebSocketRequestHandlerMixIn:
         The WebSocket object will then replace the request object and
         handle_websocket() will be called.
         """
-        websocket = self.SocketClass()
+        websocket = self.SocketClass(self)
         try:
             websocket.accept(self.request, self.headers)
         except Exception:
             exc = sys.exc_info()[1]
             self.send_error(400, str(exc))
             return
-
-        self.log_request(101)
 
         self.request = websocket
 
