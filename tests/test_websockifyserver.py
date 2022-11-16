@@ -86,7 +86,7 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
             FakeSocket(b'GET /tmp.txt HTTP/1.1'), '127.0.0.1', server)
 
         handler.do_GET()
-        send_error.assert_called_with(405, ANY)
+        send_error.assert_called_with(405)
 
     @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
     def test_list_dir_with_file_only_returns_error(self, send_error):
@@ -96,7 +96,7 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
 
         handler.path = '/'
         handler.do_GET()
-        send_error.assert_called_with(404, ANY)
+        send_error.assert_called_with(404)
 
 
 class WebSockifyServerTestCase(unittest.TestCase):

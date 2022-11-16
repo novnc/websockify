@@ -250,13 +250,13 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
             self.auth_connection()
 
         if self.only_upgrade:
-            self.send_error(405, "Method Not Allowed")
+            self.send_error(405)
         else:
             super().do_GET()
 
     def list_directory(self, path):
         if self.file_only:
-            self.send_error(404, "No such file")
+            self.send_error(404)
         else:
             return super().list_directory(path)
 
@@ -277,7 +277,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
             self.auth_connection()
 
         if self.only_upgrade:
-            self.send_error(405, "Method Not Allowed")
+            self.send_error(405)
         else:
             super().do_HEAD()
 
