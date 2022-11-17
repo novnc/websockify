@@ -325,8 +325,11 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
             self.target_port = sock.getsockname()[1]
             sock.close()
 
+            # Insert rebinder at the head of the (possibly empty) LD_PRELOAD pathlist
+            ld_preloads = filter(None, [ self.rebinder, os.environ.get("LD_PRELOAD", None) ])
+
             os.environ.update({
-                "LD_PRELOAD": self.rebinder,
+                "LD_PRELOAD": os.pathsep.join(ld_preloads),
                 "REBIND_OLD_PORT": str(kwargs['listen_port']),
                 "REBIND_NEW_PORT": str(self.target_port)})
 
