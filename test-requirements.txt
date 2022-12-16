@@ -1,4 +1,4 @@
 mock
-nose
+nose2
 six
 wrapt<=1.12.1;python_version<="3.4"

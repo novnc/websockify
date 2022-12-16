@@ -35,4 +35,4 @@ jobs:
         if: ${{ matrix.python-version >= '3.4' && matrix.python-version < '3.7' }}
       - name: Run tests
         run: |
-          python setup.py nosetests --verbosity=3
+          python -m nose2 --verbosity=3
