@@ -178,8 +178,7 @@ The entrypoint of the image is the `run` command.
 
 To build the image:
 ```
-cd docker
-docker build -t novnc/websockify .
+./docker/build.sh
 ```
 
 Once built you can just launch it with the same

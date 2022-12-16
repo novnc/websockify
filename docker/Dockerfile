@@ -1,12 +1,9 @@
-FROM python:3.6
+FROM python
 
-ENV VERSION 0.10.0
+COPY websockify-*.tar.gz /
 
-RUN mkdir -p /opt/websockify \
-    && curl -SL https://github.com/novnc/websockify/archive/refs/tags/v$VERSION.tar.gz \
-    | tar xzC /opt/websockify
-
-RUN python -m pip install 'numpy<1.17' redis simplejson jwcrypto requests
+RUN python3 -m pip install websockify-*.tar.gz
+RUN rm -rf /websockify-* /root/.cache
 
 VOLUME /data
 
@@ -15,7 +12,5 @@ EXPOSE 443
 
 WORKDIR /opt/websockify
 
-COPY docker-entrypoint.sh /
-
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/usr/local/bin/websockify"]
 CMD ["--help"]
