@@ -11,7 +11,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl
+import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl, stat
 from socketserver import ThreadingMixIn
 from http.server import HTTPServer
 
@@ -112,7 +112,9 @@ Traffic Legend:
                              self.server.target_host, self.server.target_port, e)
             raise self.CClose(1011, "Failed to connect to downstream server")
 
-        self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
+        # Option unavailable when listening to unix socket
+        if not self.server.unix_listen:
+            self.request.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
         if not self.server.wrap_cmd and not self.server.unix_target:
             tsock.setsockopt(socket.SOL_TCP, socket.TCP_NODELAY, 1)
 
@@ -495,6 +497,10 @@ def websockify_init():
     parser.add_option("--ssl-ciphers", action="store",
             help="list of ciphers allowed for connection. For a list of "
             "supported ciphers run `openssl ciphers`")
+    parser.add_option("--unix-listen",
+            help="listen to unix socket", metavar="FILE", default=None)
+    parser.add_option("--unix-listen-mode", default=None,
+            help="specify mode for unix socket (defaults to 0600)")
     parser.add_option("--unix-target",
             help="connect to unix socket target", metavar="FILE")
     parser.add_option("--inetd",
@@ -650,6 +656,16 @@ def websockify_init():
 
     if opts.inetd:
         opts.listen_fd = sys.stdin.fileno()
+    elif opts.unix_listen:
+        if opts.unix_listen_mode:
+            try:
+                # Parse octal notation (like 750)
+                opts.unix_listen_mode = int(opts.unix_listen_mode, 8)
+            except ValueError:
+                parser.error("Error parsing listen unix socket mode")
+        else:
+            # Default to 0600 (Owner Read/Write)
+            opts.unix_listen_mode = stat.S_IREAD | stat.S_IWRITE
     else:
         if len(args) < 1:
             parser.error("Too few arguments")
