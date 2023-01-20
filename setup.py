@@ -32,7 +32,7 @@ setup(name=name,
       install_requires=[
         'numpy', 'requests',
         'jwcrypto',
-        'redis', 'simplejson',
+        'redis',
         ],
       zip_safe=False,
       entry_points={
