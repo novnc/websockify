@@ -95,7 +95,7 @@ class JSONTokenApi(BaseTokenAPI):
 
     def process_result(self, resp):
         resp_json = resp.json()
-        return (resp_json['host'], resp_json['port'])
+        return (resp_json['host'], resp_json['port'], resp_json)
 
 
 class JWTTokenApi(BasePlugin):
