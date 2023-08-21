@@ -450,7 +450,7 @@ def websockify_init():
 
     # Setup optparse.
     usage = "\n    %prog [options]"
-    usage += " [source_addr:]source_port [target_addr:target_port]"
+    usage += " [source_addr:]source_port target_addr:target_port"
     usage += "\n    %prog [options]"
     usage += " --token-plugin=CLASS [source_addr:]source_port"
     usage += "\n    %prog [options]"
