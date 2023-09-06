@@ -666,7 +666,7 @@ class WebSocket(object):
                             continue
 
                 if code is None:
-                    self.close_code = code = 1005
+                    self.close_code = 1005
                     self.close_reason = "No close status code specified by peer"
                 else:
                     self.close_code = code
