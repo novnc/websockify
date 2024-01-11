@@ -66,6 +66,9 @@ class TokenFile(ReadOnlyTokenFile):
         return super().lookup(token)
 
 class TokenFileName(BasePlugin):
+    # source is a directory
+    # token is filename
+    # contents of file is host:port
     def __init__(self, src):
         super().__init__(src)
         if not os.path.isdir(src):
