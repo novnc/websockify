@@ -65,6 +65,19 @@ class TokenFile(ReadOnlyTokenFile):
 
         return super().lookup(token)
 
+class TokenFileName(BasePlugin):
+    def __init__(self, src):
+        super().__init__(src)
+        if not os.path.isdir(src):
+            raise Exception("TokenFileName plugin requires a directory")
+    
+    def lookup(self, token):
+        path = os.path.join(self.source, token)
+        if os.path.exists(path):
+            return open(path).read().strip().split(':')
+        else:
+            return None
+
 
 class BaseTokenAPI(BasePlugin):
     # source is a url with a '%s' in it where the token
