@@ -75,6 +75,7 @@ class TokenFileName(BasePlugin):
             raise Exception("TokenFileName plugin requires a directory")
     
     def lookup(self, token):
+        token = os.path.basename(token)
         path = os.path.join(self.source, token)
         if os.path.exists(path):
             return open(path).read().strip().split(':')
