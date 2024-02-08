@@ -84,6 +84,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         if self.logger is None:
             self.logger = WebSockifyServer.get_logger()
 
+        self.traffic_plugin = getattr(server, "traffic_plugin", None)
         super().__init__(req, addr, server)
 
     def log_message(self, format, *args):
