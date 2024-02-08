@@ -2,6 +2,7 @@
 
 """ Unit tests for Token plugins"""
 
+import sys
 import unittest
 from unittest.mock import patch, mock_open, MagicMock
 from jwcrypto import jwt, jwk
@@ -178,6 +179,14 @@ class JWSTokenTestCase(unittest.TestCase):
         self.assertEqual(result[1], "remote_port")
 
 class TokenRedisTestCase(unittest.TestCase):
+    def setUp(self):
+        try:
+            import redis
+        except ImportError:
+            patcher = patch.dict(sys.modules, {'redis': MagicMock()})
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
     @patch('redis.Redis')
     def test_empty(self, mock_redis):
         plugin = TokenRedis('127.0.0.1:1234')
