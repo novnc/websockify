@@ -731,7 +731,7 @@ class WebSocket(object):
         if self.client:
             mask = b''
             for i in range(4):
-                mask += random.randrange(256)
+                mask += random.randrange(256).to_bytes()
             frame = self._encode_hybi(opcode, msg, mask)
         else:
             frame = self._encode_hybi(opcode, msg)
