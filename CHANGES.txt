@@ -1,6 +1,13 @@
 Changes
 =======
 
+0.12.0
+------
+
+* The simplejson module is no longer needed for redis token support
+* redis tokens can now be either JSON or plain text
+* websockify can now listen to a Unix socket for incoming connections
+
 0.11.0
 ------
 
