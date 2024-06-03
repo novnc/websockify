@@ -102,7 +102,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
             if self.unixsocket:
                 try:
                     self.socket.send(msg)
-                except socket.error:
+                except OSError:
                     self._connect_unixsocket(self.address)
                     self.socket.send(msg)
 

@@ -23,7 +23,7 @@ for mod, msg in [('ssl', 'TLS/SSL/wss is disabled'),
         globals()[mod] = __import__(mod)
     except ImportError:
         globals()[mod] = None
-        print("WARNING: no '%s' module, %s" % (mod, msg))
+        print("WARNING: no '{}' module, {}".format(mod, msg))
 
 if sys.platform == 'win32':
     # make sockets pickle-able/inheritable
@@ -87,7 +87,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         super().__init__(req, addr, server)
 
     def log_message(self, format, *args):
-        self.logger.info("%s - - [%s] %s" % (self.client_address[0], self.log_date_time_string(), format % args))
+        self.logger.info("{} - - [{}] {}".format(self.client_address[0], self.log_date_time_string(), format % args))
 
     #
     # WebSocketRequestHandler logging/output functions
@@ -102,17 +102,17 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
     def msg(self, msg, *args, **kwargs):
         """ Output message with handler_id prefix. """
         prefix = "% 3d: " % self.handler_id
-        self.logger.log(logging.INFO, "%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.INFO, "{}{}".format(prefix, msg), *args, **kwargs)
 
     def vmsg(self, msg, *args, **kwargs):
         """ Same as msg() but as debug. """
         prefix = "% 3d: " % self.handler_id
-        self.logger.log(logging.DEBUG, "%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.DEBUG, "{}{}".format(prefix, msg), *args, **kwargs)
 
     def warn(self, msg, *args, **kwargs):
         """ Same as msg() but as warning. """
         prefix = "% 3d: " % self.handler_id
-        self.logger.log(logging.WARN, "%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.WARN, "{}{}".format(prefix, msg), *args, **kwargs)
 
     #
     # Main WebSocketRequestHandler methods
@@ -131,7 +131,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
                 if self.rec:
                     # Python 3 compatible conversion
                     bufstr = buf.decode('latin1').encode('unicode_escape').decode('ascii').replace("'", "\\'")
-                    self.rec.write("'{{{0}{{{1}',\n".format(tdelta, bufstr))
+                    self.rec.write(f"'{{{tdelta}{{{bufstr}',\n")
                 self.send_parts.append(buf)
 
         while self.send_parts:
@@ -174,7 +174,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
             if self.rec:
                 # Python 3 compatible conversion
                 bufstr = buf.decode('latin1').encode('unicode_escape').decode('ascii').replace("'", "\\'")
-                self.rec.write("'}}{0}}}{1}',\n".format(tdelta, bufstr))
+                self.rec.write(f"'}}{tdelta}}}{bufstr}',\n")
 
             bufs.append(buf)
 
@@ -187,11 +187,11 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         """ Send a WebSocket orderly close frame. """
         self.request.shutdown(socket.SHUT_RDWR, code, reason)
 
-    def send_pong(self, data=''.encode('ascii')):
+    def send_pong(self, data=b''):
         """ Send a WebSocket pong frame. """
         self.request.pong(data)
 
-    def send_ping(self, data=''.encode('ascii')):
+    def send_ping(self, data=b''):
         """ Send a WebSocket ping frame. """
         self.request.ping(data)
 
@@ -231,7 +231,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
 
         if self.record:
             # Record raw frame data as JavaScript array
-            fname = "%s.%s" % (self.record,
+            fname = "{}.{}".format(self.record,
                                self.handler_id)
             self.log_message("opening record file: %s", fname)
             self.rec = open(fname, 'w+')
@@ -420,7 +420,7 @@ class WebSockifyServer():
 
     @staticmethod
     def get_logger():
-        return logging.getLogger("%s.%s" % (
+        return logging.getLogger("{}.{}".format(
             WebSockifyServer.log_prefix,
             WebSockifyServer.__class__.__name__))
 
@@ -684,7 +684,7 @@ class WebSockifyServer():
                 _, exc, _ = sys.exc_info()
                 # Connection was not a WebSockets connection
                 if exc.args[0]:
-                    self.msg("%s: %s" % (address[0], exc.args[0]))
+                    self.msg("{}: {}".format(address[0], exc.args[0]))
             except WebSockifyServer.Terminate:
                 raise
             except Exception:
