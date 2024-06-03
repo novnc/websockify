@@ -1,4 +1,3 @@
-
 """ Unit tests for websocketserver """
 import unittest
 from unittest.mock import patch, MagicMock

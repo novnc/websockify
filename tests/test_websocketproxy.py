@@ -29,7 +29,7 @@ from websockify import token_plugins
 from websockify import auth_plugins
 
 
-class FakeSocket(object):
+class FakeSocket:
     def __init__(self, data=b''):
         self._data = data
 
@@ -47,7 +47,7 @@ class FakeSocket(object):
             return StringIO(self._data.decode('latin_1'))
 
 
-class FakeServer(object):
+class FakeServer:
     class EClose(Exception):
         pass
 
@@ -60,7 +60,7 @@ class FakeServer(object):
 
 class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
-        super(ProxyRequestHandlerTestCase, self).setUp()
+        super().setUp()
         self.handler = websocketproxy.ProxyRequestHandler(
             FakeSocket(), "127.0.0.1", FakeServer())
         self.handler.path = "https://localhost:6080/websockify?token=blah"
@@ -69,7 +69,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
     def tearDown(self):
         patch.stopall()
-        super(ProxyRequestHandlerTestCase, self).tearDown()
+        super().tearDown()
 
     def test_get_target(self):
         class TestPlugin(token_plugins.BasePlugin):

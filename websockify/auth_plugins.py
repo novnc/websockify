@@ -15,7 +15,7 @@ class AuthenticationError(Exception):
         if log_msg is None:
             log_msg = response_msg
 
-        super().__init__('%s %s' % (self.code, log_msg))
+        super().__init__('{} {}'.format(self.code, log_msg))
 
 
 class InvalidOriginError(AuthenticationError):
@@ -64,7 +64,7 @@ class BasicHTTPAuth():
             self.demand_auth()
 
     def validate_creds(self, username, password):
-        if '%s:%s' % (username, password) == self.src:
+        if '{}:{}'.format(username, password) == self.src:
             return True
         else:
             return False

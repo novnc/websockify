@@ -36,7 +36,7 @@ class WebSocketWantReadError(ssl.SSLWantReadError):
 class WebSocketWantWriteError(ssl.SSLWantWriteError):
     pass
 
-class WebSocket(object):
+class WebSocket:
     """WebSocket protocol socket like class.
 
     This provides access to the WebSocket protocol by behaving much
@@ -451,13 +451,13 @@ class WebSocket(object):
         self._queue_str("HTTP/1.1 %d %s\r\n" % (code, message))
 
     def send_header(self, keyword, value):
-        self._queue_str("%s: %s\r\n" % (keyword, value))
+        self._queue_str("{}: {}\r\n".format(keyword, value))
 
     def end_headers(self):
         self._queue_str("\r\n")
 
     def send_request(self, type, path):
-        self._queue_str("%s %s HTTP/1.1\r\n" % (type.upper(), path))
+        self._queue_str("{} {} HTTP/1.1\r\n".format(type.upper(), path))
 
     def ping(self, data=b''):
         """Write a ping message to the WebSocket
