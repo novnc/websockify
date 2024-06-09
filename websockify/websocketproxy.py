@@ -185,6 +185,11 @@ Traffic Legend:
         else:
             self.heartbeat = None
 
+        # see comment below - an assertion to deal with the
+        # intrinsics of non-blocking SSL sockets and select.
+        assert not isinstance(target, ssl.SSLSocket) \
+               or (self.buffer_size >= 16 * 1024 and not target.getblocking())
+
         while True:
             wlist = []
 
@@ -242,11 +247,15 @@ Traffic Legend:
                                 self.server.target_host, self.server.target_port)
                     raise self.CClose(closed['code'], closed['reason'])
 
-
             if target in outs:
                 # Send queued client data to the target
                 dat = tqueue.pop(0)
-                sent = target.send(dat)
+                try:
+                    sent = target.send(dat)
+                except ssl.SSLWantWriteError:
+                    # nothing was sent - sending needs to be retried later
+                    sent = 0
+
                 if sent == len(dat):
                     self.print_traffic(">")
                 else:
@@ -254,10 +263,27 @@ Traffic Legend:
                     tqueue.insert(0, dat[sent:])
                     self.print_traffic(".>")
 
-
             if target in ins:
                 # Receive target data, encode it and queue for client
-                buf = target.recv(self.buffer_size)
+                try:
+                    # It is strictly required that buffer size is more than 16kb, so that
+                    # all possible data can be received from a SSL socket in a single call.
+                    # Otherwise, there could be still data available for reading, but select
+                    # wouldn't report the socket as readable again, since all data has already
+                    # been read by the SSL socket from the OS.
+                    # see also: https://docs.python.org/3/library/ssl.html#notes-on-non-blocking-sockets
+
+                    # The maximum size of a single SSL record is 16kb. And OpenSSL's SSL_read()
+                    # will only return data from the current record - until it has been fully read.
+                    # see also: https://www.openssl.org/docs/man1.1.1/man3/SSL_read.html
+                    buf = target.recv(self.buffer_size)
+                except ssl.SSLWantReadError:
+                    # The underlying OS socket had data, but there isn't any data to
+                    # receive from the SSL socket yet (SSL record not yet fully received,
+                    # only SSL control data received, e.g. re-handshake, session tickets, ...)
+                    # Let's retry later.
+                    continue
+
                 if len(buf) == 0:
 
                     # Target socket closed, flushing queues and closing client-side websocket
