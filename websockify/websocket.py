@@ -139,7 +139,8 @@ class WebSocket(object):
             self.socket = socket.create_connection((uri.hostname, port))
 
             if uri.scheme in ("wss", "https"):
-                self.socket = ssl.wrap_socket(self.socket)
+                context = ssl.create_default_context()
+                self.socket = context.wrap_socket(self.socket)
                 self._state = "ssl_handshake"
             else:
                 self._state = "headers"
