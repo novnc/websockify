@@ -37,7 +37,7 @@ class ReadOnlyTokenFile(BasePlugin):
             for line in [l.strip() for l in open(f).readlines()]:
                 if line and not line.startswith('#'):
                     try:
-                        tok, target = re.split(':\s', line)
+                        tok, target = re.split(r':\s', line)
                         self._targets[tok] = target.strip().rsplit(':', 1)
                     except ValueError:
                         logger.error("Syntax error in %s on line %d" % (self.source, index))
@@ -301,7 +301,7 @@ class TokenRedis(BasePlugin):
             else:
                 logger.error("Unable to parse token: %s" % responseStr)
                 return None
-            logger.debug("host: %s, port: %s" % (host, port))
+            logger.debug("host: {}, port: {}".format(host, port))
             return [host, port]
 
 
