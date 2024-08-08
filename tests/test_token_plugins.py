@@ -267,6 +267,42 @@ class TokenRedisTestCase(unittest.TestCase):
         instance.get.assert_called_once_with('testhost')
         self.assertIsNone(result)
 
+    @patch('redis.Redis')
+    def test_token_without_namespace(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234')
+        token = 'testhost'
+
+        def mock_redis_get(key):
+            self.assertEqual(key, token)
+            return b'remote_host:remote_port'
+
+        instance = mock_redis.return_value
+        instance.get = mock_redis_get
+
+        result = plugin.lookup(token)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], 'remote_host')
+        self.assertEqual(result[1], 'remote_port')
+
+    @patch('redis.Redis')
+    def test_token_with_namespace(self, mock_redis):
+        plugin = TokenRedis('127.0.0.1:1234:::namespace')
+        token = 'testhost'
+
+        def mock_redis_get(key):
+            self.assertEqual(key, "namespace:" + token)
+            return b'remote_host:remote_port'
+
+        instance = mock_redis.return_value
+        instance.get = mock_redis_get
+
+        result = plugin.lookup(token)
+
+        self.assertIsNotNone(result)
+        self.assertEqual(result[0], 'remote_host')
+        self.assertEqual(result[1], 'remote_port')
+
     def test_src_only_host(self):
         plugin = TokenRedis('127.0.0.1')
 
@@ -274,6 +310,7 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
     def test_src_with_host_port(self):
         plugin = TokenRedis('127.0.0.1:1234')
@@ -282,6 +319,7 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(plugin._port, 1234)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
     def test_src_with_host_port_db(self):
         plugin = TokenRedis('127.0.0.1:1234:2')
@@ -290,6 +328,7 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(plugin._port, 1234)
         self.assertEqual(plugin._db, 2)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
     def test_src_with_host_port_db_pass(self):
         plugin = TokenRedis('127.0.0.1:1234:2:verysecret')
@@ -298,67 +337,103 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(plugin._port, 1234)
         self.assertEqual(plugin._db, 2)
         self.assertEqual(plugin._password, 'verysecret')
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_empty_db_pass(self):
+    def test_src_with_host_port_db_pass_namespace(self):
+        plugin = TokenRedis('127.0.0.1:1234:2:verysecret:namespace')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 1234)
+        self.assertEqual(plugin._db, 2)
+        self.assertEqual(plugin._password, 'verysecret')
+        self.assertEqual(plugin._namespace, "namespace:")
+
+    def test_src_with_host_empty_port_empty_db_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1:::verysecret')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, 'verysecret')
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_empty_db_empty_pass(self):
+    def test_src_with_host_empty_port_empty_db_empty_pass_empty_namespace(self):
+        plugin = TokenRedis('127.0.0.1::::')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 6379)
+        self.assertEqual(plugin._db, 0)
+        self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
+
+    def test_src_with_host_empty_port_empty_db_empty_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1:::')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_empty_db_no_pass(self):
+    def test_src_with_host_empty_port_empty_db_no_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1::')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_no_db_no_pass(self):
+    def test_src_with_host_empty_port_no_db_no_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1:')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_db_no_pass(self):
+    def test_src_with_host_empty_port_empty_db_empty_pass_namespace(self):
+        plugin = TokenRedis('127.0.0.1::::namespace')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 6379)
+        self.assertEqual(plugin._db, 0)
+        self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "namespace:")
+
+    def test_src_with_host_empty_port_db_no_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1::2')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 2)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_port_empty_db_pass(self):
+    def test_src_with_host_port_empty_db_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1:1234::verysecret')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 1234)
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, 'verysecret')
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_db_pass(self):
+    def test_src_with_host_empty_port_db_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1::2:verysecret')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 2)
         self.assertEqual(plugin._password, 'verysecret')
+        self.assertEqual(plugin._namespace, "")
 
-    def test_src_with_host_empty_port_db_empty_pass(self):
+    def test_src_with_host_empty_port_db_empty_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1::2:')
 
         self.assertEqual(plugin._server, '127.0.0.1')
         self.assertEqual(plugin._port, 6379)
         self.assertEqual(plugin._db, 2)
         self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "")
