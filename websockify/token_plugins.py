@@ -7,6 +7,24 @@ import json
 
 logger = logging.getLogger(__name__)
 
+_SOURCE_SPLIT_REGEX = re.compile(
+    r'(?<=^)"([^"]+)"(?=:|$)'
+    r'|(?<=:)"([^"]+)"(?=:|$)'
+    r'|(?<=^)([^:]*)(?=:|$)'
+    r'|(?<=:)([^:]*)(?=:|$)',
+)
+
+
+def parse_source_args(src):
+    """It works like src.split(":") but with the ability to use a colon
+    if you wrap the word in quotation marks.
+
+    a:b:c:d -> ['a', 'b', 'c', 'd'
+    a:"b:c":c -> ['a', 'b:c', 'd']
+    """
+    matches = _SOURCE_SPLIT_REGEX.findall(src)
+    return [m[0] or m[1] or m[2] or m[3] for m in matches]
+
 
 class BasePlugin():
     def __init__(self, src):
@@ -197,6 +215,10 @@ class TokenRedis(BasePlugin):
 
         my-redis-host::::my-app-namespace
 
+    Or if your namespace is nested, you can wrap it in quotes:
+
+        my-redis-host::::"first-ns:second-ns"
+
     In the more general case you will use:
 
         my-redis-host:6380:1:verysecretpass:my-app-namespace
@@ -241,7 +263,7 @@ class TokenRedis(BasePlugin):
         self._password = None
         self._namespace = ""
         try:
-            fields = src.split(":")
+            fields = parse_source_args(src)
             if len(fields) == 1:
                 self._server = fields[0]
             elif len(fields) == 2:

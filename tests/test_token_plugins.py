@@ -7,7 +7,29 @@ import unittest
 from unittest.mock import patch, mock_open, MagicMock
 from jwcrypto import jwt, jwk
 
-from websockify.token_plugins import ReadOnlyTokenFile, JWTTokenApi, TokenRedis
+from websockify.token_plugins import parse_source_args, ReadOnlyTokenFile, JWTTokenApi, TokenRedis
+
+class ParseSourceArgumentsTestCase(unittest.TestCase):
+    def test_parameterized(self):
+        params = [
+            ('', ['']),
+            (':', ['', '']),
+            ('::', ['', '', '']),
+            ('"', ['"']),
+            ('""', ['""']),
+            ('"""', ['"""']),
+            ('"localhost"', ['localhost']),
+            ('"localhost":', ['localhost', '']),
+            ('"localhost"::', ['localhost', '', '']),
+            ('"local:host"', ['local:host']),
+            ('"local:host:"pass"', ['"local', 'host', "pass"]),
+            ('"local":"host"', ['local', 'host']),
+            ('"local":host"', ['local', 'host"']),
+            ('localhost:6379:1:pass"word:"my-app-namespace:dev"',
+             ['localhost', '6379', '1', 'pass"word', 'my-app-namespace:dev']),
+        ]
+        for src, args in params:
+            self.assertEqual(args, parse_source_args(src))
 
 class ReadOnlyTokenFileTestCase(unittest.TestCase):
     patch('os.path.isdir', MagicMock(return_value=False))
@@ -401,6 +423,15 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(plugin._db, 0)
         self.assertEqual(plugin._password, None)
         self.assertEqual(plugin._namespace, "namespace:")
+
+    def test_src_with_host_empty_port_empty_db_empty_pass_nested_namespace(self):
+        plugin = TokenRedis('127.0.0.1::::"ns1:ns2"')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 6379)
+        self.assertEqual(plugin._db, 0)
+        self.assertEqual(plugin._password, None)
+        self.assertEqual(plugin._namespace, "ns1:ns2:")
 
     def test_src_with_host_empty_port_db_no_pass_no_namespace(self):
         plugin = TokenRedis('127.0.0.1::2')
