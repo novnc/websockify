@@ -7,6 +7,24 @@ import json
 
 logger = logging.getLogger(__name__)
 
+_SOURCE_SPLIT_REGEX = re.compile(
+    r'(?<=^)"([^"]+)"(?=:|$)'
+    r'|(?<=:)"([^"]+)"(?=:|$)'
+    r'|(?<=^)([^:]*)(?=:|$)'
+    r'|(?<=:)([^:]*)(?=:|$)',
+)
+
+
+def parse_source_args(src):
+    """It works like src.split(":") but with the ability to use a colon
+    if you wrap the word in quotation marks.
+
+    a:b:c:d -> ['a', 'b', 'c', 'd'
+    a:"b:c":c -> ['a', 'b:c', 'd']
+    """
+    matches = _SOURCE_SPLIT_REGEX.findall(src)
+    return [m[0] or m[1] or m[2] or m[3] for m in matches]
+
 
 class BasePlugin():
     def __init__(self, src):
@@ -178,9 +196,9 @@ class TokenRedis(BasePlugin):
 
     The token source is in the format:
 
-        host[:port[:db[:password]]]
+        host[:port[:db[:password[:namespace]]]]
 
-    where port, db and password are optional. If port or db are left empty
+    where port, db, password and namespace are optional. If port or db are left empty
     they will take its default value, ie. 6379 and 0 respectively.
 
     If your redis server is using the default port (6379) then you can use:
@@ -192,9 +210,18 @@ class TokenRedis(BasePlugin):
 
         my-redis-host:::verysecretpass
 
+    You can also specify a namespace. In this case, the tokens
+    will be stored in the format '{namespace}:{token}'
+
+        my-redis-host::::my-app-namespace
+
+    Or if your namespace is nested, you can wrap it in quotes:
+
+        my-redis-host::::"first-ns:second-ns"
+
     In the more general case you will use:
 
-        my-redis-host:6380:1:verysecretpass
+        my-redis-host:6380:1:verysecretpass:my-app-namespace
 
     The TokenRedis plugin expects the format of the target in one of these two
     formats:
@@ -234,8 +261,9 @@ class TokenRedis(BasePlugin):
         self._port = 6379
         self._db = 0
         self._password = None
+        self._namespace = ""
         try:
-            fields = src.split(":")
+            fields = parse_source_args(src)
             if len(fields) == 1:
                 self._server = fields[0]
             elif len(fields) == 2:
@@ -256,15 +284,28 @@ class TokenRedis(BasePlugin):
                     self._db = 0
                 if not self._password:
                     self._password = None
+            elif len(fields) == 5:
+                self._server, self._port, self._db, self._password, self._namespace = fields
+                if not self._port:
+                    self._port = 6379
+                if not self._db:
+                    self._db = 0
+                if not self._password:
+                    self._password = None
+                if not self._namespace:
+                    self._namespace = ""
             else:
                 raise ValueError
             self._port = int(self._port)
             self._db = int(self._db)
-            logger.info("TokenRedis backend initilized (%s:%s)" %
+            if self._namespace:
+                self._namespace += ":"
+
+            logger.info("TokenRedis backend initialized (%s:%s)" %
                   (self._server, self._port))
         except ValueError:
             logger.error("The provided --token-source='%s' is not in the "
-                         "expected format <host>[:<port>[:<db>[:<password>]]]" %
+                         "expected format <host>[:<port>[:<db>[:<password>[:<namespace>]]]]" %
                          src)
             sys.exit()
 
@@ -278,7 +319,7 @@ class TokenRedis(BasePlugin):
         logger.info("resolving token '%s'" % token)
         client = redis.Redis(host=self._server, port=self._port,
                              db=self._db, password=self._password)
-        stuff = client.get(token)
+        stuff = client.get(self._namespace + token)
         if stuff is None:
             return None
         else:
