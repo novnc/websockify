@@ -198,7 +198,7 @@ Traffic Legend:
             if cqueue or c_pend: wlist.append(self.request)
             try:
                 ins, outs, excepts = select.select(rlist, wlist, [], 1)
-            except (select.error, OSError):
+            except OSError:
                 exc = sys.exc_info()[1]
                 if hasattr(exc, 'errno'):
                     err = exc.errno

@@ -36,7 +36,7 @@ class WebSocketWantReadError(ssl.SSLWantReadError):
 class WebSocketWantWriteError(ssl.SSLWantWriteError):
     pass
 
-class WebSocket(object):
+class WebSocket:
     """WebSocket protocol socket like class.
 
     This provides access to the WebSocket protocol by behaving much

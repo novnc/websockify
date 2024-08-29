@@ -187,11 +187,11 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         """ Send a WebSocket orderly close frame. """
         self.request.shutdown(socket.SHUT_RDWR, code, reason)
 
-    def send_pong(self, data=''.encode('ascii')):
+    def send_pong(self, data=b''):
         """ Send a WebSocket pong frame. """
         self.request.pong(data)
 
-    def send_ping(self, data=''.encode('ascii')):
+    def send_ping(self, data=b''):
         """ Send a WebSocket ping frame. """
         self.request.ping(data)
 
