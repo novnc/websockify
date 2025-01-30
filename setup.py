@@ -35,6 +35,9 @@ setup(name=name,
         'jwcrypto',
         'redis',
         ],
+      extras_requires={
+        'bcrypt': ['bcrypt']
+      },
       zip_safe=False,
       entry_points={
         'console_scripts': [

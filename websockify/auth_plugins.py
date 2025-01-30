@@ -1,3 +1,5 @@
+import bcrypt
+
 class BasePlugin():
     def __init__(self, src=None):
         self.source = src
@@ -66,8 +68,20 @@ class BasicHTTPAuth():
     def validate_creds(self, username, password):
         if '%s:%s' % (username, password) == self.src:
             return True
-        else:
+        if not self.src:
             return False
+        try:
+            with open(self.src, 'r') as file:
+                for line in file:
+                    stored_user, stored_hash = line.strip().split(':', 1)
+                    if stored_user == username:
+                        encoded_password = password.encode("utf-8")
+                        encoded_hash = stored_hash.encode("utf-8")
+                        return bcrypt.checkpw(password, stored_hash)
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
+            #log error "%s: %s" % (type(e).__name__, e)
+            raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
+        return False
 
     def auth_error(self):
         raise AuthenticationError(response_code=403)
