@@ -26,3 +26,25 @@ class BasicHTTPAuthTestCase(unittest.TestCase):
     def test_garbage_auth(self):
         headers = {'Authorization': 'Basic xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
         self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
+
+class BasicHTTPAuthWithHTPasswdTestCase(unittest.TestCase):
+
+    def setUp(self):
+        #file generated with `htpasswd -cBi test_auth_plugins.htpasswd Aladdin <<<"""open sesame\nopen sesame"""`
+        self.plugin = BasicHTTPAuth('./test_auth_plugins.htpasswd')
+
+    def test_no_auth(self):
+        headers = {}
+        self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
+
+    def test_invalid_password(self):
+        headers = {'Authorization': 'Basic QWxhZGRpbjpzZXNhbWUgc3RyZWV0'}
+        self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
+
+    def test_valid_password(self):
+        headers = {'Authorization': 'Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}
+        self.plugin.authenticate(headers, 'localhost', '1234')
+
+    def test_garbage_auth(self):
+        headers = {'Authorization': 'Basic xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
+        self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
