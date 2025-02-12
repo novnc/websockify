@@ -64,7 +64,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.handler = websocketproxy.ProxyRequestHandler(
             FakeSocket(), "127.0.0.1", FakeServer())
         self.handler.path = "https://localhost:6080/websockify?token=blah"
-        self.handler.headers = None
+        self.handler.headers = {}
         patch('websockify.websockifyserver.WebSockifyServer.socket').start()
 
     def tearDown(self):
