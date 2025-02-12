@@ -32,9 +32,11 @@ setup(name=name,
       include_package_data=True,
       install_requires=[
         'numpy', 'requests',
-        'jwcrypto',
-        'redis',
         ],
+      extras_requires={
+        'redis': ['redis'],
+        'jwt': ['jwcrypto'],
+        },
       zip_safe=False,
       entry_points={
         'console_scripts': [
