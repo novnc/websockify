@@ -1,6 +1,14 @@
 Changes
 =======
 
+0.13.0
+------
+
+* Support for Python < 3.6 has been dropped.
+* SNI is enabled when connecting to an SSL target as an SSL client.
+* The TokenRedis plugin handles namespaces.
+* Headers are sanitized before being passed to authentication plugins.
+
 0.12.0
 ------
 

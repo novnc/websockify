@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '0.12.0'
+version = '0.13.0'
 name = 'websockify'
 long_description = open("README.md").read() + "\n" + \
     open("CHANGES.txt").read() + "\n"

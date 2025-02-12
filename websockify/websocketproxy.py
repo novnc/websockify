@@ -60,6 +60,12 @@ Traffic Legend:
         if not self.server.auth_plugin:
             return
 
+        # clear out any existing SSL_ headers that the client might
+        # have maliciously set
+        ssl_headers = [ h for h in self.headers if h.startswith('SSL_') ]
+        for h in ssl_headers:
+            del self.headers[h]
+
         try:
             # get client certificate data
             client_cert_data = self.request.getpeercert()
