@@ -79,7 +79,7 @@ class BasicHTTPAuth():
                                   response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
 
 class HtPasswdAuth():
-    """Verifies Basic Auth headers against a htpasswd. Specify src as the path to the htpasswd file"""
+    """Verifies Basic Auth headers against a htpasswd database. Specify src as the path to the htpasswd file"""
 
     def __init__(self, src=None):
         self.src = src
@@ -113,16 +113,14 @@ class HtPasswdAuth():
             self.demand_auth()
 
     def validate_creds(self, username, password):
-        if not self.src:
+        if self.src == None:
             return False
         try:
             with open(self.src, 'r') as file:
                 for line in file:
                     stored_user, stored_hash = line.strip().split(':', 1)
                     if stored_user == username:
-                        encoded_password = password.encode("utf-8")
-                        encoded_hash = stored_hash.encode("utf-8")
-                        return bcrypt.checkpw(password, stored_hash)
+                        return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
         except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
             #log error "%s: %s" % (type(e).__name__, e)
             raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
@@ -131,7 +129,7 @@ class HtPasswdAuth():
     def auth_error(self):
         raise AuthenticationError(response_code=403)
 
-    def demand_auth(self):
+    def demand_auth(self, msg=None):
         raise AuthenticationError(response_code=401,
                                   response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
 
