@@ -3,4 +3,5 @@ nose2
 six
 redis
 wrapt<=1.12.1;python_version<="3.4"
-bcrypt
+passlib==1.7.4
+bcrypt==4.0.1

@@ -1,5 +1,7 @@
-import bcrypt
-
+try:
+    from passlib.apache import HtpasswdFile
+except ImportError:
+    HtpasswdFile: None
 class BasePlugin():
     def __init__(self, src=None):
         self.source = src
@@ -25,10 +27,9 @@ class InvalidOriginError(AuthenticationError):
         self.expected_origin = expected
         self.actual_origin = actual
 
-        super().__init__(
-            response_msg='Invalid Origin',
-            log_msg="Invalid Origin Header: Expected one of "
-                    "%s, got '%s'" % (expected, actual))
+        super().__init__(response_msg='Invalid Origin',
+                         log_msg="Invalid Origin Header: Expected one of "
+                         "%s, got '%s'" % (expected, actual))
 
 
 class BasicHTTPAuth():
@@ -68,7 +69,7 @@ class BasicHTTPAuth():
     def validate_creds(self, username, password):
         if '%s:%s' % (username, password) == self.src:
             return True
-        else:    
+        else:
             return False
 
     def auth_error(self):
@@ -78,21 +79,25 @@ class BasicHTTPAuth():
         raise AuthenticationError(response_code=401,
                                   response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
 
-class HtPasswdAuth(BasicHTTPAuth):
+class HtpasswdAuth(BasicHTTPAuth):
     """Verifies Basic Auth headers against a htpasswd database. Specify src as the path to the htpasswd file"""
 
     def __init__(self, src=None):
         self.src = src
+        if HtpasswdFile is None:
+            raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
 
     def validate_creds(self, username, password):
         if self.src == None:
             return False
         try:
-            with open(self.src, 'r') as file:
-                for line in file:
-                    stored_user, stored_hash = line.strip().split(':', 1)
-                    if stored_user == username:
-                        return bcrypt.checkpw(password.encode('utf-8'), stored_hash.encode('utf-8'))
+            #TODO: Add a argument or config to change the HtpasswdFile scheme
+            htfile = HtpasswdFile(self.src, new=False, default_scheme="bcrypt", encoding="utf-8")
+            isvalid_hash = htfile.check_password(username, password)
+            if isvalid_hash == None:
+                #log user not found
+                raise AuthenticationError(response_code=403)
+            return isvalid_hash
         except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
             #log error "%s: %s" % (type(e).__name__, e)
             raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")

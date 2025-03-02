@@ -2,7 +2,7 @@
 
 """ Unit tests for Authentication plugins"""
 
-from websockify.auth_plugins import BasicHTTPAuth, HtPasswdAuth, AuthenticationError
+from websockify.auth_plugins import BasicHTTPAuth, HtpasswdAuth, AuthenticationError
 import unittest
 import tempfile
 
@@ -28,7 +28,7 @@ class BasicHTTPAuthTestCase(unittest.TestCase):
         headers = {'Authorization': 'Basic xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
         self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
 
-class HtPasswdAuthTestCase(unittest.TestCase):
+class HtpasswdAuthTestCase(unittest.TestCase):
 
     
     def setUp(self):
@@ -38,7 +38,7 @@ class HtPasswdAuthTestCase(unittest.TestCase):
         self._temporary_htpasswd_file.write(file_content.encode('utf-8'))
         self._temporary_htpasswd_file.close()
         
-        self.plugin = HtPasswdAuth(self._temporary_htpasswd_file.name)
+        self.plugin = HtpasswdAuth(self._temporary_htpasswd_file.name)
 
     def test_no_auth(self):
         headers = {}
