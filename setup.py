@@ -36,8 +36,7 @@ setup(name=name,
         'redis',
         ],
       extras_requires={
-        'passlib': ['passlib==1.7.4']
-        'bcrypt': ['bcrypt==4.0.1']
+        'libpass': ['libpass']
       },
       zip_safe=False,
       entry_points={

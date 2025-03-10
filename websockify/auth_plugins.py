@@ -1,7 +1,13 @@
+import logging
+logger = logging.getLogger(__name__)
+
 try:
     from passlib.apache import HtpasswdFile
-except ImportError:
+except ImportError as e:
+    logger.warning("Unable to import class 'HtpasswdFile' from package 'libpass', module 'passlib.apache'")
     HtpasswdFile: None
+
+
 class BasePlugin():
     def __init__(self, src=None):
         self.source = src
@@ -85,6 +91,7 @@ class HtpasswdAuth(BasicHTTPAuth):
     def __init__(self, src=None):
         self.src = src
         if HtpasswdFile is None:
+            logging.error("Class ''HtpasswdFile' from libpass (passlib.apache), is not initialized, verify the availability of the module 'libpass'" % (src))
             raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
 
     def validate_creds(self, username, password):
@@ -95,11 +102,11 @@ class HtpasswdAuth(BasicHTTPAuth):
             htfile = HtpasswdFile(self.src, new=False, default_scheme="bcrypt", encoding="utf-8")
             isvalid_hash = htfile.check_password(username, password)
             if isvalid_hash == None:
-                #log user not found
+                logger.warning("'%s' user not found in database." % (username))
                 raise AuthenticationError(response_code=403)
             return isvalid_hash
         except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
-            #log error "%s: %s" % (type(e).__name__, e)
+            logging.error("%s: %s" % (type(e).__name__, e))
             raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
         return False
 
