@@ -7,23 +7,26 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
     as defined by RFC 5424.
     """
 
-    _legacy_head_fmt = '<{pri}>{ident}[{pid}]: '
-    _rfc5424_head_fmt = '<{pri}>1 {timestamp} {hostname} {ident} {pid} - - '
+    _legacy_head_fmt = "<{pri}>{ident}[{pid}]: "
+    _rfc5424_head_fmt = "<{pri}>1 {timestamp} {hostname} {ident} {pid} - - "
     _head_fmt = _rfc5424_head_fmt
     _legacy = False
-    _timestamp_fmt = '%Y-%m-%dT%H:%M:%SZ'
+    _timestamp_fmt = "%Y-%m-%dT%H:%M:%SZ"
     _max_hostname = 255
-    _max_ident = 24 #safer for old daemons
+    _max_ident = 24  # safer for old daemons
     _send_length = False
-    _tail = '\n'
-
+    _tail = "\n"
 
     ident = None
 
-
-    def __init__(self, address=('localhost', handlers.SYSLOG_UDP_PORT),
-                 facility=handlers.SysLogHandler.LOG_USER,
-                 socktype=None, ident=None, legacy=False):
+    def __init__(
+        self,
+        address=("localhost", handlers.SYSLOG_UDP_PORT),
+        facility=handlers.SysLogHandler.LOG_USER,
+        socktype=None,
+        ident=None,
+        legacy=False,
+    ):
         """
         Initialize a handler.
 
@@ -46,7 +49,6 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
 
         super().__init__(address, facility, socktype)
 
-
     def emit(self, record):
         """
         Emit a record.
@@ -57,46 +59,44 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
 
         try:
             # Gather info.
-            text = self.format(record).replace(self._tail, ' ')
-            if not text: # nothing to log
+            text = self.format(record).replace(self._tail, " ")
+            if not text:  # nothing to log
                 return
 
-            pri = self.encodePriority(self.facility,
-                                      self.mapPriority(record.levelname))
+            pri = self.encodePriority(self.facility, self.mapPriority(record.levelname))
 
-            timestamp = time.strftime(self._timestamp_fmt, time.gmtime());
-
-            hostname = socket.gethostname()[:self._max_hostname]
+            timestamp = time.strftime(self._timestamp_fmt, time.gmtime())
+            hostname = socket.gethostname()[: self._max_hostname]
 
             if self.ident:
-                ident = self.ident[:self._max_ident]
+                ident = self.ident[: self._max_ident]
             else:
-                ident = ''
+                ident = ""
 
-            pid = os.getpid() # shouldn't need truncation
+            pid = os.getpid()  # shouldn't need truncation
 
             # Format the header.
             head = {
-                'pri': pri,
-                'timestamp': timestamp,
-                'hostname': hostname,
-                'ident': ident,
-                'pid': pid,
+                "pri": pri,
+                "timestamp": timestamp,
+                "hostname": hostname,
+                "ident": ident,
+                "pid": pid,
             }
-            msg = self._head_fmt.format(**head).encode('ascii', 'ignore')
+            msg = self._head_fmt.format(**head).encode("ascii", "ignore")
 
             # Encode text as plain ASCII if possible, else use UTF-8 with BOM.
             try:
-                msg += text.encode('ascii')
+                msg += text.encode("ascii")
             except UnicodeEncodeError:
-                msg += text.encode('utf-8-sig')
+                msg += text.encode("utf-8-sig")
 
             # Add length or tail character, if necessary.
             if self.socktype != socket.SOCK_DGRAM:
                 if self._send_length:
-                    msg = ('%d ' % len(msg)).encode('ascii') + msg
+                    msg = ("%d " % len(msg)).encode("ascii") + msg
                 else:
-                    msg += self._tail.encode('ascii')
+                    msg += self._tail.encode("ascii")
 
             # Send the message.
             if self.unixsocket:
