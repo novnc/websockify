@@ -32,9 +32,10 @@ class InvalidOriginError(AuthenticationError):
         self.expected_origin = expected
         self.actual_origin = actual
 
-        super().__init__(response_msg='Invalid Origin',
-                         log_msg="Invalid Origin Header: Expected one of "
-                         "%s, got '%s'" % (expected, actual))
+        super().__init__(
+            response_msg='Invalid Origin',
+            log_msg="Invalid Origin Header: Expected one of "
+            "%s, got '%s'" % (expected, actual))
 
 
 class BasicHTTPAuth():
