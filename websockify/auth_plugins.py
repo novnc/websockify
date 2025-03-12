@@ -102,7 +102,6 @@ class HtpasswdAuth(BasicHTTPAuth):
             isvalid_hash = htfile.check_password(username, password)
             if isvalid_hash == None:
                 logger.warning("'%s' user not found in database." % (username))
-                raise AuthenticationError(response_code=403)
             return isvalid_hash
         except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
             logging.error("%s: %s" % (type(e).__name__, e))
