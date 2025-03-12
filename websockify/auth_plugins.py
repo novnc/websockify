@@ -91,7 +91,7 @@ class HtpasswdAuth(BasicHTTPAuth):
     def __init__(self, src=None):
         self.src = src
         if HtpasswdFile is None:
-            logging.error("Class ''HtpasswdFile' from libpass (passlib.apache), is not initialized, verify the availability of the module 'libpass'" % (src))
+            logging.error("Class ''HtpasswdFile' from libpass (passlib.apache), is not initialized, verify the availability of the module 'libpass'" )
             raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
 
     def validate_creds(self, username, password):
