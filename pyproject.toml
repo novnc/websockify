@@ -1,0 +1,51 @@
+[project]
+name = "websockify"
+version = "0.13.0"
+description = "Websockify."
+readme = "README.md"
+authors = [
+    { name = "Joel Martin", email = "github@martintribe.org" }
+]
+requires-python = ">=3.6"
+dependencies = [
+    "jwcrypto>=1.5.1",
+    "numpy>=1.19.0",
+    "redis>=4.3.0",
+    "requests>=2.27.0",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.6",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+keywords = ["noVNC", "websockify"]
+license = { text = "LGPLv3" }
+
+[project.urls]
+Repository ="https://github.com/novnc/websockify"
+
+[project.scripts]
+websockify = "websockify.websocketproxy:websockify_init"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "websockify",
+]
+
+[dependency-groups]
+dev = [
+    "mypy>=0.971",
+    "ruff>=0.0.17",
+]

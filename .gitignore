@@ -10,3 +10,6 @@ target.cfg.d
 build/
 dist/
 *.egg-info
+
+# Intellij IDEs
+.idea
