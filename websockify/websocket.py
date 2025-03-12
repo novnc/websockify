@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-'''
+"""
 Python WebSocket library
 Copyright 2011 Joel Martin
 Copyright 2016 Pierre Ossman
@@ -10,7 +10,7 @@ Supports following protocol versions:
     - http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07
     - http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10
     - http://tools.ietf.org/html/rfc6455
-'''
+"""
 
 import sys
 import array
@@ -28,13 +28,18 @@ try:
     import numpy
 except ImportError:
     import warnings
+
     warnings.warn("no 'numpy' module, HyBi protocol will be slower")
     numpy = None
 
+
 class WebSocketWantReadError(ssl.SSLWantReadError):
     pass
+
+
 class WebSocketWantWriteError(ssl.SSLWantWriteError):
     pass
+
 
 class WebSocket:
     """WebSocket protocol socket like class.
@@ -73,11 +78,11 @@ class WebSocket:
 
         self._state = "new"
 
-        self._partial_msg = b''
+        self._partial_msg = b""
 
-        self._recv_buffer = b''
+        self._recv_buffer = b""
         self._recv_queue = []
-        self._send_buffer = b''
+        self._send_buffer = b""
 
         self._previous_sendmsg = None
 
@@ -91,16 +96,22 @@ class WebSocket:
 
     def __getattr__(self, name):
         # These methods are just redirected to the underlying socket
-        if name in ["fileno",
-                    "getpeername", "getsockname",
-                    "getsockopt", "setsockopt",
-                    "gettimeout", "settimeout",
-                    "setblocking"]:
+        if name in [
+            "fileno",
+            "getpeername",
+            "getsockname",
+            "getsockopt",
+            "setsockopt",
+            "gettimeout",
+            "settimeout",
+            "setblocking",
+        ]:
             assert self.socket is not None
             return getattr(self.socket, name)
         else:
-            raise AttributeError("%s instance has no attribute '%s'" %
-                                 (self.__class__.__name__, name))
+            raise AttributeError(
+                "%s instance has no attribute '%s'" % (self.__class__.__name__, name)
+            )
 
     def connect(self, uri, origin=None, protocols=[]):
         """Establishes a new connection to a WebSocket server.
@@ -118,8 +129,7 @@ class WebSocket:
         connect() must retain the same arguments.
         """
 
-        self.client = True;
-
+        self.client = True
         uri = urlparse(uri)
 
         port = uri.port
@@ -140,8 +150,9 @@ class WebSocket:
 
             if uri.scheme in ("wss", "https"):
                 context = ssl.create_default_context()
-                self.socket = context.wrap_socket(self.socket,
-                                                  server_hostname=uri.hostname)
+                self.socket = context.wrap_socket(
+                    self.socket, server_hostname=uri.hostname
+                )
                 self._state = "ssl_handshake"
             else:
                 self._state = "headers"
@@ -151,7 +162,7 @@ class WebSocket:
             self._state = "headers"
 
         if self._state == "headers":
-            self._key = ''
+            self._key = ""
             for i in range(16):
                 self._key += chr(random.randrange(256))
             self._key = b64encode(self._key.encode("latin-1")).decode("ascii")
@@ -184,10 +195,10 @@ class WebSocket:
             if not self._recv():
                 raise Exception("Socket closed unexpectedly")
 
-            if self._recv_buffer.find(b'\r\n\r\n') == -1:
+            if self._recv_buffer.find(b"\r\n\r\n") == -1:
                 raise WebSocketWantReadError
 
-            (request, self._recv_buffer) = self._recv_buffer.split(b'\r\n', 1)
+            (request, self._recv_buffer) = self._recv_buffer.split(b"\r\n", 1)
             request = request.decode("latin-1")
 
             words = request.split()
@@ -196,17 +207,17 @@ class WebSocket:
             if words[1] != "101":
                 raise Exception("WebSocket request denied: %s" % " ".join(words[1:]))
 
-            (headers, self._recv_buffer) = self._recv_buffer.split(b'\r\n\r\n', 1)
-            headers = headers.decode('latin-1') + '\r\n'
+            (headers, self._recv_buffer) = self._recv_buffer.split(b"\r\n\r\n", 1)
+            headers = headers.decode("latin-1") + "\r\n"
             headers = email.message_from_string(headers)
 
             if headers.get("Upgrade", "").lower() != "websocket":
                 print(type(headers))
                 raise Exception("Missing or incorrect upgrade header")
 
-            accept = headers.get('Sec-WebSocket-Accept')
+            accept = headers.get("Sec-WebSocket-Accept")
             if accept is None:
-                raise Exception("Missing Sec-WebSocket-Accept header");
+                raise Exception("Missing Sec-WebSocket-Accept header")
 
             expected = sha1((self._key + self.GUID).encode("ascii")).digest()
             expected = b64encode(expected).decode("ascii")
@@ -214,9 +225,9 @@ class WebSocket:
             del self._key
 
             if accept != expected:
-                raise Exception("Invalid Sec-WebSocket-Accept header");
+                raise Exception("Invalid Sec-WebSocket-Accept header")
 
-            self.protocol = headers.get('Sec-WebSocket-Protocol')
+            self.protocol = headers.get("Sec-WebSocket-Protocol")
             if len(protocols) == 0:
                 if self.protocol is not None:
                     raise Exception("Unexpected Sec-WebSocket-Protocol header")
@@ -256,34 +267,34 @@ class WebSocket:
             if headers.get("upgrade", "").lower() != "websocket":
                 raise Exception("Missing or incorrect upgrade header")
 
-            ver = headers.get('Sec-WebSocket-Version')
+            ver = headers.get("Sec-WebSocket-Version")
             if ver is None:
-                raise Exception("Missing Sec-WebSocket-Version header");
+                raise Exception("Missing Sec-WebSocket-Version header")
 
             # HyBi-07 report version 7
             # HyBi-08 - HyBi-12 report version 8
             # HyBi-13 reports version 13
-            if ver in ['7', '8', '13']:
+            if ver in ["7", "8", "13"]:
                 self.version = "hybi-%02d" % int(ver)
             else:
                 raise Exception("Unsupported protocol version %s" % ver)
 
-            key = headers.get('Sec-WebSocket-Key')
+            key = headers.get("Sec-WebSocket-Key")
             if key is None:
-                raise Exception("Missing Sec-WebSocket-Key header");
+                raise Exception("Missing Sec-WebSocket-Key header")
 
             # Generate the hash value for the accept header
             accept = sha1((key + self.GUID).encode("ascii")).digest()
             accept = b64encode(accept).decode("ascii")
 
-            self.protocol = ''
-            protocols = headers.get('Sec-WebSocket-Protocol', '').split(',')
+            self.protocol = ""
+            protocols = headers.get("Sec-WebSocket-Protocol", "").split(",")
             if protocols:
                 self.protocol = self.select_subprotocol(protocols)
                 # We are required to choose one of the protocols
                 # presented by the client
                 if self.protocol not in protocols:
-                    raise Exception('Invalid protocol selected')
+                    raise Exception("Invalid protocol selected")
 
             self.send_response(101, "Switching Protocols")
             self.send_header("Upgrade", "websocket")
@@ -461,7 +472,7 @@ class WebSocket:
     def send_request(self, type, path):
         self._queue_str("%s %s HTTP/1.1\r\n" % (type.upper(), path))
 
-    def ping(self, data=b''):
+    def ping(self, data=b""):
         """Write a ping message to the WebSocket
 
         WebSocketWantWriteError can be raised if there is insufficient
@@ -486,7 +497,7 @@ class WebSocket:
             self._previous_sendmsg = data
             raise
 
-    def pong(self, data=b''):
+    def pong(self, data=b""):
         """Write a pong message to the WebSocket
 
         WebSocketWantWriteError can be raised if there is insufficient
@@ -540,7 +551,7 @@ class WebSocket:
 
         self._sent_close = True
 
-        msg = b''
+        msg = b""
         if code is not None:
             msg += struct.pack(">H", code)
             if reason is not None:
@@ -602,7 +613,7 @@ class WebSocket:
             frame = self._decode_hybi(self._recv_buffer)
             if frame is None:
                 break
-            self._recv_buffer = self._recv_buffer[frame['length']:]
+            self._recv_buffer = self._recv_buffer[frame["length"] :]
             self._recv_queue.append(frame)
 
         return True
@@ -612,29 +623,39 @@ class WebSocket:
         while self._recv_queue:
             frame = self._recv_queue.pop(0)
 
-            if not self.client and not frame['masked']:
-                self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Frame not masked")
+            if not self.client and not frame["masked"]:
+                self.shutdown(
+                    socket.SHUT_RDWR, 1002, "Procotol error: Frame not masked"
+                )
                 continue
-            if self.client and frame['masked']:
+            if self.client and frame["masked"]:
                 self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Frame masked")
                 continue
 
             if frame["opcode"] == 0x0:
                 if not self._partial_msg:
-                    self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Unexpected continuation frame")
+                    self.shutdown(
+                        socket.SHUT_RDWR,
+                        1002,
+                        "Procotol error: Unexpected continuation frame",
+                    )
                     continue
 
                 self._partial_msg += frame["payload"]
 
                 if frame["fin"]:
                     msg = self._partial_msg
-                    self._partial_msg = b''
+                    self._partial_msg = b""
                     return msg
             elif frame["opcode"] == 0x1:
-                self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Text frames are not supported")
+                self.shutdown(
+                    socket.SHUT_RDWR, 1003, "Unsupported: Text frames are not supported"
+                )
             elif frame["opcode"] == 0x2:
                 if self._partial_msg:
-                    self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Unexpected new frame")
+                    self.shutdown(
+                        socket.SHUT_RDWR, 1002, "Procotol error: Unexpected new frame"
+                    )
                     continue
 
                 if frame["fin"]:
@@ -652,7 +673,9 @@ class WebSocket:
                     return None
 
                 if not frame["fin"]:
-                    self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Fragmented close")
+                    self.shutdown(
+                        socket.SHUT_RDWR, 1003, "Unsupported: Fragmented close"
+                    )
                     continue
 
                 code = None
@@ -664,7 +687,11 @@ class WebSocket:
                         try:
                             reason = reason.decode("UTF-8")
                         except UnicodeDecodeError:
-                            self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Invalid UTF-8 in close")
+                            self.shutdown(
+                                socket.SHUT_RDWR,
+                                1002,
+                                "Procotol error: Invalid UTF-8 in close",
+                            )
                             continue
 
                 if code is None:
@@ -679,18 +706,26 @@ class WebSocket:
                 return None
             elif frame["opcode"] == 0x9:
                 if not frame["fin"]:
-                    self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Fragmented ping")
+                    self.shutdown(
+                        socket.SHUT_RDWR, 1003, "Unsupported: Fragmented ping"
+                    )
                     continue
 
                 self.handle_ping(frame["payload"])
             elif frame["opcode"] == 0xA:
                 if not frame["fin"]:
-                    self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Fragmented pong")
+                    self.shutdown(
+                        socket.SHUT_RDWR, 1003, "Unsupported: Fragmented pong"
+                    )
                     continue
 
                 self.handle_pong(frame["payload"])
             else:
-                self.shutdown(socket.SHUT_RDWR, 1003, "Unsupported: Unknown opcode 0x%02x" % frame["opcode"])
+                self.shutdown(
+                    socket.SHUT_RDWR,
+                    1003,
+                    "Unsupported: Unknown opcode 0x%02x" % frame["opcode"],
+                )
 
         raise WebSocketWantReadError
 
@@ -731,7 +766,7 @@ class WebSocket:
     def _sendmsg(self, opcode, msg):
         # Sends a standard data message
         if self.client:
-            mask = b''
+            mask = b""
             for i in range(4):
                 mask += random.randrange(256).to_bytes()
             frame = self._encode_hybi(opcode, msg, mask)
@@ -755,35 +790,36 @@ class WebSocket:
             plen = len(buf)
             pstart = 0
             pend = plen
-            b = c = b''
+            b = c = b""
             if plen >= 4:
-                dtype=numpy.dtype('<u4')
-                if sys.byteorder == 'big':
-                    dtype = dtype.newbyteorder('>')
+                dtype = numpy.dtype("<u4")
+                if sys.byteorder == "big":
+                    dtype = dtype.newbyteorder(">")
                 mask = numpy.frombuffer(mask, dtype, count=1)
                 data = numpy.frombuffer(buf, dtype, count=int(plen / 4))
-                #b = numpy.bitwise_xor(data, mask).data
+                # b = numpy.bitwise_xor(data, mask).data
                 b = numpy.bitwise_xor(data, mask).tobytes()
 
             if plen % 4:
-                dtype=numpy.dtype('B')
-                if sys.byteorder == 'big':
-                    dtype = dtype.newbyteorder('>')
+                dtype = numpy.dtype("B")
+                if sys.byteorder == "big":
+                    dtype = dtype.newbyteorder(">")
                 mask = numpy.frombuffer(mask, dtype, count=(plen % 4))
-                data = numpy.frombuffer(buf, dtype,
-                        offset=plen - (plen % 4), count=(plen % 4))
+                data = numpy.frombuffer(
+                    buf, dtype, offset=plen - (plen % 4), count=(plen % 4)
+                )
                 c = numpy.bitwise_xor(data, mask).tobytes()
             return b + c
         else:
             # Slower fallback
-            data = array.array('B')
+            data = array.array("B")
             data.frombytes(buf)
             for i in range(len(data)):
                 data[i] ^= mask[i % 4]
             return data.tobytes()
 
     def _encode_hybi(self, opcode, buf, mask_key=None, fin=True):
-        """ Encode a HyBi style WebSocket frame.
+        """Encode a HyBi style WebSocket frame.
         Optional opcode:
             0x0 - continuation
             0x1 - text frame
@@ -793,7 +829,7 @@ class WebSocket:
             0xA - pong
         """
 
-        b1 = opcode & 0x0f
+        b1 = opcode & 0x0F
         if fin:
             b1 |= 0x80
 
@@ -804,11 +840,11 @@ class WebSocket:
 
         payload_len = len(buf)
         if payload_len <= 125:
-            header = struct.pack('>BB', b1, payload_len | mask_bit)
+            header = struct.pack(">BB", b1, payload_len | mask_bit)
         elif payload_len > 125 and payload_len < 65536:
-            header = struct.pack('>BBH', b1, 126 | mask_bit, payload_len)
+            header = struct.pack(">BBH", b1, 126 | mask_bit, payload_len)
         elif payload_len >= 65536:
-            header = struct.pack('>BBQ', b1, 127 | mask_bit, payload_len)
+            header = struct.pack(">BBQ", b1, 127 | mask_bit, payload_len)
 
         if mask_key is not None:
             return header + mask_key + buf
@@ -816,7 +852,7 @@ class WebSocket:
             return header + buf
 
     def _decode_hybi(self, buf):
-        """ Decode HyBi style WebSocket packets.
+        """Decode HyBi style WebSocket packets.
         Returns:
             {'fin'          : boolean,
              'opcode'       : number,
@@ -825,11 +861,7 @@ class WebSocket:
              'payload'      : decoded_buffer}
         """
 
-        f = {'fin'          : 0,
-             'opcode'       : 0,
-             'masked'       : False,
-             'length'       : 0,
-             'payload'      : None}
+        f = {"fin": 0, "opcode": 0, "masked": False, "length": 0, "payload": None}
 
         blen = len(buf)
         hlen = 2
@@ -838,39 +870,38 @@ class WebSocket:
             return None
 
         b1, b2 = struct.unpack(">BB", buf[:2])
-        f['opcode'] = b1 & 0x0f
-        f['fin'] = not not (b1 & 0x80)
-        f['masked'] = not not (b2 & 0x80)
+        f["opcode"] = b1 & 0x0F
+        f["fin"] = not not (b1 & 0x80)
+        f["masked"] = not not (b2 & 0x80)
 
-        if f['masked']:
+        if f["masked"]:
             hlen += 4
             if blen < hlen:
                 return None
 
-        length = b2 & 0x7f
+        length = b2 & 0x7F
 
         if length == 126:
             hlen += 2
             if blen < hlen:
                 return None
-            length, = struct.unpack('>H', buf[2:4])
+            (length,) = struct.unpack(">H", buf[2:4])
         elif length == 127:
             hlen += 8
             if blen < hlen:
                 return None
-            length, = struct.unpack('>Q', buf[2:10])
+            (length,) = struct.unpack(">Q", buf[2:10])
 
-        f['length'] = hlen + length
+        f["length"] = hlen + length
 
-        if blen < f['length']:
+        if blen < f["length"]:
             return None
 
-        if f['masked']:
+        if f["masked"]:
             # unmask payload
-            mask_key = buf[hlen-4:hlen]
-            f['payload'] = self._unmask(buf[hlen:(hlen+length)], mask_key)
+            mask_key = buf[hlen - 4 : hlen]
+            f["payload"] = self._unmask(buf[hlen : (hlen + length)], mask_key)
         else:
-            f['payload'] = buf[hlen:(hlen+length)]
+            f["payload"] = buf[hlen : (hlen + length)]
 
         return f
-
