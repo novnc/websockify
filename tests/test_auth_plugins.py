@@ -29,12 +29,13 @@ class BasicHTTPAuthTestCase(unittest.TestCase):
         self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
 
 class HtpasswdAuthTestCase(unittest.TestCase):
-
     
     def setUp(self):
         self._temporary_htpasswd_file = tempfile.NamedTemporaryFile(delete=False)
-        #file generated with `htpasswd -cBi test_auth_plugins.htpasswd Genie <<<"""let's make some Magic\!\nlet's make some Magic!"""; htpasswd -Bi test_auth_plugins.htpasswd Aladdin <<<"""open sesame\nopen sesame"""`
-        file_content = 'Genie:$2y$05$XaF/3tlgIu6zMCkt3uHFjO8I6IIlCJHYYjryOFsec/HR3gKc79VAG\nAladdin:$2y$05$8WuTOyMgRmWQYidEUuXfE.CZsFnsdrKlR9e.5aAXlJWIID0.LUFF.\n'
+
+        #file generated with `htpasswd -c5i test_auth_plugins.htpasswd Genie <<<"""let's make some Magic!"""; htpasswd -Bi test_auth_plugins.htpasswd Aladdin <<<"""open sesame"""`
+        file_content = 'Genie:$6$5EsSBArrdAYDSe.j$v9mqxcSfPQgrM7btHx5wysZ28a1gei62rH75f8nYxwzPT80gbaL4qqxlkIBy.zSTnmG5VW2/RKFXQcGIgqAQq/\nAladdin:$2y$05$HK/O9w/55MSjM2FMefSIbeFKKANQbfR/hlYWk8RlDrR7Qyb5gnuzG'
+        
         self._temporary_htpasswd_file.write(file_content.encode('utf-8'))
         self._temporary_htpasswd_file.close()
         
@@ -50,6 +51,8 @@ class HtpasswdAuthTestCase(unittest.TestCase):
 
     def test_valid_password(self):
         headers = {'Authorization': 'Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}
+        self.plugin.authenticate(headers, 'localhost', '1234')
+        headers = {'Authorization': 'Basic R2VuaWU6bGV0J3MgbWFrZSBzb21lIE1hZ2ljIQ=='}
         self.plugin.authenticate(headers, 'localhost', '1234')
 
     def test_garbage_auth(self):
