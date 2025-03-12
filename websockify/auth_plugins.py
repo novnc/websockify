@@ -98,8 +98,7 @@ class HtpasswdAuth(BasicHTTPAuth):
         if self.src == None:
             return False
         try:
-            #TODO: Add a argument or config to change the HtpasswdFile scheme
-            htfile = HtpasswdFile(self.src, new=False, default_scheme="bcrypt", encoding="utf-8")
+            htfile = HtpasswdFile(self.src, new=False, encoding="utf-8")
             isvalid_hash = htfile.check_password(username, password)
             if isvalid_hash == None:
                 logger.warning("'%s' user not found in database." % (username))
