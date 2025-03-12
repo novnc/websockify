@@ -4,7 +4,6 @@ logger = logging.getLogger(__name__)
 try:
     from passlib.apache import HtpasswdFile
 except ImportError as e:
-    logger.warning("Unable to import class 'HtpasswdFile' from package 'libpass', module 'passlib.apache'")
     HtpasswdFile: None
 
 
