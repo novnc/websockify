@@ -4,7 +4,9 @@ on: [push, pull_request]
 
 jobs:
   test:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container:
+      image: python:${{ matrix.python-version }}
     strategy:
       matrix:
         python-version:
@@ -18,10 +20,6 @@ jobs:
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python-version }}
       - name: Update pip and setuptools
         run: |
           python -m pip install --upgrade pip
