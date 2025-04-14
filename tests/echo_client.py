@@ -5,9 +5,12 @@ import sys
 import optparse
 import select
 
-sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
-from websockify.websocket import WebSocket, \
-    WebSocketWantReadError, WebSocketWantWriteError
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from websockify.websocket import (
+    WebSocket,
+    WebSocketWantReadError,
+    WebSocketWantWriteError,
+)
 
 parser = optparse.OptionParser(usage="%prog URL")
 (opts, args) = parser.parse_args()
@@ -22,19 +25,23 @@ print("Connecting to %s..." % URL)
 sock.connect(URL)
 print("Connected.")
 
+
 def send(msg):
     while True:
         try:
             sock.sendmsg(msg)
             break
         except WebSocketWantReadError:
-            msg = ''
+            msg = ""
             ins, outs, excepts = select.select([sock], [], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
         except WebSocketWantWriteError:
-            msg = ''
+            msg = ""
             ins, outs, excepts = select.select([], [sock], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
+
 
 def read():
     while True:
@@ -42,10 +49,13 @@ def read():
             return sock.recvmsg()
         except WebSocketWantReadError:
             ins, outs, excepts = select.select([sock], [], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
         except WebSocketWantWriteError:
             ins, outs, excepts = select.select([], [sock], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
+
 
 counter = 1
 while True:
@@ -56,7 +66,8 @@ while True:
 
     while True:
         ins, outs, excepts = select.select([sock], [], [], 1.0)
-        if excepts: raise Exception("Socket exception")
+        if excepts:
+            raise Exception("Socket exception")
 
         if ins == []:
             break

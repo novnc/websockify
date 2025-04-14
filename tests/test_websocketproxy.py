@@ -14,7 +14,7 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
-""" Unit tests for websocketproxy """
+"""Unit tests for websocketproxy"""
 
 import sys
 import unittest
@@ -30,7 +30,7 @@ from websockify import auth_plugins
 
 
 class FakeSocket:
-    def __init__(self, data=b''):
+    def __init__(self, data=b""):
         self._data = data
 
     def recv(self, amt, flags=None):
@@ -40,11 +40,11 @@ class FakeSocket:
 
         return res
 
-    def makefile(self, mode='r', buffsize=None):
-        if 'b' in mode:
+    def makefile(self, mode="r", buffsize=None):
+        if "b" in mode:
             return BytesIO(self._data)
         else:
-            return StringIO(self._data.decode('latin_1'))
+            return StringIO(self._data.decode("latin_1"))
 
 
 class FakeServer:
@@ -58,14 +58,16 @@ class FakeServer:
         self.ssl_target = None
         self.unix_target = None
 
+
 class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
         super().setUp()
         self.handler = websocketproxy.ProxyRequestHandler(
-            FakeSocket(), "127.0.0.1", FakeServer())
+            FakeSocket(), "127.0.0.1", FakeServer()
+        )
         self.handler.path = "https://localhost:6080/websockify?token=blah"
         self.handler.headers = {}
-        patch('websockify.websockifyserver.WebSockifyServer.socket').start()
+        patch("websockify.websockifyserver.WebSockifyServer.socket").start()
 
     def tearDown(self):
         patch.stopall()
@@ -76,8 +78,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             def lookup(self, token):
                 return ("some host", "some port")
 
-        host, port = self.handler.get_target(
-            TestPlugin(None))
+        host, port = self.handler.get_target(TestPlugin(None))
 
         self.assertEqual(host, "some host")
         self.assertEqual(port, "some port")
@@ -87,8 +88,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
             def lookup(self, token):
                 return ("unix_socket", "/tmp/socket")
 
-        _, socket = self.handler.get_target(
-            TestPlugin(None))
+        _, socket = self.handler.get_target(TestPlugin(None))
 
         self.assertEqual(socket, "/tmp/socket")
 
@@ -100,11 +100,11 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         with self.assertRaises(FakeServer.EClose):
             self.handler.get_target(TestPlugin(None))
 
-    @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
+    @patch("websockify.websocketproxy.ProxyRequestHandler.send_auth_error", MagicMock())
     def test_token_plugin(self):
         class TestPlugin(token_plugins.BasePlugin):
             def lookup(self, token):
-                return (self.source + token).split(',')
+                return (self.source + token).split(",")
 
         self.handler.server.token_plugin = TestPlugin("somehost,")
         self.handler.validate_connection()
@@ -112,7 +112,7 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
         self.assertEqual(self.handler.server.target_host, "somehost")
         self.assertEqual(self.handler.server.target_port, "blah")
 
-    @patch('websockify.websocketproxy.ProxyRequestHandler.send_auth_error', MagicMock())
+    @patch("websockify.websocketproxy.ProxyRequestHandler.send_auth_error", MagicMock())
     def test_auth_plugin(self):
         class TestPlugin(auth_plugins.BasePlugin):
             def authenticate(self, headers, target_host, target_port):
@@ -128,4 +128,3 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
         self.handler.server.target_host = "someotherhost"
         self.handler.auth_connection()
-

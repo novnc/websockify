@@ -1,19 +1,25 @@
 #!/usr/bin/env python
 
-'''
+"""
 Python WebSocket server base
 Copyright 2011 Joel Martin
 Copyright 2016-2018 Pierre Ossman
 Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
-'''
+"""
 
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
+from websockify.websocket import (
+    WebSocket,
+    WebSocketWantReadError,
+    WebSocketWantWriteError,
+)
+
 
 class HttpWebSocket(WebSocket):
     """Class to glue websocket and http request functionality together"""
+
     def __init__(self, request_handler):
         super().__init__()
 
@@ -62,8 +68,10 @@ class WebSocketRequestHandlerMixIn:
         # Checks if it is a websocket request and redirects
         self.do_GET = self._real_do_GET
 
-        if (self.headers.get('upgrade') and
-            self.headers.get('upgrade').lower() == 'websocket'):
+        if (
+            self.headers.get("upgrade")
+            and self.headers.get("upgrade").lower() == "websocket"
+        ):
             self.handle_upgrade()
         else:
             self.do_GET()
@@ -93,18 +101,20 @@ class WebSocketRequestHandlerMixIn:
 
     def handle_websocket(self):
         """Handle a WebSocket connection.
-        
+
         This is called when the WebSocket is ready to be used. A
         sub-class should perform the necessary communication here and
         return once done.
         """
         pass
 
+
 # Convenient ready made classes
 
-class WebSocketRequestHandler(WebSocketRequestHandlerMixIn,
-                              BaseHTTPRequestHandler):
+
+class WebSocketRequestHandler(WebSocketRequestHandlerMixIn, BaseHTTPRequestHandler):
     pass
+
 
 class WebSocketServer(HTTPServer):
     pass
