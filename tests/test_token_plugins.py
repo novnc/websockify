@@ -4,7 +4,7 @@
 
 import sys
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, MagicMock
 from jwcrypto import jwt, jwk
 
 from websockify.token_plugins import parse_source_args, ReadOnlyTokenFile, JWTTokenApi, TokenRedis
@@ -32,48 +32,49 @@ class ParseSourceArgumentsTestCase(unittest.TestCase):
             self.assertEqual(args, parse_source_args(src))
 
 class ReadOnlyTokenFileTestCase(unittest.TestCase):
-    patch('os.path.isdir', MagicMock(return_value=False))
     def test_empty(self):
-        plugin = ReadOnlyTokenFile('configfile')
+        mock_source_file = MagicMock()
+        mock_source_file.is_dir.return_value = False
+        mock_source_file.open.return_value.__enter__.return_value.readlines.return_value = [""]
 
-        config = ""
-        pyopen = mock_open(read_data=config)
-
-        with patch("websockify.token_plugins.open", pyopen, create=True):
+        with patch("websockify.token_plugins.Path") as mock_path:
+            mock_path.return_value = mock_source_file
+            plugin = ReadOnlyTokenFile('configfile')
             result = plugin.lookup('testhost')
 
-        pyopen.assert_called_once_with('configfile')
+        mock_path.assert_called_once_with('configfile')
         self.assertIsNone(result)
 
-    patch('os.path.isdir', MagicMock(return_value=False))
     def test_simple(self):
-        plugin = ReadOnlyTokenFile('configfile')
+        mock_source_file = MagicMock()
+        mock_source_file.is_dir.return_value = False
+        mock_source_file.open.return_value.__enter__.return_value.readlines.return_value = ["testhost: remote_host:remote_port"]
 
-        config = "testhost: remote_host:remote_port"
-        pyopen = mock_open(read_data=config)
-
-        with patch("websockify.token_plugins.open", pyopen, create=True):
+        with patch("websockify.token_plugins.Path") as mock_path:
+            mock_path.return_value = mock_source_file
+            plugin = ReadOnlyTokenFile('configfile')
             result = plugin.lookup('testhost')
 
-        pyopen.assert_called_once_with('configfile')
+        mock_path.assert_called_once_with('configfile')
         self.assertIsNotNone(result)
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
 
-    patch('os.path.isdir', MagicMock(return_value=False))
     def test_tabs(self):
-        plugin = ReadOnlyTokenFile('configfile')
+        mock_source_file = MagicMock()
+        mock_source_file.is_dir.return_value = False
+        mock_source_file.open.return_value.__enter__.return_value.readlines.return_value = ["testhost:\tremote_host:remote_port"]
 
-        config = "testhost:\tremote_host:remote_port"
-        pyopen = mock_open(read_data=config)
-
-        with patch("websockify.token_plugins.open", pyopen, create=True):
+        with patch("websockify.token_plugins.Path") as mock_path:
+            mock_path.return_value = mock_source_file
+            plugin = ReadOnlyTokenFile('configfile')
             result = plugin.lookup('testhost')
 
-        pyopen.assert_called_once_with('configfile')
+        mock_path.assert_called_once_with('configfile')
         self.assertIsNotNone(result)
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
+
 
 class JWSTokenTestCase(unittest.TestCase):
     def test_asymmetric_jws_token_plugin(self):
