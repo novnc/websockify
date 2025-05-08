@@ -28,6 +28,13 @@ class BasicHTTPAuthTestCase(unittest.TestCase):
         headers = {'Authorization': 'Basic xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
         self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
 
+try:
+    import passlib
+    PASSLIB_AVAILABLE = True
+except ImportError:
+    PASSLIB_AVAILABLE = False
+
+@unittest.skipUnless(PASSLIB_AVAILABLE, "passlib package is not available")
 class HtpasswdAuthTestCase(unittest.TestCase):
     
     def setUp(self):

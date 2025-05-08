@@ -3,5 +3,5 @@ nose2
 six
 redis
 wrapt<=1.12.1;python_version<="3.4"
-libpass
-bcrypt
+libpass;python_versions>="3.8"
+bcrypt;python_versions>="3.8"
