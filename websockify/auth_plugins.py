@@ -1,3 +1,12 @@
+import logging
+logger = logging.getLogger(__name__)
+
+try:
+    from passlib.apache import HtpasswdFile
+except ImportError as e:
+    HtpasswdFile: None
+
+
 class BasePlugin():
     def __init__(self, src=None):
         self.source = src
@@ -75,6 +84,29 @@ class BasicHTTPAuth():
     def demand_auth(self):
         raise AuthenticationError(response_code=401,
                                   response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
+
+class HtpasswdAuth(BasicHTTPAuth):
+    """Verifies Basic Auth headers against a htpasswd database. Specify src as the path to the htpasswd file"""
+
+    def __init__(self, src=None):
+        self.src = src
+        if HtpasswdFile is None:
+            logging.error("Class ''HtpasswdFile' from libpass (passlib.apache), is not initialized, verify the availability of the module 'libpass'" )
+            raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
+
+    def validate_creds(self, username, password):
+        if self.src == None:
+            return False
+        try:
+            htfile = HtpasswdFile(self.src, new=False, encoding="utf-8")
+            isvalid_hash = htfile.check_password(username, password)
+            if isvalid_hash == None:
+                logger.warning("'%s' user not found in database." % (username))
+            return isvalid_hash
+        except (FileNotFoundError, PermissionError, OSError, ValueError) as e:
+            logging.error("%s: %s" % (type(e).__name__, e))
+            raise AuthenticationError(response_code=500, response_msg=f"Internal Server Error")
+        return False
 
 class ExpectOrigin():
     def __init__(self, src=None):
