@@ -1,9 +1,17 @@
-FROM python
+FROM python:3-slim AS builder
 
-COPY websockify-*.tar.gz /
+WORKDIR /build/websockify
 
-RUN python3 -m pip install websockify-*.tar.gz
-RUN rm -rf /websockify-* /root/.cache
+COPY ./* /build/websockify
+
+RUN pip3 install setuptools && \
+    python3 setup.py sdist --dist-dir docker/
+
+# Actual final image
+FROM python:3-slim
+COPY --from=builder /build/websockify/websockify-*.tar.gz /
+RUN python3 -m pip install websockify-*.tar.gz && \
+  rm -rf /websockify-* /root/.cache
 
 VOLUME /data
 
