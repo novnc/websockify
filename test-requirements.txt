@@ -2,4 +2,3 @@ mock
 nose2
 six
 redis
-wrapt<=1.12.1;python_version<="3.4"
