@@ -1,5 +1,5 @@
+"""Unit tests for websocketserver"""
 
-""" Unit tests for websocketserver """
 import unittest
 from unittest.mock import patch, MagicMock
 
@@ -66,4 +66,3 @@ class HttpWebSocketTest(unittest.TestCase):
 
         # Then
         req_obj.end_headers.assert_called_once_with()
-
