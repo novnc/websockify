@@ -439,8 +439,8 @@ def select_ssl_version(version):
         keys.sort()
         fallback = keys[-1]
         logger = logging.getLogger(WebSocketProxy.log_prefix)
-        logger.warn("TLS version %s unsupported. Falling back to %s",
-                    version, fallback)
+        logger.warning("TLS version %s unsupported. Falling back to %s",
+                       version, fallback)
 
         return SSL_OPTIONS[fallback]
 
