@@ -201,8 +201,10 @@ Traffic Legend:
                     self.heartbeat = now + self.server.heartbeat
                     self.send_ping()
 
-            if tqueue: wlist.append(target)
-            if cqueue or c_pend: wlist.append(self.request)
+            if tqueue:
+                wlist.append(target)
+            if cqueue or c_pend:
+                wlist.append(self.request)
             try:
                 ins, outs, excepts = select.select(rlist, wlist, [], 1)
             except OSError:
@@ -217,7 +219,8 @@ Traffic Legend:
                 else:
                     continue
 
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
 
             if self.request in outs:
                 # Send queued target data to the client
