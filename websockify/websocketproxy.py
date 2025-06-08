@@ -367,7 +367,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         else:
             dst_string = "%s:%s" % (self.target_host, self.target_port)
 
-        if self.listen_fd != None:
+        if self.listen_fd is not None:
             src_string = "inetd"
         else:
             src_string = "%s:%s" % (self.listen_host, self.listen_port)
@@ -392,11 +392,11 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
 
         if self.wrap_cmd and self.cmd:
             ret = self.cmd.poll()
-            if ret != None:
+            if ret is not None:
                 self.vmsg("Wrapped command exited (or daemon). Returned %s" % ret)
                 self.cmd = None
 
-        if self.wrap_cmd and self.cmd == None:
+        if self.wrap_cmd and self.cmd is None:
             # Response to wrapped command being gone
             if self.wrap_mode == "ignore":
                 pass
@@ -708,7 +708,7 @@ def websockify_init():
         except ValueError:
             parser.error("Error parsing target port")
 
-    if len(args) > 0 and opts.wrap_cmd == None:
+    if len(args) > 0 and opts.wrap_cmd is None:
         parser.error("Too many arguments")
 
     if opts.token_plugin is not None:

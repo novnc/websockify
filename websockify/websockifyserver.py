@@ -22,7 +22,7 @@ for mod, msg in [('ssl', 'TLS/SSL/wss is disabled'),
     try:
         globals()[mod] = __import__(mod)
     except ImportError:
-        globals()[mod] = None
+        globals()[mod] is None
         print("WARNING: no '%s' module, %s" % (mod, msg))
 
 if sys.platform == 'win32':
@@ -405,9 +405,9 @@ class WebSockifyServer():
 
         # Show configuration
         self.msg("WebSocket server settings:")
-        if self.listen_fd != None:
+        if self.listen_fd is not None:
             self.msg("  - Listen for inetd connections")
-        elif self.unix_listen != None:
+        elif self.unix_listen is not None:
             self.msg("  - Listen on unix socket %s", self.unix_listen)
         else:
             self.msg("  - Listen on %s:%s",
@@ -741,9 +741,9 @@ class WebSockifyServer():
         """
 
         try:
-            if self.listen_fd != None:
+            if self.listen_fd is not None:
                 lsock = socket.fromfd(self.listen_fd, socket.AF_INET, socket.SOCK_STREAM)
-            elif self.unix_listen != None:
+            elif self.unix_listen is not None:
                 lsock = self.socket(host=None,
                                     unix_socket=self.unix_listen,
                                     unix_socket_mode=self.unix_listen_mode,
@@ -819,7 +819,7 @@ class WebSockifyServer():
                             if lsock in ready:
                                 startsock, address = lsock.accept()
                                 # Unix Socket will not report address (empty string), but address[0] is logged a bunch
-                                if self.unix_listen != None:
+                                if self.unix_listen is not None:
                                     address = [self.unix_listen]
                             else:
                                 continue
