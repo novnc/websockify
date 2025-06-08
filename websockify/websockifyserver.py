@@ -528,9 +528,11 @@ class WebSockifyServer():
         os.setuid(os.getuid())  # relinquish elevations
 
         # Double fork to daemonize
-        if os.fork() > 0: os._exit(0)  # Parent exits
-        os.setsid()                    # Obtain new process group
-        if os.fork() > 0: os._exit(0)  # Parent exits
+        if os.fork() > 0:  # Parent exits
+            os._exit(0)
+        os.setsid()        # Obtain new process group
+        if os.fork() > 0:  # Parent exits
+            os._exit(0)
 
         # Signal handling
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
@@ -538,14 +540,16 @@ class WebSockifyServer():
 
         # Close open files
         maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-        if maxfd == resource.RLIM_INFINITY: maxfd = 256
+        if maxfd == resource.RLIM_INFINITY:
+            maxfd = 256
         for fd in reversed(range(maxfd)):
             try:
                 if fd not in keepfd:
                     os.close(fd)
             except OSError:
                 _, exc, _ = sys.exc_info()
-                if exc.errno != errno.EBADF: raise
+                if exc.errno != errno.EBADF:
+                    raise
 
         # Redirect I/O to /dev/null
         os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdin.fileno())

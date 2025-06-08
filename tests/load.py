@@ -50,7 +50,8 @@ class WebSocketLoad(WebSockifyRequestHandler):
 
         while True:
             ins, outs, excepts = select.select(socks, socks, socks, 1)
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
 
             if client in ins:
                 frames, closed = self.recv_frames()
@@ -148,10 +149,12 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
 
     try:
-        if len(args) != 1: raise ValueError
+        if len(args) != 1:
+            raise ValueError
         opts.listen_port = int(args[0])
 
-        if len(args) not in [1, 2]: raise ValueError
+        if len(args) not in [1, 2]:
+            raise ValueError
         opts.listen_port = int(args[0])
         if len(args) == 2:
             opts.delay = int(args[1])

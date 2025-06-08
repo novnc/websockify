@@ -34,9 +34,11 @@ class WebSocketEcho(WebSockifyRequestHandler):
         while True:
             wlist = []
 
-            if cqueue or c_pend: wlist.append(self.request)
+            if cqueue or c_pend:
+                wlist.append(self.request)
             ins, outs, excepts = select.select(rlist, wlist, [], 1)
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
 
             if self.request in outs:
                 # Send queued target data to the client
@@ -65,7 +67,8 @@ if __name__ == '__main__':
     (opts, args) = parser.parse_args()
 
     try:
-        if len(args) != 1: raise ValueError
+        if len(args) != 1:
+            raise ValueError
         opts.listen_port = int(args[0])
     except ValueError:
         parser.error("Invalid arguments")

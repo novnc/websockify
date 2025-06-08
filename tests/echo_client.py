@@ -31,11 +31,13 @@ def send(msg):
         except WebSocketWantReadError:
             msg = ''
             ins, outs, excepts = select.select([sock], [], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
         except WebSocketWantWriteError:
             msg = ''
             ins, outs, excepts = select.select([], [sock], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
 
 
 def read():
@@ -44,10 +46,12 @@ def read():
             return sock.recvmsg()
         except WebSocketWantReadError:
             ins, outs, excepts = select.select([sock], [], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
         except WebSocketWantWriteError:
             ins, outs, excepts = select.select([], [sock], [])
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
 
 
 counter = 1
@@ -59,7 +63,8 @@ while True:
 
     while True:
         ins, outs, excepts = select.select([sock], [], [], 1.0)
-        if excepts: raise Exception("Socket exception")
+        if excepts:
+            raise Exception("Socket exception")
 
         if ins == []:
             break
