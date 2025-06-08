@@ -118,7 +118,7 @@ class WebSocket:
         connect() must retain the same arguments.
         """
 
-        self.client = True;
+        self.client = True
 
         uri = urlparse(uri)
 
@@ -206,7 +206,7 @@ class WebSocket:
 
             accept = headers.get('Sec-WebSocket-Accept')
             if accept is None:
-                raise Exception("Missing Sec-WebSocket-Accept header");
+                raise Exception("Missing Sec-WebSocket-Accept header")
 
             expected = sha1((self._key + self.GUID).encode("ascii")).digest()
             expected = b64encode(expected).decode("ascii")
@@ -214,7 +214,7 @@ class WebSocket:
             del self._key
 
             if accept != expected:
-                raise Exception("Invalid Sec-WebSocket-Accept header");
+                raise Exception("Invalid Sec-WebSocket-Accept header")
 
             self.protocol = headers.get('Sec-WebSocket-Protocol')
             if len(protocols) == 0:
@@ -258,7 +258,7 @@ class WebSocket:
 
             ver = headers.get('Sec-WebSocket-Version')
             if ver is None:
-                raise Exception("Missing Sec-WebSocket-Version header");
+                raise Exception("Missing Sec-WebSocket-Version header")
 
             # HyBi-07 report version 7
             # HyBi-08 - HyBi-12 report version 8
@@ -270,7 +270,7 @@ class WebSocket:
 
             key = headers.get('Sec-WebSocket-Key')
             if key is None:
-                raise Exception("Missing Sec-WebSocket-Key header");
+                raise Exception("Missing Sec-WebSocket-Key header")
 
             # Generate the hash value for the accept header
             accept = sha1((key + self.GUID).encode("ascii")).digest()

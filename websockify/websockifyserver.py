@@ -454,7 +454,7 @@ class WebSockifyServer():
         if connect and not (port or unix_socket):
             raise Exception("Connect mode requires a port")
         if use_ssl and not ssl:
-            raise Exception("SSL socket requested but Python SSL module not loaded.");
+            raise Exception("SSL socket requested but Python SSL module not loaded.")
         if not connect and use_ssl:
             raise Exception("SSL only supported in connect mode (for now)")
         if not connect:

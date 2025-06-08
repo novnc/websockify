@@ -655,7 +655,7 @@ def websockify_init():
         opts.wrap_cmd = None
 
     if not websockifyserver.ssl and opts.ssl_target:
-        parser.error("SSL target requested and Python SSL module not loaded.");
+        parser.error("SSL target requested and Python SSL module not loaded.")
 
     if opts.ssl_only and not os.path.exists(opts.cert):
         parser.error("SSL only and %s not found" % opts.cert)

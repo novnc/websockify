@@ -64,7 +64,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
             pri = self.encodePriority(self.facility,
                                       self.mapPriority(record.levelname))
 
-            timestamp = time.strftime(self._timestamp_fmt, time.gmtime());
+            timestamp = time.strftime(self._timestamp_fmt, time.gmtime())
 
             hostname = socket.gethostname()[:self._max_hostname]
 
