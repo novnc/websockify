@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import setup
 
 version = '0.13.0'
 name = 'websockify'

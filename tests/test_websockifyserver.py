@@ -17,18 +17,12 @@
 """ Unit tests for websockifyserver """
 import errno
 import os
-import logging
-import select
-import shutil
 import socket
 import ssl
-from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch
 import sys
 import tempfile
 import unittest
-import socket
-import signal
-from http.server import BaseHTTPRequestHandler
 from io import StringIO
 from io import BytesIO
 

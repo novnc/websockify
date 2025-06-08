@@ -10,7 +10,7 @@ Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
+from websockify.websocket import WebSocket
 
 class HttpWebSocket(WebSocket):
     """Class to glue websocket and http request functionality together"""
