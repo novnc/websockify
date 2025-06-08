@@ -16,8 +16,6 @@
 
 """ Unit tests for websocketproxy """
 
-import sys
-import unittest
 import unittest
 import socket
 from io import StringIO
