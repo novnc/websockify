@@ -766,7 +766,6 @@ class WebSocket:
                     dtype = dtype.newbyteorder('>')
                 mask = numpy.frombuffer(mask, dtype, count=1)
                 data = numpy.frombuffer(buf, dtype, count=int(plen / 4))
-                #b = numpy.bitwise_xor(data, mask).data
                 b = numpy.bitwise_xor(data, mask).tobytes()
 
             if plen % 4:

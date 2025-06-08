@@ -578,7 +578,6 @@ class WebSockifyServer():
         # Peek, but do not read the data so that we have a opportunity
         # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
-        #self.msg("Handshake [%s]" % handshake)
 
         if not handshake:
             raise self.EClose("")
@@ -660,7 +659,6 @@ class WebSockifyServer():
 
     def poll(self):
         """ Run periodically while waiting for connections. """
-        #self.vmsg("Running poll()")
         pass
 
     def terminate(self):
