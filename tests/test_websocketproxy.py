@@ -56,6 +56,7 @@ class FakeServer:
         self.ssl_target = None
         self.unix_target = None
 
+
 class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -126,4 +127,3 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
         self.handler.server.target_host = "someotherhost"
         self.handler.auth_connection()
-

@@ -18,6 +18,7 @@
 import unittest
 from websockify import websocket
 
+
 class FakeSocket:
     def __init__(self):
         self.data = b''
@@ -25,6 +26,7 @@ class FakeSocket:
     def send(self, buf):
         self.data += buf
         return len(buf)
+
 
 class AcceptTestCase(unittest.TestCase):
     def test_success(self):
@@ -116,6 +118,7 @@ class AcceptTestCase(unittest.TestCase):
                                  'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
                                  'Sec-WebSocket-Protocol': 'foobar,gazonk'})
 
+
 class PingPongTest(unittest.TestCase):
     def setUp(self):
         self.ws = websocket.WebSocket()
@@ -141,6 +144,7 @@ class PingPongTest(unittest.TestCase):
     def test_pong_data(self):
         self.ws.pong(b'foo')
         self.assertEqual(self.sock.data, b'\x8a\x03foo')
+
 
 class HyBiEncodeDecodeTestCase(unittest.TestCase):
     def test_decode_hybi_text(self):

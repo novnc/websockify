@@ -84,6 +84,7 @@ class TokenFile(ReadOnlyTokenFile):
 
         return super().lookup(token)
 
+
 class TokenFileName(BasePlugin):
     # source is a directory
     # token is filename

@@ -10,6 +10,7 @@ import sys, os, select, random, time, optparse, logging
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
 
+
 class WebSocketLoadServer(WebSockifyServer):
 
     recv_cnt = 0
@@ -84,7 +85,6 @@ class WebSocketLoad(WebSockifyRequestHandler):
         self.send_cnt += 1
 
         return data
-
 
     def check(self, frames):
 
@@ -165,4 +165,3 @@ if __name__ == '__main__':
     opts.web = "."
     server = WebSocketLoadServer(WebSocketLoad, **opts.__dict__)
     server.start_server()
-

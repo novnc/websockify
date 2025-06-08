@@ -9,6 +9,7 @@ from jwcrypto import jwt, jwk
 
 from websockify.token_plugins import parse_source_args, ReadOnlyTokenFile, JWTTokenApi, TokenRedis
 
+
 class ParseSourceArgumentsTestCase(unittest.TestCase):
     def test_parameterized(self):
         params = [
@@ -30,6 +31,7 @@ class ParseSourceArgumentsTestCase(unittest.TestCase):
         ]
         for src, args in params:
             self.assertEqual(args, parse_source_args(src))
+
 
 class ReadOnlyTokenFileTestCase(unittest.TestCase):
     def test_empty(self):
@@ -200,6 +202,7 @@ class JWSTokenTestCase(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
+
 
 class TokenRedisTestCase(unittest.TestCase):
     def setUp(self):

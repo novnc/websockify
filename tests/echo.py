@@ -14,6 +14,7 @@ import os, sys, select, optparse, logging
 sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
 
+
 class WebSocketEcho(WebSockifyRequestHandler):
     """
     WebSockets server that echos back whatever is received from the
@@ -50,6 +51,7 @@ class WebSocketEcho(WebSockifyRequestHandler):
                 if closed:
                     break
 
+
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog [options] listen_port")
     parser.add_option("--verbose", "-v", action="store_true",
@@ -73,4 +75,3 @@ if __name__ == '__main__':
     opts.web = "."
     server = WebSockifyServer(WebSocketEcho, **opts.__dict__)
     server.start_server()
-

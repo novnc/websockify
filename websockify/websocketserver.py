@@ -12,6 +12,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 from websockify.websocket import WebSocket
 
+
 class HttpWebSocket(WebSocket):
     """Class to glue websocket and http request functionality together"""
     def __init__(self, request_handler):
@@ -100,11 +101,14 @@ class WebSocketRequestHandlerMixIn:
         """
         pass
 
+
 # Convenient ready made classes
+
 
 class WebSocketRequestHandler(WebSocketRequestHandlerMixIn,
                               BaseHTTPRequestHandler):
     pass
+
 
 class WebSocketServer(HTTPServer):
     pass
