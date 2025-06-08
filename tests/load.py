@@ -43,8 +43,6 @@ class WebSocketLoad(WebSockifyRequestHandler):
 
     def responder(self, client):
         c_pend = 0
-        cqueue = []
-        cpartial = ""
         socks = [client]
         last_send = time.time() * 1000
 

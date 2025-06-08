@@ -344,7 +344,6 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
     def test_start_server_error(self):
         server = self._get_server(daemon=False, ssl_only=1, idle_timeout=1)
-        sock = server.socket('localhost')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             raise Exception("fake error")
@@ -356,7 +355,6 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
     def test_start_server_keyboardinterrupt(self):
         server = self._get_server(daemon=False, ssl_only=0, idle_timeout=1)
-        sock = server.socket('localhost')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             raise KeyboardInterrupt
@@ -368,7 +366,6 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
     def test_start_server_systemexit(self):
         server = self._get_server(daemon=False, ssl_only=0, idle_timeout=1)
-        sock = server.socket('localhost')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             sys.exit()
