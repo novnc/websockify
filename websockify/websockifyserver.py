@@ -785,7 +785,7 @@ class WebSockifyServer():
                 try:
                     try:
                         startsock = None
-                        pid = err = 0
+                        err = 0
                         child_count = 0
 
                         # Collect zombie child processes

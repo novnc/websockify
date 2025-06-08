@@ -757,8 +757,6 @@ class WebSocket:
         # Unmask a frame
         if numpy:
             plen = len(buf)
-            pstart = 0
-            pend = plen
             b = c = b''
             if plen >= 4:
                 dtype = numpy.dtype('<u4')
