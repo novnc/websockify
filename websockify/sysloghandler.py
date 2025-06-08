@@ -13,7 +13,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
     _legacy = False
     _timestamp_fmt = '%Y-%m-%dT%H:%M:%SZ'
     _max_hostname = 255
-    _max_ident = 24 #safer for old daemons
+    _max_ident = 24  # safer for old daemons
     _send_length = False
     _tail = '\n'
     ident = None
@@ -54,7 +54,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
         try:
             # Gather info.
             text = self.format(record).replace(self._tail, ' ')
-            if not text: # nothing to log
+            if not text:  # nothing to log
                 return
 
             pri = self.encodePriority(self.facility,
@@ -69,7 +69,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
             else:
                 ident = ''
 
-            pid = os.getpid() # shouldn't need truncation
+            pid = os.getpid()  # shouldn't need truncation
 
             # Format the header.
             head = {

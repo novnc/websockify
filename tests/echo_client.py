@@ -5,7 +5,7 @@ import sys
 import optparse
 import select
 
-sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websocket import WebSocket, \
     WebSocketWantReadError, WebSocketWantWriteError
 

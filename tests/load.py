@@ -7,7 +7,7 @@ given a sequence number. Any errors are reported and counted.
 '''
 
 import sys, os, select, random, time, optparse, logging
-sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
 
 
@@ -74,13 +74,13 @@ class WebSocketLoad(WebSockifyRequestHandler):
 
     def generate(self):
         length = random.randint(10, self.max_packet_size)
-        numlist = self.rand_array[self.max_packet_size-length:]
+        numlist = self.rand_array[self.max_packet_size - length:]
         # Error in length
         #numlist.append(5)
         chksum = sum(numlist)
         # Error in checksum
         #numlist[0] = 5
-        nums = "".join( [str(n) for n in numlist] )
+        nums = "".join([str(n) for n in numlist])
         data = "^%d:%d:%d:%s$" % (self.send_cnt, length, chksum, nums)
         self.send_cnt += 1
 
@@ -102,7 +102,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
 
             try:
                 cnt, length, chksum, nums = data[1:-1].split(':')
-                cnt    = int(cnt)
+                cnt = int(cnt)
                 length = int(length)
                 chksum = int(chksum)
             except ValueError:
@@ -151,7 +151,7 @@ if __name__ == '__main__':
         if len(args) != 1: raise ValueError
         opts.listen_port = int(args[0])
 
-        if len(args) not in [1,2]: raise ValueError
+        if len(args) not in [1, 2]: raise ValueError
         opts.listen_port = int(args[0])
         if len(args) == 2:
             opts.delay = int(args[1])

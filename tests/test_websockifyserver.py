@@ -259,7 +259,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 pass
 
-        server = self._get_server(handler_class=FakeHandler, daemon=True, 
+        server = self._get_server(handler_class=FakeHandler, daemon=True,
                                   idle_timeout=1, ssl_ciphers=test_ciphers)
         sock = FakeSocket(b"\x16some ssl data")
 
@@ -300,7 +300,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 pass
 
-        server = self._get_server(handler_class=FakeHandler, daemon=True, 
+        server = self._get_server(handler_class=FakeHandler, daemon=True,
                                   idle_timeout=1, ssl_options=test_options)
         sock = FakeSocket(b"\x16some ssl data")
 

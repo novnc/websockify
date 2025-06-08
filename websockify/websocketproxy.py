@@ -63,7 +63,7 @@ Traffic Legend:
 
         # clear out any existing SSL_ headers that the client might
         # have maliciously set
-        ssl_headers = [ h for h in self.headers if h.startswith('SSL_') ]
+        ssl_headers = [h for h in self.headers if h.startswith('SSL_')]
         for h in ssl_headers:
             del self.headers[h]
 
@@ -160,7 +160,7 @@ Traffic Legend:
 
         else:
             # Extract the token parameter from url
-            args = parse_qs(urlparse(self.path)[4]) # 4 is the query from url
+            args = parse_qs(urlparse(self.path)[4])  # 4 is the query from url
 
             if 'token' in args and len(args['token']):
                 token = args['token'][0].rstrip('\n')
@@ -269,7 +269,7 @@ Traffic Legend:
                     # Send queued target data to the client
                     if len(cqueue) != 0:
                         c_pend = True
-                        while(c_pend):
+                        while (c_pend):
                             c_pend = self.send_frames(cqueue)
 
                         cqueue = []
@@ -293,20 +293,20 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
 
     def __init__(self, RequestHandlerClass=ProxyRequestHandler, *args, **kwargs):
         # Save off proxy specific options
-        self.target_host    = kwargs.pop('target_host', None)
-        self.target_port    = kwargs.pop('target_port', None)
-        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode      = kwargs.pop('wrap_mode', None)
-        self.unix_target    = kwargs.pop('unix_target', None)
-        self.ssl_target     = kwargs.pop('ssl_target', None)
-        self.heartbeat      = kwargs.pop('heartbeat', None)
+        self.target_host = kwargs.pop('target_host', None)
+        self.target_port = kwargs.pop('target_port', None)
+        self.wrap_cmd = kwargs.pop('wrap_cmd', None)
+        self.wrap_mode = kwargs.pop('wrap_mode', None)
+        self.unix_target = kwargs.pop('unix_target', None)
+        self.ssl_target = kwargs.pop('ssl_target', None)
+        self.heartbeat = kwargs.pop('heartbeat', None)
 
         self.token_plugin = kwargs.pop('token_plugin', None)
         self.host_token = kwargs.pop('host_token', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
 
         # Last 3 timestamps command was run
-        self.wrap_times    = [0, 0, 0]
+        self.wrap_times = [0, 0, 0]
 
         if self.wrap_cmd:
             wsdir = os.path.dirname(sys.argv[0])
@@ -334,7 +334,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
             sock.close()
 
             # Insert rebinder at the head of the (possibly empty) LD_PRELOAD pathlist
-            ld_preloads = filter(None, [ self.rebinder, os.environ.get("LD_PRELOAD", None) ])
+            ld_preloads = filter(None, [self.rebinder, os.environ.get("LD_PRELOAD", None)])
 
             os.environ.update({
                 "LD_PRELOAD": os.pathsep.join(ld_preloads),
@@ -401,7 +401,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
                 sys.exit(ret)
             elif self.wrap_mode == "respawn":
                 now = time.time()
-                avg = sum(self.wrap_times)/len(self.wrap_times)
+                avg = sum(self.wrap_times) / len(self.wrap_times)
                 if (now - avg) < 10:
                     # 3 times in the last 10 seconds
                     if self.spawn_message:
@@ -756,32 +756,32 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
 
     def __init__(self, RequestHandlerClass=ProxyRequestHandler, **kwargs):
         # Save off proxy specific options
-        self.target_host    = kwargs.pop('target_host', None)
-        self.target_port    = kwargs.pop('target_port', None)
-        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode      = kwargs.pop('wrap_mode', None)
-        self.unix_target    = kwargs.pop('unix_target', None)
-        self.ssl_target     = kwargs.pop('ssl_target', None)
-        self.token_plugin   = kwargs.pop('token_plugin', None)
-        self.auth_plugin    = kwargs.pop('auth_plugin', None)
-        self.heartbeat      = kwargs.pop('heartbeat', None)
+        self.target_host = kwargs.pop('target_host', None)
+        self.target_port = kwargs.pop('target_port', None)
+        self.wrap_cmd = kwargs.pop('wrap_cmd', None)
+        self.wrap_mode = kwargs.pop('wrap_mode', None)
+        self.unix_target = kwargs.pop('unix_target', None)
+        self.ssl_target = kwargs.pop('ssl_target', None)
+        self.token_plugin = kwargs.pop('token_plugin', None)
+        self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.heartbeat = kwargs.pop('heartbeat', None)
 
         self.token_plugin = None
         self.auth_plugin = None
         self.daemon = False
 
         # Server configuration
-        listen_host    = kwargs.pop('listen_host', '')
-        listen_port    = kwargs.pop('listen_port', None)
-        web            = kwargs.pop('web', '')
+        listen_host = kwargs.pop('listen_host', '')
+        listen_port = kwargs.pop('listen_port', None)
+        web = kwargs.pop('web', '')
 
         # Configuration affecting base request handler
-        self.only_upgrade   = not web
-        self.verbose   = kwargs.pop('verbose', False)
+        self.only_upgrade = not web
+        self.verbose = kwargs.pop('verbose', False)
         record = kwargs.pop('record', '')
         if record:
             self.record = os.path.abspath(record)
-        self.run_once  = kwargs.pop('run_once', False)
+        self.run_once = kwargs.pop('run_once', False)
         self.handler_id = 0
 
         for arg in kwargs.keys():
