@@ -32,6 +32,7 @@ if sys.platform == 'win32':
 from websockify.websocket import WebSocketWantReadError, WebSocketWantWriteError
 from websockify.websocketserver import WebSocketRequestHandlerMixIn
 
+
 class CompatibleWebSocket(WebSocketRequestHandlerMixIn.SocketClass):
     def select_subprotocol(self, protocols):
         # Handle old websockify clients that still specify a sub-protocol
@@ -39,6 +40,7 @@ class CompatibleWebSocket(WebSocketRequestHandlerMixIn.SocketClass):
             return 'binary'
         else:
             return ''
+
 
 # HTTP handler with WebSocket upgrade support
 class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHandler):
@@ -498,7 +500,7 @@ class WebSockifyServer():
 
     @staticmethod
     def daemonize(keepfd=None, chdir='/'):
-        
+
         if keepfd is None:
             keepfd = []
 
@@ -629,10 +631,10 @@ class WebSockifyServer():
         """ Same as msg() but as warning. """
         self.logger.log(logging.WARN, *args, **kwargs)
 
-
     #
     # Events that can/should be overridden in sub-classes
     #
+
     def started(self):
         """ Called after WebSockets startup """
         self.vmsg("WebSockets server started")
@@ -864,5 +866,3 @@ class WebSockifyServer():
             # Restore signals
             for sig, func in original_signals.items():
                 signal.signal(sig, func)
-
-

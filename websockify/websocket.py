@@ -31,10 +31,14 @@ except ImportError:
     warnings.warn("no 'numpy' module, HyBi protocol will be slower")
     numpy = None
 
+
 class WebSocketWantReadError(ssl.SSLWantReadError):
     pass
+
+
 class WebSocketWantWriteError(ssl.SSLWantWriteError):
     pass
+
 
 class WebSocket:
     """WebSocket protocol socket like class.
@@ -873,4 +877,3 @@ class WebSocket:
             f['payload'] = buf[hlen:(hlen+length)]
 
         return f
-

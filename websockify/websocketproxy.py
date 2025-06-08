@@ -20,6 +20,7 @@ from websockify import websockifyserver
 from websockify import auth_plugins as auth
 from urllib.parse import parse_qs, urlparse
 
+
 class ProxyRequestHandler(websockifyserver.WebSockifyRequestHandler):
 
     buffer_size = 65536
@@ -248,7 +249,6 @@ Traffic Legend:
                                 self.server.target_host, self.server.target_port)
                     raise self.CClose(closed['code'], closed['reason'])
 
-
             if target in outs:
                 # Send queued client data to the target
                 dat = tqueue.pop(0)
@@ -259,7 +259,6 @@ Traffic Legend:
                     # requeue the remaining data
                     tqueue.insert(0, dat[sent:])
                     self.print_traffic(".>")
-
 
             if target in ins:
                 # Receive target data, encode it and queue for client
@@ -282,6 +281,7 @@ Traffic Legend:
 
                 cqueue.append(buf)
                 self.print_traffic("{")
+
 
 class WebSocketProxy(websockifyserver.WebSockifyServer):
     """
@@ -427,6 +427,7 @@ SSL_OPTIONS = {
     ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_2,
 }
 
+
 def select_ssl_version(version):
     """Returns SSL options for the most secure TSL version available on this
     Python version"""
@@ -443,6 +444,7 @@ def select_ssl_version(version):
                     version, fallback)
 
         return SSL_OPTIONS[fallback]
+
 
 def websockify_init():
     # Setup basic logging to stderr.
@@ -562,9 +564,7 @@ def websockify_init():
 
     (opts, args) = parser.parse_args()
 
-
     # Validate options.
-
     if opts.token_source and not opts.token_plugin:
         parser.error("You must use --token-plugin to use --token-source")
 
@@ -583,10 +583,8 @@ def websockify_init():
     if opts.legacy_syslog and not opts.syslog:
         parser.error("You must use --syslog to use --legacy-syslog")
 
-
     opts.ssl_options = select_ssl_version(opts.ssl_version)
     del opts.ssl_version
-
 
     if opts.log_file:
         # Setup logging to user-specified file.
@@ -637,7 +635,6 @@ def websockify_init():
     if opts.verbose:
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
-
 
     # Transform to absolute path as daemon may chdir
     if opts.target_cfg:
@@ -794,7 +791,6 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
             os.chdir(web)
 
         super().__init__((listen_host, listen_port), RequestHandlerClass)
-
 
     def process_request(self, request, client_address):
         """Override process_request to implement a counter"""

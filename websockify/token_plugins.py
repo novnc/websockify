@@ -83,6 +83,7 @@ class TokenFile(ReadOnlyTokenFile):
 
         return super().lookup(token)
 
+
 class TokenFileName(BasePlugin):
     # source is a directory
     # token is filename
@@ -91,7 +92,7 @@ class TokenFileName(BasePlugin):
         super().__init__(src)
         if not os.path.isdir(src):
             raise Exception("TokenFileName plugin requires a directory")
-    
+
     def lookup(self, token):
         token = os.path.basename(token)
         path = os.path.join(self.source, token)

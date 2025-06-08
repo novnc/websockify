@@ -16,10 +16,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
     _max_ident = 24 #safer for old daemons
     _send_length = False
     _tail = '\n'
-
-
     ident = None
-
 
     def __init__(self, address=('localhost', handlers.SYSLOG_UDP_PORT),
                  facility=handlers.SysLogHandler.LOG_USER,
@@ -45,7 +42,6 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
             self._head_fmt = self._legacy_head_fmt
 
         super().__init__(address, facility, socktype)
-
 
     def emit(self, record):
         """

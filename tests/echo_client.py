@@ -22,6 +22,7 @@ print("Connecting to %s..." % URL)
 sock.connect(URL)
 print("Connected.")
 
+
 def send(msg):
     while True:
         try:
@@ -36,6 +37,7 @@ def send(msg):
             ins, outs, excepts = select.select([], [sock], [])
             if excepts: raise Exception("Socket exception")
 
+
 def read():
     while True:
         try:
@@ -46,6 +48,7 @@ def read():
         except WebSocketWantWriteError:
             ins, outs, excepts = select.select([], [sock], [])
             if excepts: raise Exception("Socket exception")
+
 
 counter = 1
 while True:
