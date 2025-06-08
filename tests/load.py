@@ -76,11 +76,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
     def generate(self):
         length = random.randint(10, self.max_packet_size)
         numlist = self.rand_array[self.max_packet_size - length:]
-        # Error in length
-        #numlist.append(5)
         chksum = sum(numlist)
-        # Error in checksum
-        #numlist[0] = 5
         nums = "".join([str(n) for n in numlist])
         data = "^%d:%d:%d:%s$" % (self.send_cnt, length, chksum, nums)
         self.send_cnt += 1
