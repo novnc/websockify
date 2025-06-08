@@ -94,7 +94,7 @@ class WebSocketRequestHandlerMixIn:
 
     def handle_websocket(self):
         """Handle a WebSocket connection.
-        
+
         This is called when the WebSocket is ready to be used. A
         sub-class should perform the necessary communication here and
         return once done.

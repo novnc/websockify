@@ -761,7 +761,7 @@ class WebSocket:
             pend = plen
             b = c = b''
             if plen >= 4:
-                dtype=numpy.dtype('<u4')
+                dtype = numpy.dtype('<u4')
                 if sys.byteorder == 'big':
                     dtype = dtype.newbyteorder('>')
                 mask = numpy.frombuffer(mask, dtype, count=1)
@@ -770,7 +770,7 @@ class WebSocket:
                 b = numpy.bitwise_xor(data, mask).tobytes()
 
             if plen % 4:
-                dtype=numpy.dtype('B')
+                dtype = numpy.dtype('B')
                 if sys.byteorder == 'big':
                     dtype = dtype.newbyteorder('>')
                 mask = numpy.frombuffer(mask, dtype, count=(plen % 4))
@@ -829,11 +829,11 @@ class WebSocket:
              'payload'      : decoded_buffer}
         """
 
-        f = {'fin'          : 0,
-             'opcode'       : 0,
-             'masked'       : False,
-             'length'       : 0,
-             'payload'      : None}
+        f = {'fin': 0,
+             'opcode': 0,
+             'masked': False,
+             'length': 0,
+             'payload': None}
 
         blen = len(buf)
         hlen = 2
@@ -871,9 +871,9 @@ class WebSocket:
 
         if f['masked']:
             # unmask payload
-            mask_key = buf[hlen-4:hlen]
-            f['payload'] = self._unmask(buf[hlen:(hlen+length)], mask_key)
+            mask_key = buf[hlen - 4:hlen]
+            f['payload'] = self._unmask(buf[hlen:(hlen + length)], mask_key)
         else:
-            f['payload'] = buf[hlen:(hlen+length)]
+            f['payload'] = buf[hlen:(hlen + length)]
 
         return f

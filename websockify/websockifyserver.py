@@ -75,7 +75,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         self.daemon = getattr(server, "daemon", False)
         self.record = getattr(server, "record", False)
         self.run_once = getattr(server, "run_once", False)
-        self.rec        = None
+        self.rec = None
         self.handler_id = getattr(server, "handler_id", False)
         self.file_only = getattr(server, "file_only", False)
         self.traffic = getattr(server, "traffic", False)
@@ -126,7 +126,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         fully sent, in which case the caller should call again when
         the socket is ready. """
 
-        tdelta = int(time.time()*1000) - self.start_time
+        tdelta = int(time.time() * 1000) - self.start_time
 
         if bufs:
             for buf in bufs:
@@ -157,7 +157,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
 
         closed = False
         bufs = []
-        tdelta = int(time.time()*1000) - self.start_time
+        tdelta = int(time.time() * 1000) - self.start_time
 
         while True:
             try:
@@ -209,8 +209,8 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         self.server.ws_connection = True
         # Initialize per client settings
         self.send_parts = []
-        self.recv_part  = None
-        self.start_time = int(time.time()*1000)
+        self.recv_part = None
+        self.start_time = int(time.time() * 1000)
 
         # client_address is empty with, say, UNIX domain sockets
         client_addr = ""
@@ -347,35 +347,35 @@ class WebSockifyServer():
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
-        self.verbose             = verbose
-        self.listen_fd           = listen_fd
-        self.unix_listen         = unix_listen
-        self.unix_listen_mode    = unix_listen_mode
-        self.listen_host         = listen_host
-        self.listen_port         = listen_port
-        self.prefer_ipv6         = source_is_ipv6
-        self.ssl_only            = ssl_only
-        self.ssl_ciphers         = ssl_ciphers
-        self.ssl_options         = ssl_options
-        self.verify_client       = verify_client
-        self.daemon              = daemon
-        self.run_once            = run_once
-        self.timeout             = timeout
-        self.idle_timeout        = idle_timeout
-        self.traffic             = traffic
-        self.file_only           = file_only
-        self.web_auth            = web_auth
+        self.verbose = verbose
+        self.listen_fd = listen_fd
+        self.unix_listen = unix_listen
+        self.unix_listen_mode = unix_listen_mode
+        self.listen_host = listen_host
+        self.listen_port = listen_port
+        self.prefer_ipv6 = source_is_ipv6
+        self.ssl_only = ssl_only
+        self.ssl_ciphers = ssl_ciphers
+        self.ssl_options = ssl_options
+        self.verify_client = verify_client
+        self.daemon = daemon
+        self.run_once = run_once
+        self.timeout = timeout
+        self.idle_timeout = idle_timeout
+        self.traffic = traffic
+        self.file_only = file_only
+        self.web_auth = web_auth
 
-        self.launch_time         = time.time()
-        self.ws_connection       = False
-        self.handler_id          = 1
-        self.terminating         = False
+        self.launch_time = time.time()
+        self.ws_connection = False
+        self.handler_id = 1
+        self.terminating = False
 
-        self.logger              = self.get_logger()
-        self.tcp_keepalive       = tcp_keepalive
-        self.tcp_keepcnt         = tcp_keepcnt
-        self.tcp_keepidle        = tcp_keepidle
-        self.tcp_keepintvl       = tcp_keepintvl
+        self.logger = self.get_logger()
+        self.tcp_keepalive = tcp_keepalive
+        self.tcp_keepcnt = tcp_keepcnt
+        self.tcp_keepidle = tcp_keepidle
+        self.tcp_keepintvl = tcp_keepintvl
 
         # keyfile path must be None if not specified
         self.key = None
@@ -444,7 +444,7 @@ class WebSockifyServer():
     @staticmethod
     def socket(host, port=None, connect=False, prefer_ipv6=False,
                unix_socket=None, unix_socket_mode=None, unix_socket_listen=False,
-               use_ssl=False, tcp_keepalive=True, tcp_keepcnt=None, 
+               use_ssl=False, tcp_keepalive=True, tcp_keepcnt=None,
                tcp_keepidle=None, tcp_keepintvl=None):
         """ Resolve a host (and optional port) to an IPv4 or IPv6
         address. Create a socket. Bind to it if listen is set,
@@ -472,7 +472,7 @@ class WebSockifyServer():
                 addrs.reverse()
             sock = socket.socket(addrs[0][0], addrs[0][1])
 
-            if  tcp_keepalive:
+            if tcp_keepalive:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 if tcp_keepcnt:
                     sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
@@ -816,7 +816,7 @@ class WebSockifyServer():
                                 startsock, address = lsock.accept()
                                 # Unix Socket will not report address (empty string), but address[0] is logged a bunch
                                 if self.unix_listen != None:
-                                    address = [ self.unix_listen ]
+                                    address = [self.unix_listen]
                             else:
                                 continue
                         except self.Terminate:
@@ -838,7 +838,7 @@ class WebSockifyServer():
                         if self.run_once:
                             # Run in same process if run_once
                             self.top_new_client(startsock, address)
-                            if self.ws_connection :
+                            if self.ws_connection:
                                 self.msg('%s: exiting due to --run-once'
                                         % address[0])
                                 break

@@ -114,8 +114,8 @@ class BaseTokenAPI(BasePlugin):
 
     def process_result(self, resp):
         host, port = resp.text.split(':')
-        port = port.encode('ascii','ignore')
-        return [ host, port ]
+        port = port.encode('ascii', 'ignore')
+        return [host, port]
 
     def lookup(self, token):
         import requests
@@ -159,7 +159,7 @@ class JWTTokenApi(BasePlugin):
                 key.import_from_pem(key_data)
             except:
                 try:
-                    key.import_key(k=key_data.decode('utf-8'),kty='oct')
+                    key.import_key(k=key_data.decode('utf-8'), kty='oct')
                 except:
                     logger.error('Failed to correctly parse key data!')
                     return None
@@ -373,7 +373,7 @@ class UnixDomainSocketDirectory(BasePlugin):
             if not stat.S_ISSOCK(uds_path.stat().st_mode):
                 return None
 
-            return [ 'unix_socket', uds_path ]
+            return ['unix_socket', uds_path]
         except Exception as e:
                 logger.error("Error finding unix domain socket: %s" % str(e))
                 return None

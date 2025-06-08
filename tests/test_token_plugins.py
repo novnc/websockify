@@ -114,7 +114,7 @@ class JWSTokenTestCase(unittest.TestCase):
         key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
-        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200})
         jwt_token.make_signed_token(key)
         mock_time.return_value = 150
 
@@ -131,7 +131,7 @@ class JWSTokenTestCase(unittest.TestCase):
         key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
-        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200})
         jwt_token.make_signed_token(key)
         mock_time.return_value = 50
 
@@ -146,7 +146,7 @@ class JWSTokenTestCase(unittest.TestCase):
         key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
-        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200})
         jwt_token.make_signed_token(key)
         mock_time.return_value = 250
 
@@ -159,7 +159,7 @@ class JWSTokenTestCase(unittest.TestCase):
 
         secret = open("./tests/fixtures/symmetric.key").read()
         key = jwk.JWK()
-        key.import_key(kty="oct",k=secret)
+        key.import_key(kty="oct", k=secret)
         jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(key)
 
@@ -174,7 +174,7 @@ class JWSTokenTestCase(unittest.TestCase):
 
         secret = open("./tests/fixtures/symmetric.key").read()
         key = jwk.JWK()
-        key.import_key(kty="oct",k=secret)
+        key.import_key(kty="oct", k=secret)
         jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(key)
 

@@ -11,7 +11,7 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
 import os, sys, select, optparse, logging
-sys.path.insert(0,os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
 
 
