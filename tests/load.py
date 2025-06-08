@@ -26,7 +26,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
     max_packet_size = 10000
 
     def new_websocket_client(self):
-        print "Prepopulating random array"
+        print("Prepopulating random array")
         self.rand_array = []
         for i in range(0, self.max_packet_size):
             self.rand_array.append(random.randint(0, 9))
@@ -37,7 +37,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
 
         self.responder(self.request)
 
-        print "accumulated errors:", self.errors
+        print("accumulated errors:", self.errors)
         self.errors = 0
 
     def responder(self, client):
@@ -57,7 +57,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
                 err = self.check(frames)
                 if err:
                     self.errors = self.errors + 1
-                    print err
+                    print(err)
 
                 if closed:
                     break
@@ -106,7 +106,7 @@ class WebSocketLoad(WebSockifyRequestHandler):
                 length = int(length)
                 chksum = int(chksum)
             except ValueError:
-                print "\n<BOF>" + repr(data) + "<EOF>"
+                print("\n<BOF>" + repr(data) + "<EOF>")
                 err += "Invalid data format\n"
                 continue
 
