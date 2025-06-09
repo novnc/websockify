@@ -772,7 +772,7 @@ class WebSocket:
                     dtype = dtype.newbyteorder('>')
                 mask = numpy.frombuffer(mask, dtype, count=(plen % 4))
                 data = numpy.frombuffer(buf, dtype,
-                        offset=plen - (plen % 4), count=(plen % 4))
+                                        offset=plen - (plen % 4), count=(plen % 4))
                 c = numpy.bitwise_xor(data, mask).tobytes()
             return b + c
         else:

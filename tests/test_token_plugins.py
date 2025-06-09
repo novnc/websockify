@@ -194,7 +194,7 @@ class JWSTokenTestCase(unittest.TestCase):
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(private_key)
         jwe_token = jwt.JWT(header={"alg": "RSA-OAEP", "enc": "A256CBC-HS512"},
-                    claims=jwt_token.serialize())
+                            claims=jwt_token.serialize())
         jwe_token.make_encrypted_token(public_key)
 
         result = plugin.lookup(jwt_token.serialize())

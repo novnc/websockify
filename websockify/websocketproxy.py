@@ -102,7 +102,7 @@ Traffic Legend:
             msg = "connecting to unix socket: %s" % self.server.unix_target
         else:
             msg = "connecting to: %s:%s" % (
-                                    self.server.target_host, self.server.target_port)
+                self.server.target_host, self.server.target_port)
 
         if self.server.ssl_target:
             msg += " (using SSL)"
@@ -110,10 +110,10 @@ Traffic Legend:
 
         try:
             tsock = websockifyserver.WebSockifyServer.socket(self.server.target_host,
-                                                           self.server.target_port,
-                                                           connect=True,
-                                                           use_ssl=self.server.ssl_target,
-                                                           unix_socket=self.server.unix_target)
+                                                             self.server.target_port,
+                                                             connect=True,
+                                                             use_ssl=self.server.ssl_target,
+                                                             unix_socket=self.server.unix_target)
         except Exception as e:
             self.log_message("Failed to connect to %s:%s: %s",
                              self.server.target_host, self.server.target_port, e)
@@ -136,7 +136,7 @@ Traffic Legend:
                 tsock.close()
                 if self.verbose:
                     self.log_message("%s:%s: Closed target",
-                            self.server.target_host, self.server.target_port)
+                                     self.server.target_host, self.server.target_port)
 
     def get_target(self, target_plugin):
         """
@@ -249,7 +249,7 @@ Traffic Legend:
                     # TODO: What about blocking on client socket?
                     if self.verbose:
                         self.log_message("%s:%s: Client closed connection",
-                                self.server.target_host, self.server.target_port)
+                                         self.server.target_host, self.server.target_port)
                     raise self.CClose(closed['code'], closed['reason'])
 
             if target in outs:
@@ -279,7 +279,7 @@ Traffic Legend:
 
                     if self.verbose:
                         self.log_message("%s:%s: Target closed connection",
-                                self.server.target_host, self.server.target_port)
+                                         self.server.target_host, self.server.target_port)
                     raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
@@ -351,7 +351,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         self.wrap_times.append(time.time())
         self.wrap_times.pop(0)
         self.cmd = subprocess.Popen(
-                self.wrap_cmd, env=os.environ, preexec_fn=_subprocess_setup)
+            self.wrap_cmd, env=os.environ, preexec_fn=_subprocess_setup)
         self.spawn_message = True
 
     def started(self):
@@ -470,72 +470,72 @@ def websockify_init():
     usage += " [source_addr:]source_port -- WRAP_COMMAND_LINE"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("--verbose", "-v", action="store_true",
-            help="verbose messages")
+                      help="verbose messages")
     parser.add_option("--traffic", action="store_true",
-            help="per frame traffic")
+                      help="per frame traffic")
     parser.add_option("--record",
-            help="record sessions to FILE.[session_number]", metavar="FILE")
+                      help="record sessions to FILE.[session_number]", metavar="FILE")
     parser.add_option("--daemon", "-D",
-            dest="daemon", action="store_true",
-            help="become a daemon (background process)")
+                      dest="daemon", action="store_true",
+                      help="become a daemon (background process)")
     parser.add_option("--run-once", action="store_true",
-            help="handle a single WebSocket connection and exit")
+                      help="handle a single WebSocket connection and exit")
     parser.add_option("--timeout", type=int, default=0,
-            help="after TIMEOUT seconds exit when not connected")
+                      help="after TIMEOUT seconds exit when not connected")
     parser.add_option("--idle-timeout", type=int, default=0,
-            help="server exits after TIMEOUT seconds if there are no "
-                 "active connections")
+                      help="server exits after TIMEOUT seconds if there are no "
+                      "active connections")
     parser.add_option("--cert", default="self.pem",
-            help="SSL certificate file")
+                      help="SSL certificate file")
     parser.add_option("--key", default=None,
-            help="SSL key file (if separate from cert)")
+                      help="SSL key file (if separate from cert)")
     parser.add_option("--key-password", default=None,
-            help="SSL key password")
+                      help="SSL key password")
     parser.add_option("--ssl-only", action="store_true",
-            help="disallow non-encrypted client connections")
+                      help="disallow non-encrypted client connections")
     parser.add_option("--ssl-target", action="store_true",
-            help="connect to SSL target as SSL client")
+                      help="connect to SSL target as SSL client")
     parser.add_option("--verify-client", action="store_true",
-            help="require encrypted client to present a valid certificate "
-            "(needs Python 2.7.9 or newer or Python 3.4 or newer)")
+                      help="require encrypted client to present a valid certificate "
+                      "(needs Python 2.7.9 or newer or Python 3.4 or newer)")
     parser.add_option("--cafile", metavar="FILE",
-            help="file of concatenated certificates of authorities trusted "
-            "for validating clients (only effective with --verify-client). "
-            "If omitted, system default list of CAs is used.")
+                      help="file of concatenated certificates of authorities trusted "
+                      "for validating clients (only effective with --verify-client). "
+                      "If omitted, system default list of CAs is used.")
     parser.add_option("--ssl-version", type="choice", default="default",
-            choices=["default", "tlsv1_1", "tlsv1_2", "tlsv1_3"], action="store",
-            help="minimum TLS version to use (default, tlsv1_1, tlsv1_2, tlsv1_3)")
+                      choices=["default", "tlsv1_1", "tlsv1_2", "tlsv1_3"], action="store",
+                      help="minimum TLS version to use (default, tlsv1_1, tlsv1_2, tlsv1_3)")
     parser.add_option("--ssl-ciphers", action="store",
-            help="list of ciphers allowed for connection. For a list of "
-            "supported ciphers run `openssl ciphers`")
+                      help="list of ciphers allowed for connection. For a list of "
+                      "supported ciphers run `openssl ciphers`")
     parser.add_option("--unix-listen",
-            help="listen to unix socket", metavar="FILE", default=None)
+                      help="listen to unix socket", metavar="FILE", default=None)
     parser.add_option("--unix-listen-mode", default=None,
-            help="specify mode for unix socket (defaults to 0600)")
+                      help="specify mode for unix socket (defaults to 0600)")
     parser.add_option("--unix-target",
-            help="connect to unix socket target", metavar="FILE")
+                      help="connect to unix socket target", metavar="FILE")
     parser.add_option("--inetd",
-            help="inetd mode, receive listening socket from stdin", action="store_true")
+                      help="inetd mode, receive listening socket from stdin", action="store_true")
     parser.add_option("--web", default=None, metavar="DIR",
-            help="run webserver on same port. Serve files from DIR.")
+                      help="run webserver on same port. Serve files from DIR.")
     parser.add_option("--web-auth", action="store_true",
-            help="require authentication to access webserver.")
+                      help="require authentication to access webserver.")
     parser.add_option("--wrap-mode", default="exit", metavar="MODE",
-            choices=["exit", "ignore", "respawn"],
-            help="action to take when the wrapped program exits "
-            "or daemonizes: exit (default), ignore, respawn")
+                      choices=["exit", "ignore", "respawn"],
+                      help="action to take when the wrapped program exits "
+                      "or daemonizes: exit (default), ignore, respawn")
     parser.add_option("--prefer-ipv6", "-6",
-            action="store_true", dest="source_is_ipv6",
-            help="prefer IPv6 when resolving source_addr")
+                      action="store_true", dest="source_is_ipv6",
+                      help="prefer IPv6 when resolving source_addr")
     parser.add_option("--libserver", action="store_true",
-            help="use Python library SocketServer engine")
+                      help="use Python library SocketServer engine")
     parser.add_option("--target-config", metavar="FILE",
-            dest="target_cfg",
-            help="Configuration file containing valid targets "
-            "in the form 'token: host:port' or, alternatively, a "
-            "directory containing configuration files of this form "
-            "(DEPRECATED: use `--token-plugin TokenFile --token-source "
-            " path/to/token/file` instead)")
+                      dest="target_cfg",
+                      help="Configuration file containing valid targets "
+                      "in the form 'token: host:port' or, alternatively, a "
+                      "directory containing configuration files of this form "
+                      "(DEPRECATED: use `--token-plugin TokenFile --token-source "
+                      " path/to/token/file` instead)")
     parser.add_option("--token-plugin", default=None, metavar="CLASS",
                       help="use a Python class, usually one from websockify.token_plugins, "
                            "such as TokenFile, to process tokens into host:port pairs")
@@ -552,13 +552,13 @@ def websockify_init():
                       help="an argument to be passed to the auth plugin "
                            "on instantiation")
     parser.add_option("--heartbeat", type=int, default=0, metavar="INTERVAL",
-            help="send a ping to the client every INTERVAL seconds")
+                      help="send a ping to the client every INTERVAL seconds")
     parser.add_option("--log-file", metavar="FILE",
-            dest="log_file",
-            help="File where logs will be saved")
+                      dest="log_file",
+                      help="File where logs will be saved")
     parser.add_option("--syslog", default=None, metavar="SERVER",
-            help="Log to syslog server. SERVER can be local socket, "
-                 "such as /dev/log, or a UDP host:port pair.")
+                      help="Log to syslog server. SERVER can be local socket, "
+                      "such as /dev/log, or a UDP host:port pair.")
     parser.add_option("--legacy-syslog", action="store_true",
                       help="Use the old syslog protocol instead of RFC 5424. "
                            "Use this if the messages produced by websockify seem abnormal.")
