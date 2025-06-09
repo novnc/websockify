@@ -335,15 +335,15 @@ class WebSockifyServer():
         pass
 
     def __init__(self, RequestHandlerClass, listen_fd=None,
-            listen_host='', listen_port=None, source_is_ipv6=False,
-            verbose=False, cert='', key='', key_password=None, ssl_only=None,
-            verify_client=False, cafile=None,
-            daemon=False, record='', web='', web_auth=False,
-            file_only=False,
-            run_once=False, timeout=0, idle_timeout=0, traffic=False,
-            tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
-            tcp_keepintvl=None, ssl_ciphers=None, ssl_options=0,
-            unix_listen=None, unix_listen_mode=None):
+                 listen_host='', listen_port=None, source_is_ipv6=False,
+                 verbose=False, cert='', key='', key_password=None, ssl_only=None,
+                 verify_client=False, cafile=None,
+                 daemon=False, record='', web='', web_auth=False,
+                 file_only=False,
+                 run_once=False, timeout=0, idle_timeout=0, traffic=False,
+                 tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
+                 tcp_keepintvl=None, ssl_ciphers=None, ssl_options=0,
+                 unix_listen=None, unix_listen_mode=None):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
@@ -411,7 +411,7 @@ class WebSockifyServer():
             self.msg("  - Listen on unix socket %s", self.unix_listen)
         else:
             self.msg("  - Listen on %s:%s",
-                    self.listen_host, self.listen_port)
+                     self.listen_host, self.listen_port)
         if self.web:
             if self.file_only:
                 self.msg("  - Web server (no directory listings). Web root: %s", self.web)
@@ -464,7 +464,7 @@ class WebSockifyServer():
 
         if not unix_socket:
             addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
-                    socket.IPPROTO_TCP, flags)
+                                       socket.IPPROTO_TCP, flags)
             if not addrs:
                 raise Exception("Could not resolve host '%s'" % host)
             addrs.sort(key=lambda x: x[0])
@@ -604,8 +604,8 @@ class WebSockifyServer():
                     else:
                         context.set_default_verify_paths()
                 retsock = context.wrap_socket(
-                        sock,
-                        server_side=True)
+                    sock,
+                    server_side=True)
             except ssl.SSLError:
                 _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
@@ -794,7 +794,7 @@ class WebSockifyServer():
                         time_elapsed = time.time() - self.launch_time
                         if self.timeout and time_elapsed > self.timeout:
                             self.msg('listener exit due to --timeout %s'
-                                    % self.timeout)
+                                     % self.timeout)
                             break
 
                         if self.idle_timeout:
@@ -807,7 +807,7 @@ class WebSockifyServer():
 
                             if idle_time > self.idle_timeout and child_count == 0:
                                 self.msg('listener exit due to --idle-timeout %s'
-                                            % self.idle_timeout)
+                                         % self.idle_timeout)
                                 break
 
                         try:
@@ -842,13 +842,13 @@ class WebSockifyServer():
                             self.top_new_client(startsock, address)
                             if self.ws_connection:
                                 self.msg('%s: exiting due to --run-once'
-                                        % address[0])
+                                         % address[0])
                                 break
                         else:
                             self.vmsg('%s: new handler Process' % address[0])
                             p = multiprocessing.Process(
-                                    target=self.top_new_client,
-                                    args=(startsock, address))
+                                target=self.top_new_client,
+                                args=(startsock, address))
                             p.start()
                             # child will not return
 

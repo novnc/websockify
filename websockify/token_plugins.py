@@ -306,7 +306,7 @@ class TokenRedis(BasePlugin):
                 self._namespace += ":"
 
             logger.info("TokenRedis backend initialized (%s:%s)" %
-                  (self._server, self._port))
+                        (self._server, self._port))
         except ValueError:
             logger.error("The provided --token-source='%s' is not in the "
                          "expected format <host>[:<port>[:<db>[:<password>[:<namespace>]]]]" %
@@ -375,5 +375,5 @@ class UnixDomainSocketDirectory(BasePlugin):
 
             return ['unix_socket', uds_path]
         except Exception as e:
-                logger.error("Error finding unix domain socket: %s" % str(e))
-                return None
+            logger.error("Error finding unix domain socket: %s" % str(e))
+            return None

@@ -133,13 +133,13 @@ class WebSocketLoad(WebSockifyRequestHandler):
 if __name__ == '__main__':
     parser = optparse.OptionParser(usage="%prog [options] listen_port")
     parser.add_option("--verbose", "-v", action="store_true",
-            help="verbose messages and per frame traffic")
+                      help="verbose messages and per frame traffic")
     parser.add_option("--cert", default="self.pem",
-            help="SSL certificate file")
+                      help="SSL certificate file")
     parser.add_option("--key", default=None,
-            help="SSL key file (if separate from cert)")
+                      help="SSL key file (if separate from cert)")
     parser.add_option("--ssl-only", action="store_true",
-            help="disallow non-encrypted connections")
+                      help="disallow non-encrypted connections")
     (opts, args) = parser.parse_args()
 
     try:
