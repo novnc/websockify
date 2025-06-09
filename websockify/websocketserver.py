@@ -64,7 +64,7 @@ class WebSocketRequestHandlerMixIn:
         self.do_GET = self._real_do_GET
 
         if (self.headers.get('upgrade') and
-            self.headers.get('upgrade').lower() == 'websocket'):
+                self.headers.get('upgrade').lower() == 'websocket'):
             self.handle_upgrade()
         else:
             self.do_GET()
