@@ -52,7 +52,7 @@ class ReadOnlyTokenFile(BasePlugin):
         self._targets = {}
         index = 1
         for f in cfg_files:
-            for line in [l.strip() for l in open(f).readlines()]:
+            for line in [raw_line.strip() for raw_line in open(f).readlines()]:
                 if line and not line.startswith('#'):
                     try:
                         tok, target = re.split(r':\s', line)
