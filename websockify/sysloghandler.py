@@ -110,5 +110,5 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
 
         except (KeyboardInterrupt, SystemExit):
             raise
-        except:
+        except Exception:
             self.handleError(record)
