@@ -309,15 +309,15 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         # Save off proxy specific options
         self.target_host = kwargs.pop('target_host', None)
         self.target_port = kwargs.pop('target_port', None)
-        self.wrap_cmd = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode = kwargs.pop('wrap_mode', None)
+        self.wrap_cmd    = kwargs.pop('wrap_cmd', None)  # noqa: E221
+        self.wrap_mode   = kwargs.pop('wrap_mode', None)  # noqa: E221
         self.unix_target = kwargs.pop('unix_target', None)
-        self.ssl_target = kwargs.pop('ssl_target', None)
-        self.heartbeat = kwargs.pop('heartbeat', None)
+        self.ssl_target  = kwargs.pop('ssl_target', None)  # noqa: E221
+        self.heartbeat   = kwargs.pop('heartbeat', None)  # noqa: E221
 
         self.token_plugin = kwargs.pop('token_plugin', None)
-        self.host_token = kwargs.pop('host_token', None)
-        self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.host_token   = kwargs.pop('host_token', None)  # noqa: E221
+        self.auth_plugin  = kwargs.pop('auth_plugin', None)  # noqa: E221
 
         # Last 3 timestamps command was run
         self.wrap_times = [0, 0, 0]
@@ -772,13 +772,14 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
         # Save off proxy specific options
         self.target_host = kwargs.pop('target_host', None)
         self.target_port = kwargs.pop('target_port', None)
-        self.wrap_cmd = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode = kwargs.pop('wrap_mode', None)
+        self.wrap_cmd    = kwargs.pop('wrap_cmd', None)  # noqa: E221
+        self.wrap_mode   = kwargs.pop('wrap_mode', None)  # noqa: E221
         self.unix_target = kwargs.pop('unix_target', None)
-        self.ssl_target = kwargs.pop('ssl_target', None)
-        self.token_plugin = kwargs.pop('token_plugin', None)
-        self.auth_plugin = kwargs.pop('auth_plugin', None)
-        self.heartbeat = kwargs.pop('heartbeat', None)
+        self.ssl_target  = kwargs.pop('ssl_target', None)  # noqa: E221
+
+        self.token_plugin = kwargs.pop('token_plugin', None)  # noqa: E221
+        self.auth_plugin  = kwargs.pop('auth_plugin', None)  # noqa: E221
+        self.heartbeat    = kwargs.pop('heartbeat', None)  # noqa: E221
 
         self.token_plugin = None
         self.auth_plugin = None

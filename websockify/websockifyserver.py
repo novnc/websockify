@@ -82,16 +82,16 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
     def __init__(self, req, addr, server):
         # Retrieve a few configuration variables from the server
         self.only_upgrade = getattr(server, "only_upgrade", False)
-        self.verbose = getattr(server, "verbose", False)
-        self.daemon = getattr(server, "daemon", False)
-        self.record = getattr(server, "record", False)
-        self.run_once = getattr(server, "run_once", False)
-        self.rec = None
-        self.handler_id = getattr(server, "handler_id", False)
-        self.file_only = getattr(server, "file_only", False)
-        self.traffic = getattr(server, "traffic", False)
-        self.web_auth = getattr(server, "web_auth", False)
-        self.host_token = getattr(server, "host_token", False)
+        self.verbose      = getattr(server, "verbose", False)  # noqa: E221
+        self.daemon       = getattr(server, "daemon", False)  # noqa: E221
+        self.record       = getattr(server, "record", False)  # noqa: E221
+        self.run_once     = getattr(server, "run_once", False)  # noqa: E221
+        self.rec          = None  # noqa: E221
+        self.handler_id   = getattr(server, "handler_id", False)  # noqa: E221
+        self.file_only    = getattr(server, "file_only", False)  # noqa: E221
+        self.traffic      = getattr(server, "traffic", False)  # noqa: E221
+        self.web_auth     = getattr(server, "web_auth", False)  # noqa: E221
+        self.host_token   = getattr(server, "host_token", False)  # noqa: E221
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
@@ -343,38 +343,39 @@ class WebSockifyServer():
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
-        self.verbose = verbose
-        self.listen_fd = listen_fd
-        self.unix_listen = unix_listen
-        self.unix_listen_mode = unix_listen_mode
-        self.listen_host = listen_host
-        self.listen_port = listen_port
-        self.prefer_ipv6 = source_is_ipv6
-        self.ssl_only = ssl_only
-        self.ssl_ciphers = ssl_ciphers
-        self.ssl_options = ssl_options
-        self.verify_client = verify_client
-        self.daemon = daemon
-        self.run_once = run_once
-        self.timeout = timeout
-        self.idle_timeout = idle_timeout
-        self.traffic = traffic
-        self.file_only = file_only
-        self.web_auth = web_auth
+        self.verbose             = verbose  # noqa: E221
+        self.listen_fd           = listen_fd  # noqa: E221
+        self.unix_listen         = unix_listen  # noqa: E221
+        self.unix_listen_mode    = unix_listen_mode  # noqa: E221
+        self.listen_host         = listen_host  # noqa: E221
+        self.listen_port         = listen_port  # noqa: E221
+        self.prefer_ipv6         = source_is_ipv6  # noqa: E221
+        self.ssl_only            = ssl_only  # noqa: E221
+        self.ssl_ciphers         = ssl_ciphers  # noqa: E221
+        self.ssl_options         = ssl_options  # noqa: E221
+        self.verify_client       = verify_client  # noqa: E221
+        self.daemon              = daemon  # noqa: E221
+        self.run_once            = run_once  # noqa: E221
+        self.timeout             = timeout  # noqa: E221
+        self.idle_timeout        = idle_timeout  # noqa: E221
+        self.traffic             = traffic  # noqa: E221
+        self.file_only           = file_only  # noqa: E221
+        self.web_auth            = web_auth  # noqa: E221
 
-        self.launch_time = time.time()
+        self.launch_time   = time.time()  # noqa: E221
         self.ws_connection = False
-        self.handler_id = 1
-        self.terminating = False
+        self.handler_id    = 1  # noqa: E221
+        self.terminating   = False  # noqa: E221
 
         self.logger = self.get_logger()
+
         self.tcp_keepalive = tcp_keepalive
-        self.tcp_keepcnt = tcp_keepcnt
-        self.tcp_keepidle = tcp_keepidle
+        self.tcp_keepcnt   = tcp_keepcnt  # noqa: E221t
+        self.tcp_keepidle  = tcp_keepidle  # noqa: E221
         self.tcp_keepintvl = tcp_keepintvl
 
         # keyfile path must be None if not specified
-        self.key = None
+        self.key          = None  # noqa: E221
         self.key_password = key_password
 
         # Make paths settings absolute
