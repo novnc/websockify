@@ -157,10 +157,10 @@ class JWTTokenApi(BasePlugin):
 
             try:
                 key.import_from_pem(key_data)
-            except:
+            except Exception:
                 try:
                     key.import_key(k=key_data.decode('utf-8'), kty='oct')
-                except:
+                except Exception:
                     logger.error('Failed to correctly parse key data!')
                     return None
 

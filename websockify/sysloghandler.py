@@ -108,7 +108,5 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
                 else:
                     self.socket.sendall(msg)
 
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
+        except Exception:
             self.handleError(record)
