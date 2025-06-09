@@ -17,13 +17,17 @@ import multiprocessing
 from http.server import SimpleHTTPRequestHandler
 
 # Degraded functionality if these imports are missing
-for mod, msg in [('ssl', 'TLS/SSL/wss is disabled'),
-                 ('resource', 'daemonizing is disabled')]:
-    try:
-        globals()[mod] = __import__(mod)
-    except ImportError:
-        globals()[mod] is None
-        print("WARNING: no '%s' module, %s" % (mod, msg))
+try:
+    import ssl
+except ImportError:
+    ssl = None
+    print("WARNING: no 'ssl' module, TLS/SSL/wss is disabled")
+
+try:
+    import resource
+except ImportError:
+    resource = None
+    print("WARNING: no 'resource' module, daemonizing is disabled")
 
 if sys.platform == 'win32':
     # make sockets pickle-able/inheritable
