@@ -308,7 +308,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
 
-        if self.wrap_cmd:
+        if self.wrap_cmd and not self.unix_target:
             wsdir = os.path.dirname(sys.argv[0])
             rebinder_path = [os.path.join(wsdir, "..", "lib"),
                              os.path.join(wsdir, "..", "lib", "websockify"),
@@ -650,7 +650,7 @@ def websockify_init():
     del opts.target_cfg
 
     if sys.argv.count('--'):
-        opts.wrap_cmd = args[1:]
+        opts.wrap_cmd = args if opts.unix_listen else args[1:]
     else:
         opts.wrap_cmd = None
 
