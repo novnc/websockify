@@ -1,4 +1,7 @@
-import logging.handlers as handlers, socket, os, time
+import logging.handlers as handlers
+import os
+import socket
+import time
 
 
 class WebsockifySysLogHandler(handlers.SysLogHandler):

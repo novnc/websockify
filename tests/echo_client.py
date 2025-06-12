@@ -1,13 +1,16 @@
 #!/usr/bin/env python
+# flake8: noqa: E402
 
-import os
-import sys
 import optparse
+import os
 import select
+import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from websockify.websocket import WebSocket, \
-    WebSocketWantReadError, WebSocketWantWriteError
+
+from websockify.websocket import WebSocket
+from websockify.websocket import WebSocketWantReadError
+from websockify.websocket import WebSocketWantWriteError
 
 parser = optparse.OptionParser(usage="%prog URL")
 (opts, args) = parser.parse_args()

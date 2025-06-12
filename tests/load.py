@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# flake8: noqa: E402
 
 '''
 WebSocket server-side load test program. Sends and receives traffic
@@ -6,9 +7,18 @@ that has a random payload (length and content) that is checksummed and
 given a sequence number. Any errors are reported and counted.
 '''
 
-import sys, os, select, random, time, optparse, logging
+import logging
+import optparse
+import os
+import random
+import select
+import sys
+import time
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
+
+from websockify.websockifyserver import WebSockifyRequestHandler
+from websockify.websockifyserver import WebSockifyServer
 
 
 class WebSocketLoadServer(WebSockifyServer):
