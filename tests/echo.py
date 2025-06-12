@@ -35,7 +35,7 @@ class WebSocketEcho(WebSockifyRequestHandler):
 
         cqueue = []
         c_pend = 0
-        cpartial = ""
+        cpartial = ""  # noqa: F841
         rlist = [self.request]
 
         while True:
