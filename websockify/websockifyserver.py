@@ -281,6 +281,21 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         else:
             super().do_HEAD()
 
+    def do_POST(self):
+        self.send_error(405)
+
+    def do_PUT(self):
+        self.send_error(405)
+
+    def do_PATCH(self):
+        self.send_error(405)
+
+    def do_DELETE(self):
+        self.send_error(405)
+
+    def do_OPTIONS(self):
+        self.send_error(405)
+
     def finish(self):
         if self.rec:
             self.rec.write("'EOF'];\n")

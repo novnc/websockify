@@ -79,14 +79,43 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
             record=self.tmpdir, daemon=False, ssl_only=0, idle_timeout=1,
             **kwargs)
 
-    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
-    def test_normal_get_with_only_upgrade_returns_error(self, send_error):
+    def _test_request_send_error_405(self, send_error, handler_func, request):
         server = self._get_server(web=None)
         handler = websockifyserver.WebSockifyRequestHandler(
-            FakeSocket(b'GET /tmp.txt HTTP/1.1'), '127.0.0.1', server)
+            FakeSocket(request), '127.0.0.1', server)
 
-        handler.do_GET()
+        getattr(handler, handler_func)()
         send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_normal_get_with_only_upgrade_returns_error(self, send_error):
+        self._test_request_send_error_405(
+            send_error, 'do_GET', b'GET /tmp.txt HTTP/1.1')
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_post_returns_error(self, send_error):
+        self._test_request_send_error_405(
+            send_error, 'do_POST', b'POST / HTTP/1.1')
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_put_returns_error(self, send_error):
+        self._test_request_send_error_405(
+            send_error, 'do_PUT', b'PUT / HTTP/1.1')
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_patch_returns_error(self, send_error):
+        self._test_request_send_error_405(
+            send_error, 'do_PATCH', b'PATCH / HTTP/1.1')
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_delete_returns_error(self, send_error):
+        self._test_request_send_error_405(
+            send_error, 'do_DELETE', b'DELETE / HTTP/1.1')
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_options_returns_error(self, send_error):
+        self._test_request_send_error_405(
+            send_error, 'do_OPTIONS', b'OPTIONS / HTTP/1.1')
 
     @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
     def test_list_dir_with_file_only_returns_error(self, send_error):
