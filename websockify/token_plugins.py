@@ -5,6 +5,11 @@ import re
 import json
 from pathlib import Path
 
+try:
+    import redis
+except ImportError:
+    redis = None
+
 logger = logging.getLogger(__name__)
 
 _SOURCE_SPLIT_REGEX = re.compile(
@@ -256,9 +261,7 @@ class TokenRedis(BasePlugin):
           pip install redis
     """
     def __init__(self, src):
-        try:
-            import redis
-        except ImportError:
+        if redis is None:
             logger.error("Unable to load redis module")
             sys.exit()
         # Default values
@@ -314,9 +317,7 @@ class TokenRedis(BasePlugin):
             sys.exit()
 
     def lookup(self, token):
-        try:
-            import redis
-        except ImportError:
+        if redis is None:
             logger.error("package redis not found, are you sure you've installed them correctly?")
             sys.exit()
 
