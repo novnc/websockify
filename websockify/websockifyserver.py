@@ -12,9 +12,16 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import os, sys, time, errno, signal, socket, select, logging
-import multiprocessing
+import errno
 from http.server import SimpleHTTPRequestHandler
+import logging
+import multiprocessing
+import os
+import select
+import signal
+import socket
+import sys
+import time
 
 # Degraded functionality if these imports are missing
 try:

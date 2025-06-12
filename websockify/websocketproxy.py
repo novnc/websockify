@@ -11,14 +11,25 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl, stat
-from socketserver import ThreadingMixIn
+import errno
 from http.server import HTTPServer
-
+import logging
+import optparse
+import os
 import select
+import signal
+import socket
+from socketserver import ThreadingMixIn
+import ssl
+import stat
+import subprocess
+import sys
+import time
+from urllib.parse import parse_qs
+from urllib.parse import urlparse
+
 from websockify import websockifyserver
 from websockify import auth_plugins as auth
-from urllib.parse import parse_qs, urlparse
 
 
 class ProxyRequestHandler(websockifyserver.WebSockifyRequestHandler):
