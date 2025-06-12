@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-
+# flake8: noqa: E402
 '''
 A WebSocket server that echos back whatever it receives from the client.
 Copyright 2010 Joel Martin
@@ -10,9 +10,16 @@ openssl req -new -x509 -days 365 -nodes -out self.pem -keyout self.pem
 as taken from http://docs.python.org/dev/library/ssl.html#certificates
 '''
 
-import os, sys, select, optparse, logging
+import logging
+import optparse
+import os
+import select
+import sys
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from websockify.websockifyserver import WebSockifyServer, WebSockifyRequestHandler
+
+from websockify.websockifyserver import WebSockifyServer
+from websockify.websockifyserver import WebSockifyRequestHandler
 
 
 class WebSocketEcho(WebSockifyRequestHandler):
