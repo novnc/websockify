@@ -89,6 +89,60 @@ class WebSockifyRequestHandlerTestCase(unittest.TestCase):
         send_error.assert_called_with(405)
 
     @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_head_with_only_upgrade_returns_error(self, send_error):
+        server = self._get_server(web=None)
+        handler = websockifyserver.WebSockifyRequestHandler(
+            FakeSocket(b'HEAD /tmp.txt HTTP/1.1'), '127.0.0.1', server)
+
+        handler.do_HEAD()
+        send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_post_returns_error(self, send_error):
+        server = self._get_server(web=None)
+        handler = websockifyserver.WebSockifyRequestHandler(
+            FakeSocket(b'POST / HTTP/1.1'), '127.0.0.1', server)
+
+        handler.do_POST()
+        send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_put_returns_error(self, send_error):
+        server = self._get_server(web=None)
+        handler = websockifyserver.WebSockifyRequestHandler(
+            FakeSocket(b'PUT / HTTP/1.1'), '127.0.0.1', server)
+
+        handler.do_PUT()
+        send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_patch_returns_error(self, send_error):
+        server = self._get_server(web=None)
+        handler = websockifyserver.WebSockifyRequestHandler(
+            FakeSocket(b'PATCH / HTTP/1.1'), '127.0.0.1', server)
+
+        handler.do_PATCH()
+        send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_delete_returns_error(self, send_error):
+        server = self._get_server(web=None)
+        handler = websockifyserver.WebSockifyRequestHandler(
+            FakeSocket(b'DELETE / HTTP/1.1'), '127.0.0.1', server)
+
+        handler.do_DELETE()
+        send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
+    def test_options_returns_error(self, send_error):
+        server = self._get_server(web=None)
+        handler = websockifyserver.WebSockifyRequestHandler(
+            FakeSocket(b'OPTIONS / HTTP/1.1'), '127.0.0.1', server)
+
+        handler.do_OPTIONS()
+        send_error.assert_called_with(405)
+
+    @patch('websockify.websockifyserver.WebSockifyRequestHandler.send_error')
     def test_list_dir_with_file_only_returns_error(self, send_error):
         server = self._get_server(file_only=True)
         handler = websockifyserver.WebSockifyRequestHandler(
