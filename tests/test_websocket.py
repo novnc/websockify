@@ -18,6 +18,7 @@
 import unittest
 from websockify import websocket
 
+
 class FakeSocket:
     def __init__(self):
         self.data = b''
@@ -25,6 +26,7 @@ class FakeSocket:
     def send(self, buf):
         self.data += buf
         return len(buf)
+
 
 class AcceptTestCase(unittest.TestCase):
     def test_success(self):
@@ -81,7 +83,7 @@ class AcceptTestCase(unittest.TestCase):
         ws.accept(sock, {'upgrade': 'websocket',
                          'Sec-WebSocket-Version': '13',
                          'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
-                         'Sec-WebSocket-Protocol': 'foobar gazonk'})
+                         'Sec-WebSocket-Protocol': 'foobar,gazonk'})
         self.assertEqual(sock.data[:13], b'HTTP/1.1 101 ')
         self.assertTrue(b'\r\nSec-WebSocket-Protocol: gazonk\r\n' in sock.data)
 
@@ -101,9 +103,9 @@ class AcceptTestCase(unittest.TestCase):
                           sock, {'upgrade': 'websocket',
                                  'Sec-WebSocket-Version': '13',
                                  'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
-                                 'Sec-WebSocket-Protocol': 'foobar gazonk'})
+                                 'Sec-WebSocket-Protocol': 'foobar,gazonk'})
 
-    def test_protocol(self):
+    def test_unsupported_protocol(self):
         class ProtoSocket(websocket.WebSocket):
             def select_subprotocol(self, protocol):
                 return 'oddball'
@@ -114,7 +116,8 @@ class AcceptTestCase(unittest.TestCase):
                           sock, {'upgrade': 'websocket',
                                  'Sec-WebSocket-Version': '13',
                                  'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
-                                 'Sec-WebSocket-Protocol': 'foobar gazonk'})
+                                 'Sec-WebSocket-Protocol': 'foobar,gazonk'})
+
 
 class PingPongTest(unittest.TestCase):
     def setUp(self):
@@ -141,6 +144,7 @@ class PingPongTest(unittest.TestCase):
     def test_pong_data(self):
         self.ws.pong(b'foo')
         self.assertEqual(self.sock.data, b'\x8a\x03foo')
+
 
 class HyBiEncodeDecodeTestCase(unittest.TestCase):
     def test_decode_hybi_text(self):

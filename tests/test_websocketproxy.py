@@ -16,8 +16,6 @@
 
 """ Unit tests for websocketproxy """
 
-import sys
-import unittest
 import unittest
 import socket
 from io import StringIO
@@ -57,6 +55,7 @@ class FakeServer:
         self.wrap_cmd = None
         self.ssl_target = None
         self.unix_target = None
+
 
 class ProxyRequestHandlerTestCase(unittest.TestCase):
     def setUp(self):
@@ -128,4 +127,3 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
         self.handler.server.target_host = "someotherhost"
         self.handler.auth_connection()
-

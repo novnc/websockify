@@ -12,18 +12,29 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import os, sys, time, errno, signal, socket, select, logging
-import multiprocessing
+import errno
 from http.server import SimpleHTTPRequestHandler
+import logging
+import multiprocessing
+import os
+import select
+import signal
+import socket
+import sys
+import time
 
 # Degraded functionality if these imports are missing
-for mod, msg in [('ssl', 'TLS/SSL/wss is disabled'),
-                 ('resource', 'daemonizing is disabled')]:
-    try:
-        globals()[mod] = __import__(mod)
-    except ImportError:
-        globals()[mod] = None
-        print("WARNING: no '%s' module, %s" % (mod, msg))
+try:
+    import ssl
+except ImportError:
+    ssl = None
+    print("WARNING: no 'ssl' module, TLS/SSL/wss is disabled")
+
+try:
+    import resource
+except ImportError:
+    resource = None
+    print("WARNING: no 'resource' module, daemonizing is disabled")
 
 if sys.platform == 'win32':
     # make sockets pickle-able/inheritable
@@ -32,6 +43,7 @@ if sys.platform == 'win32':
 from websockify.websocket import WebSocketWantReadError, WebSocketWantWriteError
 from websockify.websocketserver import WebSocketRequestHandlerMixIn
 
+
 class CompatibleWebSocket(WebSocketRequestHandlerMixIn.SocketClass):
     def select_subprotocol(self, protocols):
         # Handle old websockify clients that still specify a sub-protocol
@@ -39,6 +51,7 @@ class CompatibleWebSocket(WebSocketRequestHandlerMixIn.SocketClass):
             return 'binary'
         else:
             return ''
+
 
 # HTTP handler with WebSocket upgrade support
 class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHandler):
@@ -69,16 +82,16 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
     def __init__(self, req, addr, server):
         # Retrieve a few configuration variables from the server
         self.only_upgrade = getattr(server, "only_upgrade", False)
-        self.verbose = getattr(server, "verbose", False)
-        self.daemon = getattr(server, "daemon", False)
-        self.record = getattr(server, "record", False)
-        self.run_once = getattr(server, "run_once", False)
-        self.rec        = None
-        self.handler_id = getattr(server, "handler_id", False)
-        self.file_only = getattr(server, "file_only", False)
-        self.traffic = getattr(server, "traffic", False)
-        self.web_auth = getattr(server, "web_auth", False)
-        self.host_token = getattr(server, "host_token", False)
+        self.verbose      = getattr(server, "verbose", False)  # noqa: E221
+        self.daemon       = getattr(server, "daemon", False)  # noqa: E221
+        self.record       = getattr(server, "record", False)  # noqa: E221
+        self.run_once     = getattr(server, "run_once", False)  # noqa: E221
+        self.rec          = None  # noqa: E221
+        self.handler_id   = getattr(server, "handler_id", False)  # noqa: E221
+        self.file_only    = getattr(server, "file_only", False)  # noqa: E221
+        self.traffic      = getattr(server, "traffic", False)  # noqa: E221
+        self.web_auth     = getattr(server, "web_auth", False)  # noqa: E221
+        self.host_token   = getattr(server, "host_token", False)  # noqa: E221
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
@@ -124,7 +137,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         fully sent, in which case the caller should call again when
         the socket is ready. """
 
-        tdelta = int(time.time()*1000) - self.start_time
+        tdelta = int(time.time() * 1000) - self.start_time
 
         if bufs:
             for buf in bufs:
@@ -155,7 +168,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
 
         closed = False
         bufs = []
-        tdelta = int(time.time()*1000) - self.start_time
+        tdelta = int(time.time() * 1000) - self.start_time
 
         while True:
             try:
@@ -207,8 +220,8 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         self.server.ws_connection = True
         # Initialize per client settings
         self.send_parts = []
-        self.recv_part  = None
-        self.start_time = int(time.time()*1000)
+        self.recv_part = None
+        self.start_time = int(time.time() * 1000)
 
         # client_address is empty with, say, UNIX domain sockets
         client_addr = ""
@@ -318,50 +331,51 @@ class WebSockifyServer():
         pass
 
     def __init__(self, RequestHandlerClass, listen_fd=None,
-            listen_host='', listen_port=None, source_is_ipv6=False,
-            verbose=False, cert='', key='', key_password=None, ssl_only=None,
-            verify_client=False, cafile=None,
-            daemon=False, record='', web='', web_auth=False,
-            file_only=False,
-            run_once=False, timeout=0, idle_timeout=0, traffic=False,
-            tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
-            tcp_keepintvl=None, ssl_ciphers=None, ssl_options=0,
-            unix_listen=None, unix_listen_mode=None):
+                 listen_host='', listen_port=None, source_is_ipv6=False,
+                 verbose=False, cert='', key='', key_password=None, ssl_only=None,
+                 verify_client=False, cafile=None,
+                 daemon=False, record='', web='', web_auth=False,
+                 file_only=False,
+                 run_once=False, timeout=0, idle_timeout=0, traffic=False,
+                 tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
+                 tcp_keepintvl=None, ssl_ciphers=None, ssl_options=0,
+                 unix_listen=None, unix_listen_mode=None):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
-        self.verbose             = verbose
-        self.listen_fd           = listen_fd
-        self.unix_listen         = unix_listen
-        self.unix_listen_mode    = unix_listen_mode
-        self.listen_host         = listen_host
-        self.listen_port         = listen_port
-        self.prefer_ipv6         = source_is_ipv6
-        self.ssl_only            = ssl_only
-        self.ssl_ciphers         = ssl_ciphers
-        self.ssl_options         = ssl_options
-        self.verify_client       = verify_client
-        self.daemon              = daemon
-        self.run_once            = run_once
-        self.timeout             = timeout
-        self.idle_timeout        = idle_timeout
-        self.traffic             = traffic
-        self.file_only           = file_only
-        self.web_auth            = web_auth
+        self.verbose             = verbose  # noqa: E221
+        self.listen_fd           = listen_fd  # noqa: E221
+        self.unix_listen         = unix_listen  # noqa: E221
+        self.unix_listen_mode    = unix_listen_mode  # noqa: E221
+        self.listen_host         = listen_host  # noqa: E221
+        self.listen_port         = listen_port  # noqa: E221
+        self.prefer_ipv6         = source_is_ipv6  # noqa: E221
+        self.ssl_only            = ssl_only  # noqa: E221
+        self.ssl_ciphers         = ssl_ciphers  # noqa: E221
+        self.ssl_options         = ssl_options  # noqa: E221
+        self.verify_client       = verify_client  # noqa: E221
+        self.daemon              = daemon  # noqa: E221
+        self.run_once            = run_once  # noqa: E221
+        self.timeout             = timeout  # noqa: E221
+        self.idle_timeout        = idle_timeout  # noqa: E221
+        self.traffic             = traffic  # noqa: E221
+        self.file_only           = file_only  # noqa: E221
+        self.web_auth            = web_auth  # noqa: E221
 
-        self.launch_time         = time.time()
-        self.ws_connection       = False
-        self.handler_id          = 1
-        self.terminating         = False
+        self.launch_time   = time.time()  # noqa: E221
+        self.ws_connection = False
+        self.handler_id    = 1  # noqa: E221
+        self.terminating   = False  # noqa: E221
 
-        self.logger              = self.get_logger()
-        self.tcp_keepalive       = tcp_keepalive
-        self.tcp_keepcnt         = tcp_keepcnt
-        self.tcp_keepidle        = tcp_keepidle
-        self.tcp_keepintvl       = tcp_keepintvl
+        self.logger = self.get_logger()
+
+        self.tcp_keepalive = tcp_keepalive
+        self.tcp_keepcnt   = tcp_keepcnt  # noqa: E221t
+        self.tcp_keepidle  = tcp_keepidle  # noqa: E221
+        self.tcp_keepintvl = tcp_keepintvl
 
         # keyfile path must be None if not specified
-        self.key = None
+        self.key          = None  # noqa: E221
         self.key_password = key_password
 
         # Make paths settings absolute
@@ -388,13 +402,13 @@ class WebSockifyServer():
 
         # Show configuration
         self.msg("WebSocket server settings:")
-        if self.listen_fd != None:
+        if self.listen_fd is not None:
             self.msg("  - Listen for inetd connections")
-        elif self.unix_listen != None:
+        elif self.unix_listen is not None:
             self.msg("  - Listen on unix socket %s", self.unix_listen)
         else:
             self.msg("  - Listen on %s:%s",
-                    self.listen_host, self.listen_port)
+                     self.listen_host, self.listen_port)
         if self.web:
             if self.file_only:
                 self.msg("  - Web server (no directory listings). Web root: %s", self.web)
@@ -427,7 +441,7 @@ class WebSockifyServer():
     @staticmethod
     def socket(host, port=None, connect=False, prefer_ipv6=False,
                unix_socket=None, unix_socket_mode=None, unix_socket_listen=False,
-               use_ssl=False, tcp_keepalive=True, tcp_keepcnt=None, 
+               use_ssl=False, tcp_keepalive=True, tcp_keepcnt=None,
                tcp_keepidle=None, tcp_keepintvl=None):
         """ Resolve a host (and optional port) to an IPv4 or IPv6
         address. Create a socket. Bind to it if listen is set,
@@ -439,7 +453,7 @@ class WebSockifyServer():
         if connect and not (port or unix_socket):
             raise Exception("Connect mode requires a port")
         if use_ssl and not ssl:
-            raise Exception("SSL socket requested but Python SSL module not loaded.");
+            raise Exception("SSL socket requested but Python SSL module not loaded.")
         if not connect and use_ssl:
             raise Exception("SSL only supported in connect mode (for now)")
         if not connect:
@@ -447,7 +461,7 @@ class WebSockifyServer():
 
         if not unix_socket:
             addrs = socket.getaddrinfo(host, port, 0, socket.SOCK_STREAM,
-                    socket.IPPROTO_TCP, flags)
+                                       socket.IPPROTO_TCP, flags)
             if not addrs:
                 raise Exception("Could not resolve host '%s'" % host)
             addrs.sort(key=lambda x: x[0])
@@ -455,7 +469,7 @@ class WebSockifyServer():
                 addrs.reverse()
             sock = socket.socket(addrs[0][0], addrs[0][1])
 
-            if  tcp_keepalive:
+            if tcp_keepalive:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
                 if tcp_keepcnt:
                     sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
@@ -498,7 +512,7 @@ class WebSockifyServer():
 
     @staticmethod
     def daemonize(keepfd=None, chdir='/'):
-        
+
         if keepfd is None:
             keepfd = []
 
@@ -511,9 +525,11 @@ class WebSockifyServer():
         os.setuid(os.getuid())  # relinquish elevations
 
         # Double fork to daemonize
-        if os.fork() > 0: os._exit(0)  # Parent exits
-        os.setsid()                    # Obtain new process group
-        if os.fork() > 0: os._exit(0)  # Parent exits
+        if os.fork() > 0:  # Parent exits
+            os._exit(0)
+        os.setsid()        # Obtain new process group
+        if os.fork() > 0:  # Parent exits
+            os._exit(0)
 
         # Signal handling
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
@@ -521,14 +537,16 @@ class WebSockifyServer():
 
         # Close open files
         maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
-        if maxfd == resource.RLIM_INFINITY: maxfd = 256
+        if maxfd == resource.RLIM_INFINITY:
+            maxfd = 256
         for fd in reversed(range(maxfd)):
             try:
                 if fd not in keepfd:
                     os.close(fd)
             except OSError:
                 _, exc, _ = sys.exc_info()
-                if exc.errno != errno.EBADF: raise
+                if exc.errno != errno.EBADF:
+                    raise
 
         # Redirect I/O to /dev/null
         os.dup2(os.open(os.devnull, os.O_RDWR), sys.stdin.fileno())
@@ -557,7 +575,6 @@ class WebSockifyServer():
         # Peek, but do not read the data so that we have a opportunity
         # to SSL wrap the socket first
         handshake = sock.recv(1024, socket.MSG_PEEK)
-        #self.msg("Handshake [%s]" % handshake)
 
         if not handshake:
             raise self.EClose("")
@@ -584,8 +601,8 @@ class WebSockifyServer():
                     else:
                         context.set_default_verify_paths()
                 retsock = context.wrap_socket(
-                        sock,
-                        server_side=True)
+                    sock,
+                    server_side=True)
             except ssl.SSLError:
                 _, x, _ = sys.exc_info()
                 if x.args[0] == ssl.SSL_ERROR_EOF:
@@ -629,17 +646,16 @@ class WebSockifyServer():
         """ Same as msg() but as warning. """
         self.logger.log(logging.WARN, *args, **kwargs)
 
-
     #
     # Events that can/should be overridden in sub-classes
     #
+
     def started(self):
         """ Called after WebSockets startup """
         self.vmsg("WebSockets server started")
 
     def poll(self):
         """ Run periodically while waiting for connections. """
-        #self.vmsg("Running poll()")
         pass
 
     def terminate(self):
@@ -720,9 +736,9 @@ class WebSockifyServer():
         """
 
         try:
-            if self.listen_fd != None:
+            if self.listen_fd is not None:
                 lsock = socket.fromfd(self.listen_fd, socket.AF_INET, socket.SOCK_STREAM)
-            elif self.unix_listen != None:
+            elif self.unix_listen is not None:
                 lsock = self.socket(host=None,
                                     unix_socket=self.unix_listen,
                                     unix_socket_mode=self.unix_listen_mode,
@@ -766,7 +782,7 @@ class WebSockifyServer():
                 try:
                     try:
                         startsock = None
-                        pid = err = 0
+                        err = 0
                         child_count = 0
 
                         # Collect zombie child processes
@@ -775,7 +791,7 @@ class WebSockifyServer():
                         time_elapsed = time.time() - self.launch_time
                         if self.timeout and time_elapsed > self.timeout:
                             self.msg('listener exit due to --timeout %s'
-                                    % self.timeout)
+                                     % self.timeout)
                             break
 
                         if self.idle_timeout:
@@ -788,7 +804,7 @@ class WebSockifyServer():
 
                             if idle_time > self.idle_timeout and child_count == 0:
                                 self.msg('listener exit due to --idle-timeout %s'
-                                            % self.idle_timeout)
+                                         % self.idle_timeout)
                                 break
 
                         try:
@@ -798,8 +814,8 @@ class WebSockifyServer():
                             if lsock in ready:
                                 startsock, address = lsock.accept()
                                 # Unix Socket will not report address (empty string), but address[0] is logged a bunch
-                                if self.unix_listen != None:
-                                    address = [ self.unix_listen ]
+                                if self.unix_listen is not None:
+                                    address = [self.unix_listen]
                             else:
                                 continue
                         except self.Terminate:
@@ -821,15 +837,15 @@ class WebSockifyServer():
                         if self.run_once:
                             # Run in same process if run_once
                             self.top_new_client(startsock, address)
-                            if self.ws_connection :
+                            if self.ws_connection:
                                 self.msg('%s: exiting due to --run-once'
-                                        % address[0])
+                                         % address[0])
                                 break
                         else:
                             self.vmsg('%s: new handler Process' % address[0])
                             p = multiprocessing.Process(
-                                    target=self.top_new_client,
-                                    args=(startsock, address))
+                                target=self.top_new_client,
+                                args=(startsock, address))
                             p.start()
                             # child will not return
 
@@ -864,5 +880,3 @@ class WebSockifyServer():
             # Restore signals
             for sig, func in original_signals.items():
                 signal.signal(sig, func)
-
-

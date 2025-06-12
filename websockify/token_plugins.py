@@ -5,6 +5,11 @@ import time
 import re
 import json
 
+try:
+    import redis
+except ImportError:
+    redis = None
+
 logger = logging.getLogger(__name__)
 
 _SOURCE_SPLIT_REGEX = re.compile(
@@ -52,7 +57,7 @@ class ReadOnlyTokenFile(BasePlugin):
         self._targets = {}
         index = 1
         for f in cfg_files:
-            for line in [l.strip() for l in open(f).readlines()]:
+            for line in [raw_line.strip() for raw_line in open(f).readlines()]:
                 if line and not line.startswith('#'):
                     try:
                         tok, target = re.split(r':\s', line)
@@ -83,6 +88,7 @@ class TokenFile(ReadOnlyTokenFile):
 
         return super().lookup(token)
 
+
 class TokenFileName(BasePlugin):
     # source is a directory
     # token is filename
@@ -91,7 +97,7 @@ class TokenFileName(BasePlugin):
         super().__init__(src)
         if not os.path.isdir(src):
             raise Exception("TokenFileName plugin requires a directory")
-    
+
     def lookup(self, token):
         token = os.path.basename(token)
         path = os.path.join(self.source, token)
@@ -110,8 +116,8 @@ class BaseTokenAPI(BasePlugin):
 
     def process_result(self, resp):
         host, port = resp.text.split(':')
-        port = port.encode('ascii','ignore')
-        return [ host, port ]
+        port = port.encode('ascii', 'ignore')
+        return [host, port]
 
     def lookup(self, token):
         import requests
@@ -153,10 +159,10 @@ class JWTTokenApi(BasePlugin):
 
             try:
                 key.import_from_pem(key_data)
-            except:
+            except Exception:
                 try:
-                    key.import_key(k=key_data.decode('utf-8'),kty='oct')
-                except:
+                    key.import_key(k=key_data.decode('utf-8'), kty='oct')
+                except Exception:
                     logger.error('Failed to correctly parse key data!')
                     return None
 
@@ -252,9 +258,7 @@ class TokenRedis(BasePlugin):
           pip install redis
     """
     def __init__(self, src):
-        try:
-            import redis
-        except ImportError:
+        if redis is None:
             logger.error("Unable to load redis module")
             sys.exit()
         # Default values
@@ -302,7 +306,7 @@ class TokenRedis(BasePlugin):
                 self._namespace += ":"
 
             logger.info("TokenRedis backend initialized (%s:%s)" %
-                  (self._server, self._port))
+                        (self._server, self._port))
         except ValueError:
             logger.error("The provided --token-source='%s' is not in the "
                          "expected format <host>[:<port>[:<db>[:<password>[:<namespace>]]]]" %
@@ -310,9 +314,7 @@ class TokenRedis(BasePlugin):
             sys.exit()
 
     def lookup(self, token):
-        try:
-            import redis
-        except ImportError:
+        if redis is None:
             logger.error("package redis not found, are you sure you've installed them correctly?")
             sys.exit()
 
@@ -368,7 +370,7 @@ class UnixDomainSocketDirectory(BasePlugin):
             if not stat.S_ISSOCK(os.stat(uds_path).st_mode):
                 return None
 
-            return [ 'unix_socket', uds_path ]
+            return ['unix_socket', uds_path]
         except Exception as e:
-                logger.error("Error finding unix domain socket: %s" % str(e))
-                return None
+            logger.error("Error finding unix domain socket: %s" % str(e))
+            return None
