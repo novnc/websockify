@@ -7,6 +7,11 @@ import unittest
 from unittest.mock import patch, MagicMock
 from jwcrypto import jwt, jwk
 
+try:
+    import redis
+except ImportError:
+    redis = None
+
 from websockify.token_plugins import parse_source_args, ReadOnlyTokenFile, JWTTokenApi, TokenRedis
 
 
@@ -206,9 +211,7 @@ class JWSTokenTestCase(unittest.TestCase):
 
 class TokenRedisTestCase(unittest.TestCase):
     def setUp(self):
-        try:
-            import redis
-        except ImportError:
+        if redis is None:
             patcher = patch.dict(sys.modules, {'redis': MagicMock()})
             patcher.start()
             self.addCleanup(patcher.stop)
