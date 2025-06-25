@@ -17,18 +17,12 @@
 """ Unit tests for websockifyserver """
 import errno
 import os
-import logging
-import select
-import shutil
 import socket
 import ssl
-from unittest.mock import patch, MagicMock, ANY
+from unittest.mock import patch
 import sys
 import tempfile
 import unittest
-import socket
-import signal
-from http.server import BaseHTTPRequestHandler
 from io import StringIO
 from io import BytesIO
 
@@ -237,6 +231,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
     def test_do_handshake_no_ssl(self):
         class FakeHandler:
             CALLED = False
+
             def __init__(self, *args, **kwargs):
                 type(self).CALLED = True
 
@@ -292,12 +287,16 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, purpose):
                 self.verify_mode = None
                 self.options = 0
+
             def load_cert_chain(self, certfile, keyfile, password):
                 pass
+
             def set_default_verify_paths(self):
                 pass
+
             def load_verify_locations(self, cafile):
                 pass
+
             def wrap_socket(self, *args, **kwargs):
                 raise ssl.SSLError(ssl.SSL_ERROR_EOF)
 
@@ -314,7 +313,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 pass
 
-        server = self._get_server(handler_class=FakeHandler, daemon=True, 
+        server = self._get_server(handler_class=FakeHandler, daemon=True,
                                   idle_timeout=1, ssl_ciphers=test_ciphers)
         sock = FakeSocket(b"\x16some ssl data")
 
@@ -323,17 +322,23 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
         class fake_create_default_context():
             CIPHERS = ''
+
             def __init__(self, purpose):
                 self.verify_mode = None
                 self.options = 0
+
             def load_cert_chain(self, certfile, keyfile, password):
                 pass
+
             def set_default_verify_paths(self):
                 pass
+
             def load_verify_locations(self, cafile):
                 pass
+
             def wrap_socket(self, *args, **kwargs):
                 pass
+
             def set_ciphers(self, ciphers_to_set):
                 fake_create_default_context.CIPHERS = ciphers_to_set
 
@@ -349,7 +354,7 @@ class WebSockifyServerTestCase(unittest.TestCase):
             def __init__(self, *args, **kwargs):
                 pass
 
-        server = self._get_server(handler_class=FakeHandler, daemon=True, 
+        server = self._get_server(handler_class=FakeHandler, daemon=True,
                                   idle_timeout=1, ssl_options=test_options)
         sock = FakeSocket(b"\x16some ssl data")
 
@@ -358,19 +363,26 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
         class fake_create_default_context:
             OPTIONS = 0
+
             def __init__(self, purpose):
                 self.verify_mode = None
                 self._options = 0
+
             def load_cert_chain(self, certfile, keyfile, password):
                 pass
+
             def set_default_verify_paths(self):
                 pass
+
             def load_verify_locations(self, cafile):
                 pass
+
             def wrap_socket(self, *args, **kwargs):
                 pass
+
             def get_options(self):
                 return self._options
+
             def set_options(self, val):
                 fake_create_default_context.OPTIONS = val
             options = property(get_options, set_options)
@@ -386,7 +398,6 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
     def test_start_server_error(self):
         server = self._get_server(daemon=False, ssl_only=1, idle_timeout=1)
-        sock = server.socket('localhost')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             raise Exception("fake error")
@@ -398,7 +409,6 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
     def test_start_server_keyboardinterrupt(self):
         server = self._get_server(daemon=False, ssl_only=0, idle_timeout=1)
-        sock = server.socket('localhost')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             raise KeyboardInterrupt
@@ -410,7 +420,6 @@ class WebSockifyServerTestCase(unittest.TestCase):
 
     def test_start_server_systemexit(self):
         server = self._get_server(daemon=False, ssl_only=0, idle_timeout=1)
-        sock = server.socket('localhost')
 
         def fake_select(rlist, wlist, xlist, timeout=None):
             sys.exit()

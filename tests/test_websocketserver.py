@@ -66,4 +66,3 @@ class HttpWebSocketTest(unittest.TestCase):
 
         # Then
         req_obj.end_headers.assert_called_once_with()
-
