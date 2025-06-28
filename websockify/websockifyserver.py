@@ -537,6 +537,12 @@ class WebSockifyServer():
         # Close open files
         maxfd = resource.getrlimit(resource.RLIMIT_NOFILE)[1]
         if maxfd == resource.RLIM_INFINITY: maxfd = 256
+        # Since Systemd 256~rc3-3, maxfd could be
+        # *really* big, and therefore, the below code
+        # could take too much resources. This somehow
+        # attemps to limit this.
+        if maxfd > 4096:
+            maxfd = 4096
         for fd in reversed(range(maxfd)):
             try:
                 if fd not in keepfd:
