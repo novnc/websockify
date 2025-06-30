@@ -60,6 +60,37 @@ class ReadOnlyTokenFileTestCase(unittest.TestCase):
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
 
+    def test_dir_with_files(self):
+        mock_file1 = MagicMock()
+        mock_file1.is_file.return_value = True
+        mock_file1.is_dir.return_value = False
+        mock_file1.open.return_value.__enter__.return_value.readlines.return_value = ["testhost1: remote_host1:remote_port1"]
+
+        mock_file2 = MagicMock()
+        mock_file2.is_file.return_value = True
+        mock_file2.is_dir.return_value = False
+        mock_file2.open.return_value.__enter__.return_value.readlines.return_value = ["testhost2: remote_host2:remote_port2"]
+
+        mock_dir = MagicMock()
+        mock_dir.is_dir.return_value = True
+        mock_dir.is_file.return_value = False
+
+        mock_source_dir = MagicMock()
+        mock_source_dir.is_dir.return_value = True
+        mock_source_dir.iterdir.return_value = [mock_file1, mock_file2, mock_dir]
+
+        with patch("websockify.token_plugins.Path") as mock_path:
+            mock_path.return_value = mock_source_dir
+            plugin = ReadOnlyTokenFile('configdir')
+            result1 = plugin.lookup('testhost1')
+            result2 = plugin.lookup('testhost2')
+
+        mock_path.assert_called_once_with('configdir')
+        self.assertIsNotNone(result1)
+        self.assertIsNotNone(result2)
+        self.assertEqual(result1, ["remote_host1", "remote_port1"])
+        self.assertEqual(result2, ["remote_host2", "remote_port2"])
+
     def test_tabs(self):
         mock_source_file = MagicMock()
         mock_source_file.is_dir.return_value = False
