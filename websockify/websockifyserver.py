@@ -112,7 +112,7 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
     def warn(self, msg, *args, **kwargs):
         """ Same as msg() but as warning. """
         prefix = "% 3d: " % self.handler_id
-        self.logger.log(logging.WARN, "%s%s" % (prefix, msg), *args, **kwargs)
+        self.logger.log(logging.WARNING, "%s%s" % (prefix, msg), *args, **kwargs)
 
     #
     # Main WebSocketRequestHandler methods
@@ -642,7 +642,7 @@ class WebSockifyServer():
 
     def warn(self, *args, **kwargs):
         """ Same as msg() but as warning. """
-        self.logger.log(logging.WARN, *args, **kwargs)
+        self.logger.log(logging.WARNING, *args, **kwargs)
 
 
     #
@@ -750,7 +750,7 @@ class WebSockifyServer():
                                     tcp_keepidle=self.tcp_keepidle,
                                     tcp_keepintvl=self.tcp_keepintvl)
         except OSError as e:
-            self.msg("Openening socket failed: %s", str(e))
+            self.msg("Opening socket failed: %s", str(e))
             self.vmsg("exception", exc_info=True)
             sys.exit()
 
