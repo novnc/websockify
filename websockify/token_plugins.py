@@ -45,7 +45,7 @@ class ReadOnlyTokenFile(BasePlugin):
     def _load_targets(self):
         source = Path(self.source)
         if source.is_dir():
-            cfg_files = [file for file in source if file.is_file()]
+            cfg_files = [file for file in source.iterdir() if file.is_file()]
         else:
             cfg_files = [source]
 
