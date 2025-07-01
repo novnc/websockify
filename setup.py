@@ -29,7 +29,7 @@ setup(name=name,
       author="Joel Martin",
       author_email="github@martintribe.org",
 
-      packages=['websockify'],
+      packages=find_packages(),
       include_package_data=True,
       install_requires=[
         'numpy', 'requests',
