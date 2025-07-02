@@ -48,13 +48,15 @@ Traffic Legend:
         if not self.server.token_plugin:
             return
 
-        host, port = self.get_target(self.server.token_plugin)
+        host, port, *rest = self.get_target(self.server.token_plugin)
         if host == 'unix_socket':
             self.server.unix_target = port
 
         else:
             self.server.target_host = host
             self.server.target_port = port
+            if len(rest) > 0: # rest is an array of all remaining parts
+                self.target_attribtues = rest[0]
 
     def auth_connection(self):
         if not self.server.auth_plugin:
@@ -128,6 +130,8 @@ Traffic Legend:
 
         # Start proxying
         try:
+            if self.traffic_plugin: # replace class with instance
+                self.traffic_plugin = self.traffic_plugin(self, tsock)
             self.do_proxy(tsock)
         finally:
             if tsock:
@@ -252,6 +256,9 @@ Traffic Legend:
             if target in outs:
                 # Send queued client data to the target
                 dat = tqueue.pop(0)
+                if self.traffic_plugin:
+                    dat = self.traffic_plugin.from_client(dat)
+                    if not dat: continue
                 sent = target.send(dat)
                 if sent == len(dat):
                     self.print_traffic(">")
@@ -264,6 +271,9 @@ Traffic Legend:
             if target in ins:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
+                if self.traffic_plugin:
+                    buf = self.traffic_plugin.from_target(buf)
+                    if not buf: continue
                 if len(buf) == 0:
 
                     # Target socket closed, flushing queues and closing client-side websocket
@@ -304,6 +314,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         self.token_plugin = kwargs.pop('token_plugin', None)
         self.host_token = kwargs.pop('host_token', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.traffic_plugin = kwargs.pop('traffic_plugin', None)
 
         # Last 3 timestamps command was run
         self.wrap_times    = [0, 0, 0]
@@ -543,6 +554,9 @@ def websockify_init():
     parser.add_option("--auth-plugin", default=None, metavar="CLASS",
                       help="use a Python class, usually one from websockify.auth_plugins, "
                            "such as BasicHTTPAuth, to determine if a connection is allowed")
+    parser.add_option("--traffic-plugin", default=None, metavar="CLASS",
+                      help="use a Python class, usually one from websockify.traffic_plugins, "
+                           "to modify the traffic")
     parser.add_option("--auth-source", default=None, metavar="ARG",
                       help="an argument to be passed to the auth plugin "
                            "on instantiation")
@@ -737,6 +751,17 @@ def websockify_init():
         opts.auth_plugin = auth_plugin_cls(opts.auth_source)
 
     del opts.auth_source
+
+    if opts.traffic_plugin is not None:
+        if '.' not in opts.traffic_plugin:
+            opts.traffic_plugin = 'websockify.traffic_plugins.%s' % opts.traffic_plugin
+
+        traffic_plugin_module, traffic_plugin_cls = opts.traffic_plugin.rsplit('.', 1)
+
+        __import__(traffic_plugin_module)
+        traffic_plugin_cls = getattr(sys.modules[traffic_plugin_module], traffic_plugin_cls)
+
+        opts.traffic_plugin = traffic_plugin_cls
 
     # Create and start the WebSockets proxy
     libserver = opts.libserver
