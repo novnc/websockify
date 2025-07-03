@@ -79,10 +79,21 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
         self.traffic = getattr(server, "traffic", False)
         self.web_auth = getattr(server, "web_auth", False)
         self.host_token = getattr(server, "host_token", False)
+        self.prefix = getattr(server, "prefix", None)
 
         self.logger = getattr(server, "logger", None)
         if self.logger is None:
             self.logger = WebSockifyServer.get_logger()
+
+        if self.prefix:
+            # Ensure that prefix starts with slash
+            if not self.prefix.startswith("/"):
+                self.prefix = "/" + self.prefix
+            # Ensure that prefix does not end in slash
+            while len(self.prefix) > 0 and self.prefix.endswith("/"):
+                self.prefix = self.prefix[:-1]
+            if len(self.prefix) == 0:
+                self.prefix = None
 
         super().__init__(req, addr, server)
 
@@ -245,6 +256,12 @@ class WebSockifyRequestHandler(WebSocketRequestHandlerMixIn, SimpleHTTPRequestHa
             self.send_close(exc.args[0], exc.args[1])
 
     def do_GET(self):
+        if self.prefix:
+            if self.path == self.prefix or self.path.startswith(self.prefix + "/"):
+                self.path = self.path[len(self.prefix):]
+            else:
+                self.send_error(404)
+
         if self.web_auth:
             # ensure connection is authorized, this seems to apply to list_directory() as well
             self.auth_connection()
@@ -336,7 +353,7 @@ class WebSockifyServer():
             listen_host='', listen_port=None, source_is_ipv6=False,
             verbose=False, cert='', key='', key_password=None, ssl_only=None,
             verify_client=False, cafile=None,
-            daemon=False, record='', web='', web_auth=False,
+            daemon=False, record='', web='', prefix=None, web_auth=False,
             file_only=False,
             run_once=False, timeout=0, idle_timeout=0, traffic=False,
             tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
@@ -363,6 +380,7 @@ class WebSockifyServer():
         self.traffic             = traffic
         self.file_only           = file_only
         self.web_auth            = web_auth
+        self.prefix              = prefix
 
         self.launch_time         = time.time()
         self.ws_connection       = False
@@ -415,6 +433,8 @@ class WebSockifyServer():
                 self.msg("  - Web server (no directory listings). Web root: %s", self.web)
             else:
                 self.msg("  - Web server. Web root: %s", self.web)
+            if self.prefix:
+                self.msg("  - URI prefix: %s", self.prefix)
         if ssl:
             if os.path.exists(self.cert):
                 self.msg("  - SSL/TLS support")

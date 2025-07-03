@@ -482,6 +482,8 @@ def websockify_init():
                  "active connections")
     parser.add_option("--cert", default="self.pem",
             help="SSL certificate file")
+    parser.add_option("--prefix", default=None,
+            help="URI prefix")
     parser.add_option("--key", default=None,
             help="SSL key file (if separate from cert)")
     parser.add_option("--key-password", default=None,
@@ -561,7 +563,6 @@ def websockify_init():
                       help="use this to disable directory listings in web server.")
 
     (opts, args) = parser.parse_args()
-
 
     # Validate options.
 
