@@ -10,7 +10,8 @@ Licensed under LGPL version 3 (see docs/LICENSE.LGPL-3)
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
-from websockify.websocket import WebSocket, WebSocketWantReadError, WebSocketWantWriteError
+from websockify.websocket import WebSocket
+
 
 class HttpWebSocket(WebSocket):
     """Class to glue websocket and http request functionality together"""
@@ -93,18 +94,21 @@ class WebSocketRequestHandlerMixIn:
 
     def handle_websocket(self):
         """Handle a WebSocket connection.
-        
+
         This is called when the WebSocket is ready to be used. A
         sub-class should perform the necessary communication here and
         return once done.
         """
         pass
 
+
 # Convenient ready made classes
+
 
 class WebSocketRequestHandler(WebSocketRequestHandlerMixIn,
                               BaseHTTPRequestHandler):
     pass
+
 
 class WebSocketServer(HTTPServer):
     pass

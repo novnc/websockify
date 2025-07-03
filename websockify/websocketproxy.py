@@ -11,14 +11,26 @@ as taken from http://docs.python.org/dev/library/ssl.html#certificates
 
 '''
 
-import signal, socket, optparse, time, os, sys, subprocess, logging, errno, ssl, stat
-from socketserver import ThreadingMixIn
+import errno
 from http.server import HTTPServer
-
+import logging
+import optparse
+import os
 import select
+import signal
+import socket
+from socketserver import ThreadingMixIn
+import ssl
+import stat
+import subprocess
+import sys
+import time
+from urllib.parse import parse_qs
+from urllib.parse import urlparse
+
 from websockify import websockifyserver
 from websockify import auth_plugins as auth
-from urllib.parse import parse_qs, urlparse
+
 
 class ProxyRequestHandler(websockifyserver.WebSockifyRequestHandler):
 
@@ -62,7 +74,7 @@ Traffic Legend:
 
         # clear out any existing SSL_ headers that the client might
         # have maliciously set
-        ssl_headers = [ h for h in self.headers if h.startswith('SSL_') ]
+        ssl_headers = [h for h in self.headers if h.startswith('SSL_')]
         for h in ssl_headers:
             del self.headers[h]
 
@@ -101,7 +113,7 @@ Traffic Legend:
             msg = "connecting to unix socket: %s" % self.server.unix_target
         else:
             msg = "connecting to: %s:%s" % (
-                                    self.server.target_host, self.server.target_port)
+                self.server.target_host, self.server.target_port)
 
         if self.server.ssl_target:
             msg += " (using SSL)"
@@ -109,10 +121,10 @@ Traffic Legend:
 
         try:
             tsock = websockifyserver.WebSockifyServer.socket(self.server.target_host,
-                                                           self.server.target_port,
-                                                           connect=True,
-                                                           use_ssl=self.server.ssl_target,
-                                                           unix_socket=self.server.unix_target)
+                                                             self.server.target_port,
+                                                             connect=True,
+                                                             use_ssl=self.server.ssl_target,
+                                                             unix_socket=self.server.unix_target)
         except Exception as e:
             self.log_message("Failed to connect to %s:%s: %s",
                              self.server.target_host, self.server.target_port, e)
@@ -135,7 +147,7 @@ Traffic Legend:
                 tsock.close()
                 if self.verbose:
                     self.log_message("%s:%s: Closed target",
-                            self.server.target_host, self.server.target_port)
+                                     self.server.target_host, self.server.target_port)
 
     def get_target(self, target_plugin):
         """
@@ -159,7 +171,7 @@ Traffic Legend:
 
         else:
             # Extract the token parameter from url
-            args = parse_qs(urlparse(self.path)[4]) # 4 is the query from url
+            args = parse_qs(urlparse(self.path)[4])  # 4 is the query from url
 
             if 'token' in args and len(args['token']):
                 token = args['token'][0].rstrip('\n')
@@ -200,8 +212,10 @@ Traffic Legend:
                     self.heartbeat = now + self.server.heartbeat
                     self.send_ping()
 
-            if tqueue: wlist.append(target)
-            if cqueue or c_pend: wlist.append(self.request)
+            if tqueue:
+                wlist.append(target)
+            if cqueue or c_pend:
+                wlist.append(self.request)
             try:
                 ins, outs, excepts = select.select(rlist, wlist, [], 1)
             except OSError:
@@ -216,7 +230,8 @@ Traffic Legend:
                 else:
                     continue
 
-            if excepts: raise Exception("Socket exception")
+            if excepts:
+                raise Exception("Socket exception")
 
             if self.request in outs:
                 # Send queued target data to the client
@@ -245,9 +260,8 @@ Traffic Legend:
                     # TODO: What about blocking on client socket?
                     if self.verbose:
                         self.log_message("%s:%s: Client closed connection",
-                                self.server.target_host, self.server.target_port)
+                                         self.server.target_host, self.server.target_port)
                     raise self.CClose(closed['code'], closed['reason'])
-
 
             if target in outs:
                 # Send queued client data to the target
@@ -260,7 +274,6 @@ Traffic Legend:
                     tqueue.insert(0, dat[sent:])
                     self.print_traffic(".>")
 
-
             if target in ins:
                 # Receive target data, encode it and queue for client
                 buf = target.recv(self.buffer_size)
@@ -270,18 +283,19 @@ Traffic Legend:
                     # Send queued target data to the client
                     if len(cqueue) != 0:
                         c_pend = True
-                        while(c_pend):
+                        while (c_pend):
                             c_pend = self.send_frames(cqueue)
 
                         cqueue = []
 
                     if self.verbose:
                         self.log_message("%s:%s: Target closed connection",
-                                self.server.target_host, self.server.target_port)
+                                         self.server.target_host, self.server.target_port)
                     raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
                 self.print_traffic("{")
+
 
 class WebSocketProxy(websockifyserver.WebSockifyServer):
     """
@@ -293,20 +307,20 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
 
     def __init__(self, RequestHandlerClass=ProxyRequestHandler, *args, **kwargs):
         # Save off proxy specific options
-        self.target_host    = kwargs.pop('target_host', None)
-        self.target_port    = kwargs.pop('target_port', None)
-        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode      = kwargs.pop('wrap_mode', None)
-        self.unix_target    = kwargs.pop('unix_target', None)
-        self.ssl_target     = kwargs.pop('ssl_target', None)
-        self.heartbeat      = kwargs.pop('heartbeat', None)
+        self.target_host = kwargs.pop('target_host', None)
+        self.target_port = kwargs.pop('target_port', None)
+        self.wrap_cmd = kwargs.pop('wrap_cmd', None)
+        self.wrap_mode = kwargs.pop('wrap_mode', None)
+        self.unix_target = kwargs.pop('unix_target', None)
+        self.ssl_target = kwargs.pop('ssl_target', None)
+        self.heartbeat = kwargs.pop('heartbeat', None)
 
         self.token_plugin = kwargs.pop('token_plugin', None)
         self.host_token = kwargs.pop('host_token', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
 
         # Last 3 timestamps command was run
-        self.wrap_times    = [0, 0, 0]
+        self.wrap_times = [0, 0, 0]
 
         if self.wrap_cmd:
             wsdir = os.path.dirname(sys.argv[0])
@@ -334,7 +348,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
             sock.close()
 
             # Insert rebinder at the head of the (possibly empty) LD_PRELOAD pathlist
-            ld_preloads = filter(None, [ self.rebinder, os.environ.get("LD_PRELOAD", None) ])
+            ld_preloads = filter(None, [self.rebinder, os.environ.get("LD_PRELOAD", None)])
 
             os.environ.update({
                 "LD_PRELOAD": os.pathsep.join(ld_preloads),
@@ -348,7 +362,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         self.wrap_times.append(time.time())
         self.wrap_times.pop(0)
         self.cmd = subprocess.Popen(
-                self.wrap_cmd, env=os.environ, preexec_fn=_subprocess_setup)
+            self.wrap_cmd, env=os.environ, preexec_fn=_subprocess_setup)
         self.spawn_message = True
 
     def started(self):
@@ -364,7 +378,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         else:
             dst_string = "%s:%s" % (self.target_host, self.target_port)
 
-        if self.listen_fd != None:
+        if self.listen_fd is not None:
             src_string = "inetd"
         else:
             src_string = "%s:%s" % (self.listen_host, self.listen_port)
@@ -389,11 +403,11 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
 
         if self.wrap_cmd and self.cmd:
             ret = self.cmd.poll()
-            if ret != None:
+            if ret is not None:
                 self.vmsg("Wrapped command exited (or daemon). Returned %s" % ret)
                 self.cmd = None
 
-        if self.wrap_cmd and self.cmd == None:
+        if self.wrap_cmd and self.cmd is None:
             # Response to wrapped command being gone
             if self.wrap_mode == "ignore":
                 pass
@@ -401,7 +415,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
                 sys.exit(ret)
             elif self.wrap_mode == "respawn":
                 now = time.time()
-                avg = sum(self.wrap_times)/len(self.wrap_times)
+                avg = sum(self.wrap_times) / len(self.wrap_times)
                 if (now - avg) < 10:
                     # 3 times in the last 10 seconds
                     if self.spawn_message:
@@ -427,6 +441,7 @@ SSL_OPTIONS = {
     ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_2,
 }
 
+
 def select_ssl_version(version):
     """Returns SSL options for the most secure TSL version available on this
     Python version"""
@@ -443,6 +458,7 @@ def select_ssl_version(version):
                        version, fallback)
 
         return SSL_OPTIONS[fallback]
+
 
 def websockify_init():
     # Setup basic logging to stderr.
@@ -465,72 +481,72 @@ def websockify_init():
     usage += " [source_addr:]source_port -- WRAP_COMMAND_LINE"
     parser = optparse.OptionParser(usage=usage)
     parser.add_option("--verbose", "-v", action="store_true",
-            help="verbose messages")
+                      help="verbose messages")
     parser.add_option("--traffic", action="store_true",
-            help="per frame traffic")
+                      help="per frame traffic")
     parser.add_option("--record",
-            help="record sessions to FILE.[session_number]", metavar="FILE")
+                      help="record sessions to FILE.[session_number]", metavar="FILE")
     parser.add_option("--daemon", "-D",
-            dest="daemon", action="store_true",
-            help="become a daemon (background process)")
+                      dest="daemon", action="store_true",
+                      help="become a daemon (background process)")
     parser.add_option("--run-once", action="store_true",
-            help="handle a single WebSocket connection and exit")
+                      help="handle a single WebSocket connection and exit")
     parser.add_option("--timeout", type=int, default=0,
-            help="after TIMEOUT seconds exit when not connected")
+                      help="after TIMEOUT seconds exit when not connected")
     parser.add_option("--idle-timeout", type=int, default=0,
-            help="server exits after TIMEOUT seconds if there are no "
-                 "active connections")
+                      help="server exits after TIMEOUT seconds if there are no "
+                      "active connections")
     parser.add_option("--cert", default="self.pem",
-            help="SSL certificate file")
+                      help="SSL certificate file")
     parser.add_option("--key", default=None,
-            help="SSL key file (if separate from cert)")
+                      help="SSL key file (if separate from cert)")
     parser.add_option("--key-password", default=None,
-            help="SSL key password")
+                      help="SSL key password")
     parser.add_option("--ssl-only", action="store_true",
-            help="disallow non-encrypted client connections")
+                      help="disallow non-encrypted client connections")
     parser.add_option("--ssl-target", action="store_true",
-            help="connect to SSL target as SSL client")
+                      help="connect to SSL target as SSL client")
     parser.add_option("--verify-client", action="store_true",
-            help="require encrypted client to present a valid certificate "
-            "(needs Python 2.7.9 or newer or Python 3.4 or newer)")
+                      help="require encrypted client to present a valid certificate "
+                      "(needs Python 2.7.9 or newer or Python 3.4 or newer)")
     parser.add_option("--cafile", metavar="FILE",
-            help="file of concatenated certificates of authorities trusted "
-            "for validating clients (only effective with --verify-client). "
-            "If omitted, system default list of CAs is used.")
+                      help="file of concatenated certificates of authorities trusted "
+                      "for validating clients (only effective with --verify-client). "
+                      "If omitted, system default list of CAs is used.")
     parser.add_option("--ssl-version", type="choice", default="default",
-            choices=["default", "tlsv1_1", "tlsv1_2", "tlsv1_3"], action="store",
-            help="minimum TLS version to use (default, tlsv1_1, tlsv1_2, tlsv1_3)")
+                      choices=["default", "tlsv1_1", "tlsv1_2", "tlsv1_3"], action="store",
+                      help="minimum TLS version to use (default, tlsv1_1, tlsv1_2, tlsv1_3)")
     parser.add_option("--ssl-ciphers", action="store",
-            help="list of ciphers allowed for connection. For a list of "
-            "supported ciphers run `openssl ciphers`")
+                      help="list of ciphers allowed for connection. For a list of "
+                      "supported ciphers run `openssl ciphers`")
     parser.add_option("--unix-listen",
-            help="listen to unix socket", metavar="FILE", default=None)
+                      help="listen to unix socket", metavar="FILE", default=None)
     parser.add_option("--unix-listen-mode", default=None,
-            help="specify mode for unix socket (defaults to 0600)")
+                      help="specify mode for unix socket (defaults to 0600)")
     parser.add_option("--unix-target",
-            help="connect to unix socket target", metavar="FILE")
+                      help="connect to unix socket target", metavar="FILE")
     parser.add_option("--inetd",
-            help="inetd mode, receive listening socket from stdin", action="store_true")
+                      help="inetd mode, receive listening socket from stdin", action="store_true")
     parser.add_option("--web", default=None, metavar="DIR",
-            help="run webserver on same port. Serve files from DIR.")
+                      help="run webserver on same port. Serve files from DIR.")
     parser.add_option("--web-auth", action="store_true",
-            help="require authentication to access webserver.")
+                      help="require authentication to access webserver.")
     parser.add_option("--wrap-mode", default="exit", metavar="MODE",
-            choices=["exit", "ignore", "respawn"],
-            help="action to take when the wrapped program exits "
-            "or daemonizes: exit (default), ignore, respawn")
+                      choices=["exit", "ignore", "respawn"],
+                      help="action to take when the wrapped program exits "
+                      "or daemonizes: exit (default), ignore, respawn")
     parser.add_option("--prefer-ipv6", "-6",
-            action="store_true", dest="source_is_ipv6",
-            help="prefer IPv6 when resolving source_addr")
+                      action="store_true", dest="source_is_ipv6",
+                      help="prefer IPv6 when resolving source_addr")
     parser.add_option("--libserver", action="store_true",
-            help="use Python library SocketServer engine")
+                      help="use Python library SocketServer engine")
     parser.add_option("--target-config", metavar="FILE",
-            dest="target_cfg",
-            help="Configuration file containing valid targets "
-            "in the form 'token: host:port' or, alternatively, a "
-            "directory containing configuration files of this form "
-            "(DEPRECATED: use `--token-plugin TokenFile --token-source "
-            " path/to/token/file` instead)")
+                      dest="target_cfg",
+                      help="Configuration file containing valid targets "
+                      "in the form 'token: host:port' or, alternatively, a "
+                      "directory containing configuration files of this form "
+                      "(DEPRECATED: use `--token-plugin TokenFile --token-source "
+                      " path/to/token/file` instead)")
     parser.add_option("--token-plugin", default=None, metavar="CLASS",
                       help="use a Python class, usually one from websockify.token_plugins, "
                            "such as TokenFile, to process tokens into host:port pairs")
@@ -547,13 +563,13 @@ def websockify_init():
                       help="an argument to be passed to the auth plugin "
                            "on instantiation")
     parser.add_option("--heartbeat", type=int, default=0, metavar="INTERVAL",
-            help="send a ping to the client every INTERVAL seconds")
+                      help="send a ping to the client every INTERVAL seconds")
     parser.add_option("--log-file", metavar="FILE",
-            dest="log_file",
-            help="File where logs will be saved")
+                      dest="log_file",
+                      help="File where logs will be saved")
     parser.add_option("--syslog", default=None, metavar="SERVER",
-            help="Log to syslog server. SERVER can be local socket, "
-                 "such as /dev/log, or a UDP host:port pair.")
+                      help="Log to syslog server. SERVER can be local socket, "
+                      "such as /dev/log, or a UDP host:port pair.")
     parser.add_option("--legacy-syslog", action="store_true",
                       help="Use the old syslog protocol instead of RFC 5424. "
                            "Use this if the messages produced by websockify seem abnormal.")
@@ -562,9 +578,7 @@ def websockify_init():
 
     (opts, args) = parser.parse_args()
 
-
     # Validate options.
-
     if opts.token_source and not opts.token_plugin:
         parser.error("You must use --token-plugin to use --token-source")
 
@@ -583,10 +597,8 @@ def websockify_init():
     if opts.legacy_syslog and not opts.syslog:
         parser.error("You must use --syslog to use --legacy-syslog")
 
-
     opts.ssl_options = select_ssl_version(opts.ssl_version)
     del opts.ssl_version
-
 
     if opts.log_file:
         # Setup logging to user-specified file.
@@ -638,7 +650,6 @@ def websockify_init():
         root = logging.getLogger()
         root.setLevel(logging.DEBUG)
 
-
     # Transform to absolute path as daemon may chdir
     if opts.target_cfg:
         opts.target_cfg = os.path.abspath(opts.target_cfg)
@@ -655,7 +666,7 @@ def websockify_init():
         opts.wrap_cmd = None
 
     if not websockifyserver.ssl and opts.ssl_target:
-        parser.error("SSL target requested and Python SSL module not loaded.");
+        parser.error("SSL target requested and Python SSL module not loaded.")
 
     if opts.ssl_only and not os.path.exists(opts.cert):
         parser.error("SSL only and %s not found" % opts.cert)
@@ -708,7 +719,7 @@ def websockify_init():
         except ValueError:
             parser.error("Error parsing target port")
 
-    if len(args) > 0 and opts.wrap_cmd == None:
+    if len(args) > 0 and opts.wrap_cmd is None:
         parser.error("Too many arguments")
 
     if opts.token_plugin is not None:
@@ -759,32 +770,32 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
 
     def __init__(self, RequestHandlerClass=ProxyRequestHandler, **kwargs):
         # Save off proxy specific options
-        self.target_host    = kwargs.pop('target_host', None)
-        self.target_port    = kwargs.pop('target_port', None)
-        self.wrap_cmd       = kwargs.pop('wrap_cmd', None)
-        self.wrap_mode      = kwargs.pop('wrap_mode', None)
-        self.unix_target    = kwargs.pop('unix_target', None)
-        self.ssl_target     = kwargs.pop('ssl_target', None)
-        self.token_plugin   = kwargs.pop('token_plugin', None)
-        self.auth_plugin    = kwargs.pop('auth_plugin', None)
-        self.heartbeat      = kwargs.pop('heartbeat', None)
+        self.target_host = kwargs.pop('target_host', None)
+        self.target_port = kwargs.pop('target_port', None)
+        self.wrap_cmd = kwargs.pop('wrap_cmd', None)
+        self.wrap_mode = kwargs.pop('wrap_mode', None)
+        self.unix_target = kwargs.pop('unix_target', None)
+        self.ssl_target = kwargs.pop('ssl_target', None)
+        self.token_plugin = kwargs.pop('token_plugin', None)
+        self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.heartbeat = kwargs.pop('heartbeat', None)
 
         self.token_plugin = None
         self.auth_plugin = None
         self.daemon = False
 
         # Server configuration
-        listen_host    = kwargs.pop('listen_host', '')
-        listen_port    = kwargs.pop('listen_port', None)
-        web            = kwargs.pop('web', '')
+        listen_host = kwargs.pop('listen_host', '')
+        listen_port = kwargs.pop('listen_port', None)
+        web = kwargs.pop('web', '')
 
         # Configuration affecting base request handler
-        self.only_upgrade   = not web
-        self.verbose   = kwargs.pop('verbose', False)
+        self.only_upgrade = not web
+        self.verbose = kwargs.pop('verbose', False)
         record = kwargs.pop('record', '')
         if record:
             self.record = os.path.abspath(record)
-        self.run_once  = kwargs.pop('run_once', False)
+        self.run_once = kwargs.pop('run_once', False)
         self.handler_id = 0
 
         for arg in kwargs.keys():
@@ -794,7 +805,6 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
             os.chdir(web)
 
         super().__init__((listen_host, listen_port), RequestHandlerClass)
-
 
     def process_request(self, request, client_address):
         """Override process_request to implement a counter"""

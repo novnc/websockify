@@ -1,4 +1,7 @@
-import logging.handlers as handlers, socket, os, time
+import logging.handlers as handlers
+import os
+import socket
+import time
 
 
 class WebsockifySysLogHandler(handlers.SysLogHandler):
@@ -13,13 +16,10 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
     _legacy = False
     _timestamp_fmt = '%Y-%m-%dT%H:%M:%SZ'
     _max_hostname = 255
-    _max_ident = 24 #safer for old daemons
+    _max_ident = 24  # safer for old daemons
     _send_length = False
     _tail = '\n'
-
-
     ident = None
-
 
     def __init__(self, address=('localhost', handlers.SYSLOG_UDP_PORT),
                  facility=handlers.SysLogHandler.LOG_USER,
@@ -46,7 +46,6 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
 
         super().__init__(address, facility, socktype)
 
-
     def emit(self, record):
         """
         Emit a record.
@@ -58,13 +57,13 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
         try:
             # Gather info.
             text = self.format(record).replace(self._tail, ' ')
-            if not text: # nothing to log
+            if not text:  # nothing to log
                 return
 
             pri = self.encodePriority(self.facility,
                                       self.mapPriority(record.levelname))
 
-            timestamp = time.strftime(self._timestamp_fmt, time.gmtime());
+            timestamp = time.strftime(self._timestamp_fmt, time.gmtime())
 
             hostname = socket.gethostname()[:self._max_hostname]
 
@@ -73,7 +72,7 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
             else:
                 ident = ''
 
-            pid = os.getpid() # shouldn't need truncation
+            pid = os.getpid()  # shouldn't need truncation
 
             # Format the header.
             head = {
@@ -112,7 +111,5 @@ class WebsockifySysLogHandler(handlers.SysLogHandler):
                 else:
                     self.socket.sendall(msg)
 
-        except (KeyboardInterrupt, SystemExit):
-            raise
-        except:
+        except Exception:
             self.handleError(record)

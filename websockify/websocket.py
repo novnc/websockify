@@ -31,10 +31,14 @@ except ImportError:
     warnings.warn("no 'numpy' module, HyBi protocol will be slower")
     numpy = None
 
+
 class WebSocketWantReadError(ssl.SSLWantReadError):
     pass
+
+
 class WebSocketWantWriteError(ssl.SSLWantWriteError):
     pass
+
 
 class WebSocket:
     """WebSocket protocol socket like class.
@@ -118,7 +122,7 @@ class WebSocket:
         connect() must retain the same arguments.
         """
 
-        self.client = True;
+        self.client = True
 
         uri = urlparse(uri)
 
@@ -206,7 +210,7 @@ class WebSocket:
 
             accept = headers.get('Sec-WebSocket-Accept')
             if accept is None:
-                raise Exception("Missing Sec-WebSocket-Accept header");
+                raise Exception("Missing Sec-WebSocket-Accept header")
 
             expected = sha1((self._key + self.GUID).encode("ascii")).digest()
             expected = b64encode(expected).decode("ascii")
@@ -214,7 +218,7 @@ class WebSocket:
             del self._key
 
             if accept != expected:
-                raise Exception("Invalid Sec-WebSocket-Accept header");
+                raise Exception("Invalid Sec-WebSocket-Accept header")
 
             self.protocol = headers.get('Sec-WebSocket-Protocol')
             if len(protocols) == 0:
@@ -258,7 +262,7 @@ class WebSocket:
 
             ver = headers.get('Sec-WebSocket-Version')
             if ver is None:
-                raise Exception("Missing Sec-WebSocket-Version header");
+                raise Exception("Missing Sec-WebSocket-Version header")
 
             # HyBi-07 report version 7
             # HyBi-08 - HyBi-12 report version 8
@@ -270,7 +274,7 @@ class WebSocket:
 
             key = headers.get('Sec-WebSocket-Key')
             if key is None:
-                raise Exception("Missing Sec-WebSocket-Key header");
+                raise Exception("Missing Sec-WebSocket-Key header")
 
             # Generate the hash value for the accept header
             accept = sha1((key + self.GUID).encode("ascii")).digest()
@@ -753,25 +757,22 @@ class WebSocket:
         # Unmask a frame
         if numpy:
             plen = len(buf)
-            pstart = 0
-            pend = plen
             b = c = b''
             if plen >= 4:
-                dtype=numpy.dtype('<u4')
+                dtype = numpy.dtype('<u4')
                 if sys.byteorder == 'big':
                     dtype = dtype.newbyteorder('>')
                 mask = numpy.frombuffer(mask, dtype, count=1)
                 data = numpy.frombuffer(buf, dtype, count=int(plen / 4))
-                #b = numpy.bitwise_xor(data, mask).data
                 b = numpy.bitwise_xor(data, mask).tobytes()
 
             if plen % 4:
-                dtype=numpy.dtype('B')
+                dtype = numpy.dtype('B')
                 if sys.byteorder == 'big':
                     dtype = dtype.newbyteorder('>')
                 mask = numpy.frombuffer(mask, dtype, count=(plen % 4))
                 data = numpy.frombuffer(buf, dtype,
-                        offset=plen - (plen % 4), count=(plen % 4))
+                                        offset=plen - (plen % 4), count=(plen % 4))
                 c = numpy.bitwise_xor(data, mask).tobytes()
             return b + c
         else:
@@ -825,11 +826,11 @@ class WebSocket:
              'payload'      : decoded_buffer}
         """
 
-        f = {'fin'          : 0,
-             'opcode'       : 0,
-             'masked'       : False,
-             'length'       : 0,
-             'payload'      : None}
+        f = {'fin': 0,
+             'opcode': 0,
+             'masked': False,
+             'length': 0,
+             'payload': None}
 
         blen = len(buf)
         hlen = 2
@@ -867,10 +868,9 @@ class WebSocket:
 
         if f['masked']:
             # unmask payload
-            mask_key = buf[hlen-4:hlen]
-            f['payload'] = self._unmask(buf[hlen:(hlen+length)], mask_key)
+            mask_key = buf[hlen - 4:hlen]
+            f['payload'] = self._unmask(buf[hlen:(hlen + length)], mask_key)
         else:
-            f['payload'] = buf[hlen:(hlen+length)]
+            f['payload'] = buf[hlen:(hlen + length)]
 
         return f
-

@@ -7,7 +7,13 @@ import unittest
 from unittest.mock import patch, MagicMock
 from jwcrypto import jwt, jwk
 
+try:
+    import redis
+except ImportError:
+    redis = None
+
 from websockify.token_plugins import parse_source_args, ReadOnlyTokenFile, JWTTokenApi, TokenRedis
+
 
 class ParseSourceArgumentsTestCase(unittest.TestCase):
     def test_parameterized(self):
@@ -30,6 +36,7 @@ class ParseSourceArgumentsTestCase(unittest.TestCase):
         ]
         for src, args in params:
             self.assertEqual(args, parse_source_args(src))
+
 
 class ReadOnlyTokenFileTestCase(unittest.TestCase):
     def test_empty(self):
@@ -143,7 +150,7 @@ class JWSTokenTestCase(unittest.TestCase):
         key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
-        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200})
         jwt_token.make_signed_token(key)
         mock_time.return_value = 150
 
@@ -160,7 +167,7 @@ class JWSTokenTestCase(unittest.TestCase):
         key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
-        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200})
         jwt_token.make_signed_token(key)
         mock_time.return_value = 50
 
@@ -175,7 +182,7 @@ class JWSTokenTestCase(unittest.TestCase):
         key = jwk.JWK()
         private_key = open("./tests/fixtures/private.pem", "rb").read()
         key.import_from_pem(private_key)
-        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200 })
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port", 'nbf': 100, 'exp': 200})
         jwt_token.make_signed_token(key)
         mock_time.return_value = 250
 
@@ -188,7 +195,7 @@ class JWSTokenTestCase(unittest.TestCase):
 
         secret = open("./tests/fixtures/symmetric.key").read()
         key = jwk.JWK()
-        key.import_key(kty="oct",k=secret)
+        key.import_key(kty="oct", k=secret)
         jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(key)
 
@@ -203,7 +210,7 @@ class JWSTokenTestCase(unittest.TestCase):
 
         secret = open("./tests/fixtures/symmetric.key").read()
         key = jwk.JWK()
-        key.import_key(kty="oct",k=secret)
+        key.import_key(kty="oct", k=secret)
         jwt_token = jwt.JWT({"alg": "HS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(key)
 
@@ -223,7 +230,7 @@ class JWSTokenTestCase(unittest.TestCase):
         jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
         jwt_token.make_signed_token(private_key)
         jwe_token = jwt.JWT(header={"alg": "RSA-OAEP", "enc": "A256CBC-HS512"},
-                    claims=jwt_token.serialize())
+                            claims=jwt_token.serialize())
         jwe_token.make_encrypted_token(public_key)
 
         result = plugin.lookup(jwt_token.serialize())
@@ -232,11 +239,10 @@ class JWSTokenTestCase(unittest.TestCase):
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
 
+
 class TokenRedisTestCase(unittest.TestCase):
     def setUp(self):
-        try:
-            import redis
-        except ImportError:
+        if redis is None:
             patcher = patch.dict(sys.modules, {'redis': MagicMock()})
             patcher.start()
             self.addCleanup(patcher.stop)

@@ -76,6 +76,7 @@ class BasicHTTPAuth():
         raise AuthenticationError(response_code=401,
                                   response_headers={'WWW-Authenticate': 'Basic realm="Websockify"'})
 
+
 class ExpectOrigin():
     def __init__(self, src=None):
         if src is None:
@@ -87,6 +88,7 @@ class ExpectOrigin():
         origin = headers.get('Origin', None)
         if origin is None or origin not in self.source:
             raise InvalidOriginError(expected=self.source, actual=origin)
+
 
 class ClientCertCNAuth():
     """Verifies client by SSL certificate. Specify src as whitespace separated list of common names."""
