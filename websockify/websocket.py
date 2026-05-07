@@ -21,7 +21,7 @@ import socket
 import ssl
 import struct
 from base64 import b64encode
-from hashlib import sha1
+from hashlib import sha256
 from urllib.parse import urlparse
 
 try:
@@ -212,7 +212,7 @@ class WebSocket:
             if accept is None:
                 raise Exception("Missing Sec-WebSocket-Accept header")
 
-            expected = sha1((self._key + self.GUID).encode("ascii")).digest()
+            expected = sha256((self._key + self.GUID).encode("ascii")).digest()
             expected = b64encode(expected).decode("ascii")
 
             del self._key
@@ -277,7 +277,7 @@ class WebSocket:
                 raise Exception("Missing Sec-WebSocket-Key header")
 
             # Generate the hash value for the accept header
-            accept = sha1((key + self.GUID).encode("ascii")).digest()
+            accept = sha256((key + self.GUID).encode("ascii")).digest()
             accept = b64encode(accept).decode("ascii")
 
             self.protocol = ''
