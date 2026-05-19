@@ -87,6 +87,20 @@ class AcceptTestCase(unittest.TestCase):
         self.assertEqual(sock.data[:13], b'HTTP/1.1 101 ')
         self.assertTrue(b'\r\nSec-WebSocket-Protocol: gazonk\r\n' in sock.data)
 
+    def test_protocol_with_space_after_comma(self):
+        class ProtoSocket(websocket.WebSocket):
+            def select_subprotocol(self, protocol):
+                return 'gazonk'
+
+        ws = ProtoSocket()
+        sock = FakeSocket()
+        ws.accept(sock, {'upgrade': 'websocket',
+                         'Sec-WebSocket-Version': '13',
+                         'Sec-WebSocket-Key': 'DKURYVK9cRFul1vOZVA56Q==',
+                         'Sec-WebSocket-Protocol': 'foobar, gazonk'})
+        self.assertEqual(sock.data[:13], b'HTTP/1.1 101 ')
+        self.assertTrue(b'\r\nSec-WebSocket-Protocol: gazonk\r\n' in sock.data)
+
     def test_no_protocol(self):
         ws = websocket.WebSocket()
         sock = FakeSocket()
