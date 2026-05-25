@@ -281,7 +281,9 @@ class WebSocket:
             accept = b64encode(accept).decode("ascii")
 
             self.protocol = ''
-            protocols = headers.get('Sec-WebSocket-Protocol', '').split(',')
+            # Tokens may be separated by ", " so strip whitespace per RFC 7230
+            protocols = [p.strip() for p in
+                         headers.get('Sec-WebSocket-Protocol', '').split(',')]
             if protocols:
                 self.protocol = self.select_subprotocol(protocols)
                 # We are required to choose one of the protocols
