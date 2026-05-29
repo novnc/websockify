@@ -110,6 +110,10 @@ These are not necessary for the basic operation.
   options, where CLASS is usually one from token_plugins.py and ARG is
   the plugin's configuration.
 
+* Traffic plugins: an instance per connection to intercept and modify traffic
+  This functionality is activated with the `--traffic-plugin CLASS`, where
+  CLASS is an implementation of the traffic_plugin BasePlugin.
+
 ### Other implementations of websockify
 
 The primary implementation of websockify is in python. There are
