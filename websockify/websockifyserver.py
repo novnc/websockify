@@ -354,7 +354,9 @@ class WebSockifyServer():
                  run_once=False, timeout=0, idle_timeout=0, traffic=False,
                  tcp_keepalive=True, tcp_keepcnt=None, tcp_keepidle=None,
                  tcp_keepintvl=None, ssl_ciphers=None, ssl_options=0,
-                 unix_listen=None, unix_listen_mode=None):
+                 ssl_minimum_version=None,
+                 unix_listen=None, unix_listen_mode=None,
+                 max_connections=0):
 
         # settings
         self.RequestHandlerClass = RequestHandlerClass
@@ -368,6 +370,7 @@ class WebSockifyServer():
         self.ssl_only = ssl_only
         self.ssl_ciphers = ssl_ciphers
         self.ssl_options = ssl_options
+        self.ssl_minimum_version = ssl_minimum_version
         self.verify_client = verify_client
         self.daemon = daemon
         self.run_once = run_once
@@ -376,6 +379,7 @@ class WebSockifyServer():
         self.traffic = traffic
         self.file_only = file_only
         self.web_auth = web_auth
+        self.max_connections = max_connections
 
         self.launch_time = time.time()
         self.ws_connection = False
@@ -485,13 +489,16 @@ class WebSockifyServer():
 
             if tcp_keepalive:
                 sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
-                if tcp_keepcnt:
+                if tcp_keepcnt and hasattr(socket, 'TCP_KEEPCNT'):
                     sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPCNT,
                                     tcp_keepcnt)
-                if tcp_keepidle:
-                    sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPIDLE,
+                keepidle_opt = getattr(socket, 'TCP_KEEPIDLE', None)
+                if keepidle_opt is None:
+                    keepidle_opt = getattr(socket, 'TCP_KEEPALIVE', None)
+                if tcp_keepidle and keepidle_opt is not None:
+                    sock.setsockopt(socket.SOL_TCP, keepidle_opt,
                                     tcp_keepidle)
-                if tcp_keepintvl:
+                if tcp_keepintvl and hasattr(socket, 'TCP_KEEPINTVL'):
                     sock.setsockopt(socket.SOL_TCP, socket.TCP_KEEPINTVL,
                                     tcp_keepintvl)
 
@@ -606,7 +613,11 @@ class WebSockifyServer():
                 context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 if self.ssl_ciphers is not None:
                     context.set_ciphers(self.ssl_ciphers)
-                context.options = self.ssl_options
+                # Preserve create_default_context() hardening; only add extra flags.
+                if self.ssl_options:
+                    context.options |= self.ssl_options
+                if self.ssl_minimum_version is not None:
+                    context.minimum_version = self.ssl_minimum_version
                 context.load_cert_chain(certfile=self.cert, keyfile=self.key, password=self.key_password)
                 if self.verify_client:
                     context.verify_mode = ssl.CERT_REQUIRED
@@ -829,6 +840,13 @@ class WebSockifyServer():
                                 # Unix Socket will not report address (empty string), but address[0] is logged a bunch
                                 if self.unix_listen is not None:
                                     address = [self.unix_listen]
+                                if (self.max_connections
+                                        and child_count >= self.max_connections):
+                                    self.msg("Connection rejected: max connections (%s) reached",
+                                             self.max_connections)
+                                    startsock.close()
+                                    startsock = None
+                                    continue
                             else:
                                 continue
                         except self.Terminate:

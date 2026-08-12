@@ -10,14 +10,11 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.6
-          - 3.7
-          - 3.8
-          - 3.9
           - "3.10"
-          - 3.11
-          - 3.12
-          - 3.13
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
       fail-fast: false
     steps:
       - uses: actions/checkout@v6
@@ -29,10 +26,6 @@ jobs:
         run: |
           python -m pip install -e .
           python -m pip install -r test-requirements.txt
-      - name: Install old numpy
-        run: |
-          python -m pip install 'numpy<1.17'
-        if: ${{ matrix.python-version >= '3.4' && matrix.python-version < '3.7' }}
       - name: Run tests
         run: |
           python -m nose2 --verbosity=3

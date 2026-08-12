@@ -3,7 +3,10 @@ import sys
 import time
 import re
 import json
+import os
+import base64
 from pathlib import Path
+from urllib.parse import quote
 
 try:
     import redis
@@ -11,6 +14,17 @@ except ImportError:
     redis = None
 
 logger = logging.getLogger(__name__)
+
+# Compact JWS algorithms accepted by JWTTokenApi. Encrypted (JWE) tokens and
+# algorithms such as "none" or RSA1_5 are rejected.
+ALLOWED_JWS_ALGS = frozenset({
+    'RS256', 'RS384', 'RS512',
+    'ES256', 'ES384', 'ES512',
+    'PS256', 'PS384', 'PS512',
+    'HS256', 'HS384', 'HS512',
+})
+
+TOKEN_HTTP_TIMEOUT = 5
 
 _SOURCE_SPLIT_REGEX = re.compile(
     r'(?<=^)"([^"]+)"(?=:|$)'
@@ -29,6 +43,19 @@ def parse_source_args(src):
     """
     matches = _SOURCE_SPLIT_REGEX.findall(src)
     return [m[0] or m[1] or m[2] or m[3] for m in matches]
+
+
+def load_maybe_file(value):
+    """Return value, or the contents of a file if value is '@path'."""
+    if not value or not value.startswith('@'):
+        return value
+    with open(os.path.expanduser(value[1:]), encoding='utf-8') as fh:
+        return fh.read().rstrip('\n')
+
+
+def _b64url_json(segment):
+    padded = segment + '=' * (-len(segment) % 4)
+    return json.loads(base64.urlsafe_b64decode(padded.encode('ascii')))
 
 
 class BasePlugin():
@@ -125,7 +152,8 @@ class BaseTokenAPI(BasePlugin):
     def lookup(self, token):
         import requests
 
-        resp = requests.get(self.source % token)
+        url = self.source.replace('%s', quote(str(token), safe=''), 1)
+        resp = requests.get(url, timeout=TOKEN_HTTP_TIMEOUT)
 
         if resp.ok:
             return self.process_result(resp)
@@ -143,13 +171,16 @@ class JSONTokenApi(BaseTokenAPI):
 
 
 class JWTTokenApi(BasePlugin):
-    # source is a JWT-token, with hostname and port included
-    # Both JWS as JWE tokens are accepted. With regards to JWE tokens, the key is re-used for both validation and decryption.
+    """Resolve a compact JWS token to a host/port pair.
+
+    Encrypted JWE tokens are rejected. The same key is used only to verify
+    signatures (JWS), never to decrypt. Allowed algorithms are listed in
+    ALLOWED_JWS_ALGS.
+    """
 
     def lookup(self, token):
         try:
             from jwcrypto import jwt, jwk
-            import json
 
             key = jwk.JWK()
 
@@ -170,23 +201,35 @@ class JWTTokenApi(BasePlugin):
                     return None
 
             try:
-                token = jwt.JWT(key=key, jwt=token)
-                parsed_header = json.loads(token.header)
+                key['use'] = 'sig'
+            except Exception:
+                pass
 
+            try:
+                parts = str(token).split('.')
+                if len(parts) != 3:
+                    logger.error("Rejected JWT: expected compact JWS with 3 segments")
+                    return None
+
+                parsed_header = _b64url_json(parts[0])
                 if 'enc' in parsed_header:
-                    # Token is encrypted, so we need to decrypt by passing the claims to a new instance
-                    token = jwt.JWT(key=key, jwt=token.claims)
+                    logger.error("Rejected JWT: encrypted (JWE) tokens are not accepted")
+                    return None
 
+                alg = parsed_header.get('alg')
+                if alg not in ALLOWED_JWS_ALGS:
+                    logger.error("Rejected JWT: algorithm not allowed")
+                    return None
+
+                token = jwt.JWT(key=key, jwt=token, algs=list(ALLOWED_JWS_ALGS))
                 parsed = json.loads(token.claims)
 
                 if 'nbf' in parsed:
-                    # Not Before is present, so we need to check it
                     if time.time() < parsed['nbf']:
                         logger.warning('Token can not be used yet!')
                         return None
 
                 if 'exp' in parsed:
-                    # Expiration time is present, so we need to check it
                     if time.time() > parsed['exp']:
                         logger.warning('Token has expired!')
                         return None
@@ -205,9 +248,9 @@ class TokenRedis(BasePlugin):
 
     The token source is in the format:
 
-        host[:port[:db[:password[:namespace]]]]
+        host[:port[:db[:password[:namespace[:ssl]]]]]
 
-    where port, db, password and namespace are optional. If port or db are left empty
+    where port, db, password, namespace and ssl are optional. If port or db are left empty
     they will take its default value, ie. 6379 and 0 respectively.
 
     If your redis server is using the default port (6379) then you can use:
@@ -219,6 +262,11 @@ class TokenRedis(BasePlugin):
 
         my-redis-host:::verysecretpass
 
+    Prefix the password with '@' to read it from a file instead of the command
+    line:
+
+        my-redis-host:::@/run/secrets/redis-password
+
     You can also specify a namespace. In this case, the tokens
     will be stored in the format '{namespace}:{token}'
 
@@ -227,6 +275,10 @@ class TokenRedis(BasePlugin):
     Or if your namespace is nested, you can wrap it in quotes:
 
         my-redis-host::::"first-ns:second-ns"
+
+    Enable TLS to Redis with a sixth field (1/true/ssl/yes):
+
+        my-redis-host:6380:0:@/run/secrets/redis-password::ssl
 
     In the more general case you will use:
 
@@ -269,6 +321,7 @@ class TokenRedis(BasePlugin):
         self._db = 0
         self._password = None
         self._namespace = ""
+        self._ssl = False
         try:
             fields = parse_source_args(src)
             if len(fields) == 1:
@@ -301,10 +354,22 @@ class TokenRedis(BasePlugin):
                     self._password = None
                 if not self._namespace:
                     self._namespace = ""
+            elif len(fields) == 6:
+                self._server, self._port, self._db, self._password, self._namespace, ssl_flag = fields
+                if not self._port:
+                    self._port = 6379
+                if not self._db:
+                    self._db = 0
+                if not self._password:
+                    self._password = None
+                if not self._namespace:
+                    self._namespace = ""
+                self._ssl = ssl_flag.lower() in ('1', 'true', 'ssl', 'yes')
             else:
                 raise ValueError
             self._port = int(self._port)
             self._db = int(self._db)
+            self._password = load_maybe_file(self._password)
             if self._namespace:
                 self._namespace += ":"
 
@@ -312,7 +377,7 @@ class TokenRedis(BasePlugin):
                         (self._server, self._port))
         except ValueError:
             logger.error("The provided --token-source='%s' is not in the "
-                         "expected format <host>[:<port>[:<db>[:<password>[:<namespace>]]]]" %
+                         "expected format <host>[:<port>[:<db>[:<password>[:<namespace>[:<ssl>]]]]]" %
                          src)
             sys.exit()
 
@@ -321,9 +386,10 @@ class TokenRedis(BasePlugin):
             logger.error("package redis not found, are you sure you've installed them correctly?")
             sys.exit()
 
-        logger.info("resolving token '%s'" % token)
+        logger.info("resolving token")
         client = redis.Redis(host=self._server, port=self._port,
-                             db=self._db, password=self._password)
+                             db=self._db, password=self._password,
+                             ssl=self._ssl)
         stuff = client.get(self._namespace + token)
         if stuff is None:
             return None
@@ -360,12 +426,18 @@ class UnixDomainSocketDirectory(BasePlugin):
         try:
             import stat
 
-            if not self._dir_path.is_dir():
+            dir_path = self._dir_path.resolve()
+            if not dir_path.is_dir():
                 return None
 
-            uds_path = (self._dir_path / token).absolute()
+            # Token must be a single path segment (no traversal).
+            if Path(token).name != token or token in ('.', '..', ''):
+                return None
 
-            if not str(uds_path).startswith(str(self._dir_path)):
+            uds_path = (dir_path / token).resolve()
+            try:
+                uds_path.relative_to(dir_path)
+            except ValueError:
                 return None
 
             if not uds_path.exists():

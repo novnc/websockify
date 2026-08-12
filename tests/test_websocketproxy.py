@@ -127,3 +127,44 @@ class ProxyRequestHandlerTestCase(unittest.TestCase):
 
         self.handler.server.target_host = "someotherhost"
         self.handler.auth_connection()
+
+    def test_unknown_token_does_not_include_token(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return None
+
+        with self.assertRaises(FakeServer.EClose) as ctx:
+            self.handler.get_target(TestPlugin(None))
+        self.assertNotIn('blah', str(ctx.exception))
+
+    def test_allowed_targets_blocks_unknown_host(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return ("evil.example", "5900")
+
+        self.handler.server.token_plugin = TestPlugin(None)
+        self.handler.server.allowed_targets = ["good.example"]
+        with self.assertRaises(FakeServer.EClose):
+            self.handler.validate_connection()
+
+    def test_allowed_targets_allows_listed_host(self):
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return ("good.example", "5900")
+
+        self.handler.server.token_plugin = TestPlugin(None)
+        self.handler.server.allowed_targets = ["good.example"]
+        self.handler.validate_connection()
+        self.assertEqual(self.handler.server.target_host, "good.example")
+        self.assertEqual(self.handler.server.target_port, "5900")
+
+    def test_host_token_rejects_slash(self):
+        self.handler.host_token = True
+        self.handler.headers = {'Host': 'evil/name'}
+
+        class TestPlugin(token_plugins.BasePlugin):
+            def lookup(self, token):
+                return ("h", "1")
+
+        with self.assertRaises(FakeServer.EClose):
+            self.handler.get_target(TestPlugin(None))

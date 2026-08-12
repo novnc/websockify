@@ -1,3 +1,15 @@
+import hmac
+import os
+
+
+def load_maybe_file(value):
+    """Return value, or the contents of a file if value is '@path'."""
+    if not value or not value.startswith('@'):
+        return value
+    with open(os.path.expanduser(value[1:]), encoding='utf-8') as fh:
+        return fh.read().rstrip('\n')
+
+
 class BasePlugin():
     def __init__(self, src=None):
         self.source = src
@@ -30,10 +42,14 @@ class InvalidOriginError(AuthenticationError):
 
 
 class BasicHTTPAuth():
-    """Verifies Basic Auth headers. Specify src as username:password"""
+    """Verifies Basic Auth headers. Specify src as username:password.
+
+    Prefix the source with '@' to read the credential string from a file
+    instead of passing it on the command line.
+    """
 
     def __init__(self, src=None):
-        self.src = src
+        self.src = load_maybe_file(src)
 
     def authenticate(self, headers, target_host, target_port):
         import base64
@@ -64,10 +80,11 @@ class BasicHTTPAuth():
             self.demand_auth()
 
     def validate_creds(self, username, password):
-        if '%s:%s' % (username, password) == self.src:
-            return True
-        else:
+        if self.src is None:
             return False
+        offered = '%s:%s' % (username, password)
+        return hmac.compare_digest(offered.encode('utf-8'),
+                                   self.src.encode('utf-8'))
 
     def auth_error(self):
         raise AuthenticationError(response_code=403)
