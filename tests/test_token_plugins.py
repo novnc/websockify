@@ -212,7 +212,7 @@ class JWSTokenTestCase(unittest.TestCase):
 
         self.assertIsNone(result)
 
-    def test_asymmetric_jwe_token_plugin(self):
+    def test_asymmetric_jwe_token_plugin_rejected(self):
         plugin = JWTTokenApi("./tests/fixtures/private.pem")
 
         private_key = jwk.JWK()
@@ -227,11 +227,36 @@ class JWSTokenTestCase(unittest.TestCase):
                             claims=jwt_token.serialize())
         jwe_token.make_encrypted_token(public_key)
 
+        result = plugin.lookup(jwe_token.serialize())
+
+        self.assertIsNone(result)
+
+    def test_asymmetric_jws_still_works_with_private_key(self):
+        plugin = JWTTokenApi("./tests/fixtures/private.pem")
+
+        key = jwk.JWK()
+        private_key = open("./tests/fixtures/private.pem", "rb").read()
+        key.import_from_pem(private_key)
+        jwt_token = jwt.JWT({"alg": "RS256"}, {'host': "remote_host", 'port': "remote_port"})
+        jwt_token.make_signed_token(key)
+
         result = plugin.lookup(jwt_token.serialize())
 
         self.assertIsNotNone(result)
         self.assertEqual(result[0], "remote_host")
         self.assertEqual(result[1], "remote_port")
+
+    def test_jwt_none_algorithm_rejected(self):
+        plugin = JWTTokenApi("./tests/fixtures/symmetric.key")
+        header = '{"alg":"none"}'
+        payload = '{"host":"remote_host","port":"remote_port"}'
+        import base64
+
+        def b64url(data):
+            return base64.urlsafe_b64encode(data.encode()).rstrip(b'=').decode()
+
+        token = '%s.%s.' % (b64url(header), b64url(payload))
+        self.assertIsNone(plugin.lookup(token))
 
 
 class TokenRedisTestCase(unittest.TestCase):
@@ -499,3 +524,30 @@ class TokenRedisTestCase(unittest.TestCase):
         self.assertEqual(plugin._db, 2)
         self.assertEqual(plugin._password, None)
         self.assertEqual(plugin._namespace, "")
+
+    def test_src_with_ssl_flag(self):
+        plugin = TokenRedis('127.0.0.1:6380:0:secret:ns:ssl')
+
+        self.assertEqual(plugin._server, '127.0.0.1')
+        self.assertEqual(plugin._port, 6380)
+        self.assertEqual(plugin._db, 0)
+        self.assertEqual(plugin._password, 'secret')
+        self.assertEqual(plugin._namespace, "ns:")
+        self.assertTrue(plugin._ssl)
+
+    def test_src_ssl_default_false(self):
+        plugin = TokenRedis('127.0.0.1:1234')
+        self.assertFalse(plugin._ssl)
+
+
+class UnixDomainSocketDirectoryTestCase(unittest.TestCase):
+    def test_rejects_path_traversal(self):
+        import tempfile
+        from websockify.token_plugins import UnixDomainSocketDirectory
+
+        with tempfile.TemporaryDirectory() as tmp:
+            plugin = UnixDomainSocketDirectory(tmp)
+            self.assertIsNone(plugin.lookup('../etc/passwd'))
+            self.assertIsNone(plugin.lookup('..'))
+            self.assertIsNone(plugin.lookup('foo/bar'))
+            self.assertIsNone(plugin.lookup('/tmp/foo'))
