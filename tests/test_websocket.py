@@ -214,3 +214,18 @@ class HyBiEncodeDecodeTestCase(unittest.TestCase):
         expected = b'\x81\x05\x48\x65\x6c\x6c\x6f'
 
         self.assertEqual(res, expected)
+
+    def test_decode_rejects_oversized_control_frame(self):
+        payload = b'x' * 126
+        buf = b'\x89\x7e\x00\x7e' + payload
+        ws = websocket.WebSocket()
+        with self.assertRaises(websocket.WebSocketProtocolError) as ctx:
+            ws._decode_hybi(buf)
+        self.assertEqual(ctx.exception.code, 1002)
+
+    def test_decode_rejects_oversized_data_frame(self):
+        ws = websocket.WebSocket(max_frame_size=8)
+        buf = b'\x82\x09' + b'x' * 9
+        with self.assertRaises(websocket.WebSocketProtocolError) as ctx:
+            ws._decode_hybi(buf)
+        self.assertEqual(ctx.exception.code, 1009)

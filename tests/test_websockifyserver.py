@@ -443,10 +443,15 @@ class WebSockifyServerTestCase(unittest.TestCase):
         if hasattr(socket, 'TCP_KEEPCNT'):
             self.assertEqual(sock.getsockopt(socket.SOL_TCP,
                                              socket.TCP_KEEPCNT), keepcnt)
-        self.assertEqual(sock.getsockopt(socket.SOL_TCP,
-                                         socket.TCP_KEEPIDLE), keepidle)
-        self.assertEqual(sock.getsockopt(socket.SOL_TCP,
-                                         socket.TCP_KEEPINTVL), keepintvl)
+        keepidle_opt = getattr(socket, 'TCP_KEEPIDLE', None)
+        if keepidle_opt is None:
+            keepidle_opt = getattr(socket, 'TCP_KEEPALIVE', None)
+        if keepidle_opt is not None:
+            self.assertEqual(sock.getsockopt(socket.SOL_TCP,
+                                             keepidle_opt), keepidle)
+        if hasattr(socket, 'TCP_KEEPINTVL'):
+            self.assertEqual(sock.getsockopt(socket.SOL_TCP,
+                                             socket.TCP_KEEPINTVL), keepintvl)
 
         sock = server.socket('localhost',
                              tcp_keepalive=False,
@@ -457,7 +462,9 @@ class WebSockifyServerTestCase(unittest.TestCase):
         if hasattr(socket, 'TCP_KEEPCNT'):
             self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
                                                 socket.TCP_KEEPCNT), keepcnt)
-        self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
-                                            socket.TCP_KEEPIDLE), keepidle)
-        self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
-                                            socket.TCP_KEEPINTVL), keepintvl)
+        if keepidle_opt is not None:
+            self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
+                                                keepidle_opt), keepidle)
+        if hasattr(socket, 'TCP_KEEPINTVL'):
+            self.assertNotEqual(sock.getsockopt(socket.SOL_TCP,
+                                                socket.TCP_KEEPINTVL), keepintvl)

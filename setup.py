@@ -1,6 +1,6 @@
 from setuptools import setup
 
-version = '0.13.0'
+version = '0.14.0'
 name = 'websockify'
 long_description = open("README.md").read() + "\n" + \
     open("CHANGES.txt").read() + "\n"
@@ -15,16 +15,13 @@ setup(
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
     ],
-    python_requires='>=3.6',
+    python_requires='>=3.10',
     keywords='noVNC websockify',
     license='LGPLv3',
     url="https://github.com/novnc/websockify",
@@ -33,10 +30,10 @@ setup(
     packages=['websockify'],
     include_package_data=True,
     install_requires=[
-        'numpy',
-        'requests',
-        'jwcrypto>=0.9.0',
-        'redis',
+        'numpy>=1.26.0',
+        'requests>=2.32.0',
+        'jwcrypto>=1.5.7',
+        'redis>=5.0.0',
     ],
     zip_safe=False,
     entry_points={

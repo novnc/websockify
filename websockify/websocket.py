@@ -40,6 +40,19 @@ class WebSocketWantWriteError(ssl.SSLWantWriteError):
     pass
 
 
+class WebSocketProtocolError(Exception):
+    """Raised when a frame violates protocol or size limits."""
+
+    def __init__(self, code, reason):
+        super().__init__(reason)
+        self.code = code
+        self.reason = reason
+
+
+MAX_FRAME_SIZE = 16 * 1024 * 1024
+MAX_CONTROL_PAYLOAD = 125
+
+
 class WebSocket:
     """WebSocket protocol socket like class.
 
@@ -72,7 +85,7 @@ class WebSocket:
 
     GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
-    def __init__(self):
+    def __init__(self, max_frame_size=MAX_FRAME_SIZE):
         """Creates an unconnected WebSocket"""
 
         self._state = "new"
@@ -92,6 +105,7 @@ class WebSocket:
         self.close_reason = None
 
         self.socket = None
+        self.max_frame_size = max_frame_size
 
     def __getattr__(self, name):
         # These methods are just redirected to the underlying socket
@@ -603,7 +617,12 @@ class WebSocket:
             return False
 
         while True:
-            frame = self._decode_hybi(self._recv_buffer)
+            try:
+                frame = self._decode_hybi(self._recv_buffer)
+            except WebSocketProtocolError as exc:
+                self.shutdown(socket.SHUT_RDWR, exc.code, exc.reason)
+                self._close()
+                return False
             if frame is None:
                 break
             self._recv_buffer = self._recv_buffer[frame['length']:]
@@ -626,6 +645,10 @@ class WebSocket:
             if frame["opcode"] == 0x0:
                 if not self._partial_msg:
                     self.shutdown(socket.SHUT_RDWR, 1002, "Procotol error: Unexpected continuation frame")
+                    continue
+
+                if len(self._partial_msg) + len(frame["payload"]) > self.max_frame_size:
+                    self.shutdown(socket.SHUT_RDWR, 1009, "Message too big")
                     continue
 
                 self._partial_msg += frame["payload"]
@@ -860,6 +883,13 @@ class WebSocket:
             if blen < hlen:
                 return None
             length, = struct.unpack('>Q', buf[2:10])
+
+        is_control = f['opcode'] in (0x8, 0x9, 0xA)
+        if is_control and length > MAX_CONTROL_PAYLOAD:
+            raise WebSocketProtocolError(
+                1002, "Protocol error: Control frame payload exceeds 125 bytes")
+        if length > self.max_frame_size:
+            raise WebSocketProtocolError(1009, "Message too big")
 
         f['length'] = hlen + length
 

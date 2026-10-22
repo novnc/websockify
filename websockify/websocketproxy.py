@@ -56,11 +56,24 @@ Traffic Legend:
 
         self.end_headers()
 
+    def _target_allowed(self, host, port):
+        allowed = getattr(self.server, 'allowed_targets', None)
+        if not allowed:
+            return True
+        port = str(port)
+        host = str(host)
+        for entry in allowed:
+            if entry == host or entry == '%s:%s' % (host, port):
+                return True
+        return False
+
     def validate_connection(self):
         if not self.server.token_plugin:
             return
 
         host, port = self.get_target(self.server.token_plugin)
+        if not self._target_allowed(host, port):
+            raise self.server.EClose("Target not allowed")
         if host == 'unix_socket':
             self.server.unix_target = port
 
@@ -181,12 +194,16 @@ Traffic Legend:
         if token is None:
             raise self.server.EClose("Token not present")
 
+        if self.host_token:
+            if '/' in token or '\\' in token or any(c.isspace() for c in token):
+                raise self.server.EClose("Invalid Host token")
+
         result_pair = target_plugin.lookup(token)
 
         if result_pair is not None:
             return result_pair
         else:
-            raise self.server.EClose("Token '%s' not found" % token)
+            raise self.server.EClose("Token not found")
 
     def do_proxy(self, target):
         """
@@ -243,6 +260,8 @@ Traffic Legend:
                 # Receive client data, decode it, and queue for target
                 bufs, closed = self.recv_frames()
                 tqueue.extend(bufs)
+                if sum(len(x) for x in tqueue) > MAX_PROXY_QUEUE:
+                    raise self.CClose(1009, "Proxy queue overflow")
 
                 if closed:
 
@@ -294,6 +313,8 @@ Traffic Legend:
                     raise self.CClose(1000, "Target closed")
 
                 cqueue.append(buf)
+                if sum(len(x) for x in cqueue) > MAX_PROXY_QUEUE:
+                    raise self.CClose(1009, "Proxy queue overflow")
                 self.print_traffic("{")
 
 
@@ -318,6 +339,7 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
         self.token_plugin = kwargs.pop('token_plugin', None)
         self.host_token = kwargs.pop('host_token', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.allowed_targets = kwargs.pop('allowed_targets', None)
 
         # Last 3 timestamps command was run
         self.wrap_times = [0, 0, 0]
@@ -425,39 +447,36 @@ class WebSocketProxy(websockifyserver.WebSockifyServer):
                     self.run_wrap_cmd()
 
 
+MAX_PROXY_QUEUE = 64 * 1024 * 1024
+
+
 def _subprocess_setup():
     # Python installs a SIGPIPE handler by default. This is usually not what
     # non-Python successfulbprocesses expect.
     signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 
-SSL_OPTIONS = {
-    'default': ssl.OP_ALL,
-    'tlsv1_1': ssl.PROTOCOL_SSLv23 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-    ssl.OP_NO_TLSv1,
-    'tlsv1_2': ssl.PROTOCOL_SSLv23 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-    ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1,
-    'tlsv1_3': ssl.PROTOCOL_SSLv23 | ssl.OP_NO_SSLv2 | ssl.OP_NO_SSLv3 |
-    ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1 | ssl.OP_NO_TLSv1_2,
+SSL_MINIMUM_VERSIONS = {
+    'default': ssl.TLSVersion.TLSv1_2,
+    'tlsv1_1': ssl.TLSVersion.TLSv1_1,
+    'tlsv1_2': ssl.TLSVersion.TLSv1_2,
+    'tlsv1_3': ssl.TLSVersion.TLSv1_3,
 }
 
 
 def select_ssl_version(version):
-    """Returns SSL options for the most secure TSL version available on this
-    Python version"""
-    if version in SSL_OPTIONS:
-        return SSL_OPTIONS[version]
-    else:
-        # It so happens that version names sorted lexicographically form a list
-        # from the least to the most secure
-        keys = list(SSL_OPTIONS.keys())
-        keys.sort()
-        fallback = keys[-1]
-        logger = logging.getLogger(WebSocketProxy.log_prefix)
-        logger.warning("TLS version %s unsupported. Falling back to %s",
-                       version, fallback)
+    """Return the minimum TLSVersion for --ssl-version.
 
-        return SSL_OPTIONS[fallback]
+    'default' is TLS 1.2. Extra SSLContext.options from create_default_context()
+    are left intact by the handshake code.
+    """
+    if version in SSL_MINIMUM_VERSIONS:
+        return SSL_MINIMUM_VERSIONS[version]
+
+    logger = logging.getLogger(WebSocketProxy.log_prefix)
+    logger.warning("TLS version %s unsupported. Falling back to tlsv1_2",
+                   version)
+    return ssl.TLSVersion.TLSv1_2
 
 
 def websockify_init():
@@ -515,7 +534,8 @@ def websockify_init():
                       "If omitted, system default list of CAs is used.")
     parser.add_option("--ssl-version", type="choice", default="default",
                       choices=["default", "tlsv1_1", "tlsv1_2", "tlsv1_3"], action="store",
-                      help="minimum TLS version to use (default, tlsv1_1, tlsv1_2, tlsv1_3)")
+                      help="minimum TLS version to use (default is tlsv1_2; "
+                           "tlsv1_1, tlsv1_2, tlsv1_3)")
     parser.add_option("--ssl-ciphers", action="store",
                       help="list of ciphers allowed for connection. For a list of "
                       "supported ciphers run `openssl ciphers`")
@@ -561,7 +581,14 @@ def websockify_init():
                            "such as BasicHTTPAuth, to determine if a connection is allowed")
     parser.add_option("--auth-source", default=None, metavar="ARG",
                       help="an argument to be passed to the auth plugin "
-                           "on instantiation")
+                           "on instantiation. Prefix with '@' to read a file "
+                           "(for example BasicHTTPAuth user:pass)")
+    parser.add_option("--allowed-targets", default=None, metavar="LIST",
+                      help="comma-separated host or host:port allowlist for "
+                           "token-resolved backends; if omitted, any target is allowed")
+    parser.add_option("--max-connections", type=int, default=0, metavar="N",
+                      help="reject new clients when N handler processes are "
+                           "already running (0 = unlimited)")
     parser.add_option("--heartbeat", type=int, default=0, metavar="INTERVAL",
                       help="send a ping to the client every INTERVAL seconds")
     parser.add_option("--log-file", metavar="FILE",
@@ -597,7 +624,17 @@ def websockify_init():
     if opts.legacy_syslog and not opts.syslog:
         parser.error("You must use --syslog to use --legacy-syslog")
 
-    opts.ssl_options = select_ssl_version(opts.ssl_version)
+    if opts.allowed_targets:
+        opts.allowed_targets = [
+            item.strip() for item in opts.allowed_targets.split(',') if item.strip()
+        ]
+    else:
+        opts.allowed_targets = None
+
+    if opts.max_connections < 0:
+        parser.error("--max-connections must be >= 0")
+
+    opts.ssl_minimum_version = select_ssl_version(opts.ssl_version)
     del opts.ssl_version
 
     if opts.log_file:
@@ -778,10 +815,11 @@ class LibProxyServer(ThreadingMixIn, HTTPServer):
         self.ssl_target = kwargs.pop('ssl_target', None)
         self.token_plugin = kwargs.pop('token_plugin', None)
         self.auth_plugin = kwargs.pop('auth_plugin', None)
+        self.host_token = kwargs.pop('host_token', None)
+        self.web_auth = kwargs.pop('web_auth', False)
+        self.allowed_targets = kwargs.pop('allowed_targets', None)
         self.heartbeat = kwargs.pop('heartbeat', None)
 
-        self.token_plugin = None
-        self.auth_plugin = None
         self.daemon = False
 
         # Server configuration

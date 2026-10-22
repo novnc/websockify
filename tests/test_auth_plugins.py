@@ -26,3 +26,17 @@ class BasicHTTPAuthTestCase(unittest.TestCase):
     def test_garbage_auth(self):
         headers = {'Authorization': 'Basic xxxxxxxxxxxxxxxxxxxxxxxxxxxx'}
         self.assertRaises(AuthenticationError, self.plugin.authenticate, headers, 'localhost', '1234')
+
+    def test_credentials_from_file(self):
+        import os
+        import tempfile
+
+        fd, path = tempfile.mkstemp()
+        try:
+            os.write(fd, b'Aladdin:open sesame\n')
+            os.close(fd)
+            plugin = BasicHTTPAuth('@' + path)
+            headers = {'Authorization': 'Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ=='}
+            plugin.authenticate(headers, 'localhost', '1234')
+        finally:
+            os.unlink(path)

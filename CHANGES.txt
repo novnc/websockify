@@ -1,6 +1,26 @@
 Changes
 =======
 
+0.14.0
+------
+
+* Security: JWTTokenApi accepts compact JWS only (JWE rejected) with an
+  algorithm allowlist. Related to CVE-2022-3102.
+* Security: TLS handshake no longer overwrites SSLContext.options; default
+  minimum version is TLS 1.2.
+* Security: jwcrypto floor raised to 1.5.7 (CVE-2023-6681, CVE-2024-28102,
+  CVE-2026-39373). numpy, requests, and redis now have minimum versions.
+* Security: Python 3.6–3.9 support dropped (python_requires >= 3.10).
+* Security: WebSocket frame size cap (16 MiB) and RFC 6455 control-frame limit.
+* Security: optional --allowed-targets and --max-connections.
+* Security: BasicHTTPAuth uses hmac.compare_digest; secrets can be read from
+  '@file'. Token values are no longer logged.
+* Security: TokenRedis supports TLS (6th source field) and '@file' passwords.
+* Security: UnixDomainSocketDirectory rejects path traversal.
+* Security: --libserver no longer silently disables token/auth plugins.
+* Docker image uses python:3.13-slim-bookworm and a non-root user.
+* Dependabot, pip-audit CI, and SECURITY.md added.
+
 0.13.0
 ------
 

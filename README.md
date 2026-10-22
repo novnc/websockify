@@ -67,6 +67,8 @@ If you have a commercial/valid SSL certificate with one or more intermediate
 certificates, concat them into one file, server certificate first, then the
 intermediate(s) from the CA, etc. Point to this file with the `--cert` option
 and then also to the key with `--key`. Finally, use `--ssl-only` as needed.
+The default minimum TLS version is 1.2 (`--ssl-version default`). Use
+`--ssl-version tlsv1_3` to require TLS 1.3.
 
 
 ### Additional websockify features
@@ -108,7 +110,9 @@ These are not necessary for the basic operation.
   reach websockify, if you use `--host-token`. This functionality is
   activated with the `--token-plugin CLASS` and `--token-source ARG`
   options, where CLASS is usually one from token_plugins.py and ARG is
-  the plugin's configuration.
+  the plugin's configuration. `JWTTokenApi` accepts compact JWS tokens
+  only (not JWE). Use `--allowed-targets` to restrict which backends a
+  token may select.
 
 ### Other implementations of websockify
 
