@@ -26,7 +26,9 @@
 #include <dlfcn.h>
 
 #include <string.h>
+#include <arpa/inet.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 
 
 #if defined(DO_DEBUG)
@@ -37,25 +39,36 @@
 #define DEBUG(...)
 #endif
 
-
 int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 {
-    static void * (*func)(int, const struct sockaddr *, socklen_t);
+    static int (*func)(int, const struct sockaddr *, socklen_t);
     int do_move = 0;
-    struct sockaddr_in * addr_in = (struct sockaddr_in *)addr;
-    struct sockaddr_in addr_tmp;
+    struct sockaddr_storage addr_tmp;
     socklen_t addrlen_tmp;
     char * PORT_OLD, * PORT_NEW, * end1, * end2;
-    int ret, oldport, newport, askport = htons(addr_in->sin_port);
-    uint32_t askaddr = htons(addr_in->sin_addr.s_addr);
-    if (!func) func = (void *(*)(int, const struct sockaddr *, socklen_t)) dlsym(RTLD_NEXT, "bind");
+    int ret, oldport = 0, newport = 0, askport = 0;
+    char addr_str[INET6_ADDRSTRLEN] = "";
+    int family = addr ? addr->sa_family : AF_UNSPEC;
 
-    DEBUG(">> bind(%d, _, %d), askaddr %d, askport %d\n",
-          sockfd, addrlen, askaddr, askport);
+    if (!func) {
+        func = (int (*)(int, const struct sockaddr *, socklen_t)) dlsym(RTLD_NEXT, "bind");
+    }
+
+    if (family == AF_INET) {
+        const struct sockaddr_in *addr_in = (const struct sockaddr_in *)addr;
+        askport = ntohs(addr_in->sin_port);
+        inet_ntop(AF_INET, &addr_in->sin_addr, addr_str, sizeof(addr_str));
+    } else {
+        const struct sockaddr_in6 *addr_in6 = (const struct sockaddr_in6 *)addr;
+        askport = ntohs(addr_in6->sin6_port);
+        inet_ntop(AF_INET6, &addr_in6->sin6_addr, addr_str, sizeof(addr_str));
+    }
+
+    DEBUG(">> bind(%d, family %d, len %d), askaddr %s, askport %d\n",
+          sockfd, family, addrlen, addr_str, askport);
 
     /* Determine if we should move this socket */
-    if (addr_in->sin_family == AF_INET) {
-        // TODO: support IPv6
+    if (family == AF_INET || family == AF_INET6) {
         PORT_OLD = getenv("REBIND_OLD_PORT");
         PORT_NEW = getenv("REBIND_NEW_PORT");
         if (PORT_OLD && (*PORT_OLD != '\0') &&
@@ -72,22 +85,38 @@ int bind(int sockfd, const struct sockaddr *addr, socklen_t addrlen)
 
     if (! do_move) {
         /* Just pass everything right through to the real bind */
-        ret = (long) func(sockfd, addr, addrlen);
+        ret = func(sockfd, addr, addrlen);
         DEBUG("<< bind(%d, _, %d) ret %d\n", sockfd, addrlen, ret);
         return ret;
     }
 
-    DEBUG("binding fd %d on localhost:%d instead of 0x%x:%d\n",
-        sockfd, newport, ntohl(addr_in->sin_addr.s_addr), oldport);
+    DEBUG("binding fd %d on localhost:%d instead of %s:%d\n",
+        sockfd, newport, addr_str[0] ? addr_str : "<unknown>", oldport);
 
     /* Use a temporary location for the new address information */
-    addrlen_tmp = sizeof(addr_tmp);
+    addrlen_tmp = addrlen;
+    if (addrlen_tmp > sizeof(addr_tmp)) {
+        addrlen_tmp = sizeof(addr_tmp);
+    }
     memcpy(&addr_tmp, addr, addrlen_tmp);
 
     /* Bind to other port on the loopback instead */
-    addr_tmp.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-    addr_tmp.sin_port = htons(newport);
-    ret = (long) func(sockfd, (const struct sockaddr *)&addr_tmp, addrlen_tmp);
+    if (family == AF_INET) {
+        struct sockaddr_in *addr_in_tmp = (struct sockaddr_in *)&addr_tmp;
+        addr_in_tmp->sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+        addr_in_tmp->sin_port = htons(newport);
+    } else {
+        struct sockaddr_in6 *addr_in6_tmp = (struct sockaddr_in6 *)&addr_tmp;
+        static const struct in6_addr v4_loopback_mapped = { // ::ffff:127.0.0.1
+            .s6_addr = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff, 127, 0, 0, 1}
+        };
+        int v6_only = 0;
+        (void)setsockopt(sockfd, IPPROTO_IPV6, IPV6_V6ONLY, &v6_only, sizeof(v6_only));
+        addr_in6_tmp->sin6_addr = v4_loopback_mapped;
+        addr_in6_tmp->sin6_port = htons(newport);
+        addr_in6_tmp->sin6_scope_id = 0;
+    }
+    ret = func(sockfd, (const struct sockaddr *)&addr_tmp, addrlen_tmp);
 
     DEBUG("<< bind(%d, _, %d) ret %d\n", sockfd, addrlen, ret);
     return ret;
